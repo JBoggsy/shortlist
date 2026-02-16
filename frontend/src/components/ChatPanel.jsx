@@ -7,9 +7,12 @@ import {
   fetchConversation,
   deleteConversation,
   streamMessage,
+  createOnboardingConversation,
+  kickOnboarding,
+  streamOnboardingMessage,
 } from "../api";
 
-function ChatPanel({ isOpen, onClose }) {
+function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }) {
   const [conversations, setConversations] = useState([]);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -18,11 +21,103 @@ function ChatPanel({ isOpen, onClose }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Auto-resize textarea to fit content (up to ~8 lines)
+  const autoResize = (el) => {
+    if (!el) return;
+    el.style.height = "auto";
+    const lineHeight = 24;
+    const maxHeight = lineHeight * 8;
+    el.style.height = Math.min(el.scrollHeight, maxHeight) + "px";
+  };
+
   useEffect(() => {
-    if (isOpen) {
+    autoResize(inputRef.current);
+  }, [input]);
+
+  useEffect(() => {
+    if (isOpen && !onboarding) {
       loadConversations();
     }
   }, [isOpen]);
+
+  // Onboarding auto-start: create conversation and kick the agent
+  useEffect(() => {
+    let cancelled = false;
+
+    if (isOpen && onboarding && !currentConversation) {
+      (async () => {
+        try {
+          const convo = await createOnboardingConversation();
+          if (cancelled) return;
+          setCurrentConversation(convo);
+          setMessages([{ role: "assistant", content: "", segments: [] }]);
+          setIsStreaming(true);
+
+          let fullText = "";
+          let segments = [];
+          let currentTextIdx = -1;
+          let onboardingDone = false;
+
+          function pushUpdate() {
+            if (cancelled) return;
+            const snapshotSegments = segments.map((s) => ({ ...s }));
+            setMessages([
+              { role: "assistant", content: fullText, segments: snapshotSegments },
+            ]);
+          }
+
+          await kickOnboarding(convo.id, (event) => {
+            if (cancelled) return;
+            if (event.event === "error") {
+              if (!fullText) {
+                fullText = `Error: ${event.data.message}`;
+                segments.push({ type: "text", content: fullText });
+              }
+              pushUpdate();
+            } else if (event.event === "text_delta") {
+              fullText += event.data.content;
+              if (currentTextIdx >= 0 && segments[currentTextIdx].type === "text") {
+                segments[currentTextIdx].content += event.data.content;
+              } else {
+                currentTextIdx = segments.length;
+                segments.push({ type: "text", content: event.data.content });
+              }
+              pushUpdate();
+            } else if (event.event === "tool_start") {
+              currentTextIdx = -1;
+              segments.push({ type: "tool", id: event.data.id, name: event.data.name, status: "running" });
+              pushUpdate();
+            } else if (event.event === "tool_result") {
+              const idx = segments.findIndex((s) => s.type === "tool" && s.id === event.data.id);
+              if (idx >= 0) segments[idx] = { ...segments[idx], status: "completed" };
+              pushUpdate();
+            } else if (event.event === "tool_error") {
+              const idx = segments.findIndex((s) => s.type === "tool" && s.id === event.data.id);
+              if (idx >= 0) segments[idx] = { ...segments[idx], status: "error", error: event.data.error };
+              pushUpdate();
+            } else if (event.event === "onboarding_complete") {
+              onboardingDone = true;
+            } else if (event.event === "done") {
+              pushUpdate();
+            }
+          });
+
+          if (cancelled) return;
+          setIsStreaming(false);
+          if (onboardingDone && onOnboardingComplete) {
+            onOnboardingComplete();
+          }
+        } catch (e) {
+          console.error("Failed to start onboarding:", e);
+          if (!cancelled) setIsStreaming(false);
+        }
+      })();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, onboarding]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -83,7 +178,9 @@ function ChatPanel({ isOpen, onClose }) {
 
     let convo = currentConversation;
     if (!convo) {
-      convo = await createConversation();
+      convo = onboarding
+        ? await createOnboardingConversation()
+        : await createConversation();
       setCurrentConversation(convo);
     }
 
@@ -100,6 +197,7 @@ function ChatPanel({ isOpen, onClose }) {
     let fullText = "";
     let segments = [];
     let currentTextIdx = -1;
+    let onboardingDone = false;
 
     function pushUpdate() {
       const snapshotSegments = segments.map((s) => ({ ...s }));
@@ -114,8 +212,10 @@ function ChatPanel({ isOpen, onClose }) {
       });
     }
 
+    const streamer = onboarding ? streamOnboardingMessage : streamMessage;
+
     try {
-      await streamMessage(convo.id, userMessage.content, (event) => {
+      await streamer(convo.id, userMessage.content, (event) => {
         if (event.event === "text_delta") {
           fullText += event.data.content;
           // Append to current text segment, or create a new one
@@ -150,6 +250,8 @@ function ChatPanel({ isOpen, onClose }) {
           pushUpdate();
         } else if (event.event === "done") {
           pushUpdate();
+        } else if (event.event === "onboarding_complete") {
+          onboardingDone = true;
         } else if (event.event === "error") {
           if (!fullText) {
             fullText = `Error: ${event.data.message}`;
@@ -168,6 +270,10 @@ function ChatPanel({ isOpen, onClose }) {
     }
 
     setIsStreaming(false);
+    if (onboardingDone && onOnboardingComplete) {
+      onOnboardingComplete();
+      return;
+    }
     await loadConversations();
     setCurrentConversation((prev) => (prev ? { ...prev, title: input.trim().slice(0, 100) } : prev));
   }
@@ -183,23 +289,29 @@ function ChatPanel({ isOpen, onClose }) {
       <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl z-50 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-          <h2 className="font-semibold text-gray-900">AI Assistant</h2>
+          <h2 className="font-semibold text-gray-900">
+            {onboarding ? "Welcome! Let\u2019s set up your profile" : "AI Assistant"}
+          </h2>
           <div className="flex gap-2">
-            <button
-              onClick={handleNewChat}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              New Chat
-            </button>
-            <button
-              onClick={() => {
-                setCurrentConversation(null);
-                setMessages([]);
-              }}
-              className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-            >
-              History
-            </button>
+            {!onboarding && (
+              <>
+                <button
+                  onClick={handleNewChat}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  New Chat
+                </button>
+                <button
+                  onClick={() => {
+                    setCurrentConversation(null);
+                    setMessages([]);
+                  }}
+                  className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                >
+                  History
+                </button>
+              </>
+            )}
             <button
               onClick={onClose}
               className="p-1 text-gray-500 hover:text-gray-700"
@@ -212,7 +324,7 @@ function ChatPanel({ isOpen, onClose }) {
         </div>
 
         {/* Content */}
-        {!currentConversation ? (
+        {!currentConversation && !onboarding ? (
           /* Conversation list */
           <div className="flex-1 overflow-y-auto p-4">
             {conversations.length === 0 ? (
@@ -317,16 +429,22 @@ function ChatPanel({ isOpen, onClose }) {
 
             {/* Input */}
             <div className="border-t p-4">
-              <div className="flex gap-2">
-                <input
+              <div className="flex gap-2 items-end">
+                <textarea
                   ref={inputRef}
-                  type="text"
+                  rows={1}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  placeholder="Ask about jobs..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  placeholder={onboarding ? "Tell me about yourself..." : "Ask about jobs..."}
                   disabled={isStreaming}
-                  className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none leading-6"
+                  style={{ maxHeight: "12rem" }}
                 />
                 <button
                   onClick={handleSend}

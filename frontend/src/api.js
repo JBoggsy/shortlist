@@ -1,5 +1,6 @@
 const BASE = "/api/jobs";
 const CHAT_BASE = "/api/chat";
+const PROFILE_BASE = "/api/profile";
 
 export async function fetchJobs() {
   const res = await fetch(BASE);
@@ -74,7 +75,10 @@ export async function streamMessage(conversationId, content, onEvent) {
   );
 
   if (!res.ok) throw new Error("Failed to send message");
+  return _readSSE(res, onEvent);
+}
 
+async function _readSSE(res, onEvent) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -102,4 +106,62 @@ export async function streamMessage(conversationId, content, onEvent) {
       }
     }
   }
+}
+
+// Profile API
+
+export async function fetchProfile() {
+  const res = await fetch(PROFILE_BASE);
+  if (!res.ok) throw new Error("Failed to fetch profile");
+  return res.json();
+}
+
+export async function updateProfile(content) {
+  const res = await fetch(PROFILE_BASE, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error("Failed to update profile");
+  return res.json();
+}
+
+// Onboarding API
+
+export async function fetchOnboardingStatus() {
+  const res = await fetch(`${PROFILE_BASE}/onboarding-status`);
+  if (!res.ok) throw new Error("Failed to fetch onboarding status");
+  return res.json();
+}
+
+export async function createOnboardingConversation() {
+  const res = await fetch(`${CHAT_BASE}/onboarding/conversations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("Failed to create onboarding conversation");
+  return res.json();
+}
+
+export async function kickOnboarding(conversationId, onEvent) {
+  const res = await fetch(`${CHAT_BASE}/onboarding/kick`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ conversation_id: conversationId }),
+  });
+  if (!res.ok) throw new Error("Failed to kick onboarding");
+  return _readSSE(res, onEvent);
+}
+
+export async function streamOnboardingMessage(conversationId, content, onEvent) {
+  const res = await fetch(
+    `${CHAT_BASE}/onboarding/conversations/${conversationId}/messages`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to send onboarding message");
+  return _readSSE(res, onEvent);
 }

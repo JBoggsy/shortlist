@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 
 from backend.database import db
 from backend.models.job import Job
+from backend.agent.user_profile import read_profile, write_profile
 
 TOOL_DEFINITIONS = [
     {
@@ -74,6 +75,28 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "read_user_profile",
+        "description": "Read the user's profile document. This markdown document contains information about the user including their education, work experience, skills, interests, salary preferences, location preferences, and job search goals. Reference this when evaluating job fit.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "update_user_profile",
+        "description": "Update the user's profile document. Use this when the user shares information about themselves that is relevant to their job search — education, work experience, skills, interests, salary preferences, location preferences, career goals, etc. Always read the current profile first, then merge new information into the existing content. Preserve all existing information unless the user explicitly corrects it.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "The full updated markdown content for the user profile. Must include ALL existing information plus any new details.",
+                },
+            },
+            "required": ["content"],
+        },
+    },
+    {
         "name": "list_jobs",
         "description": "List and search jobs currently tracked in the application database. Use this to check what jobs are already saved, filter by status, or look up a specific company/title/URL before adding duplicates.",
         "parameters": {
@@ -116,6 +139,8 @@ class AgentTools:
             "scrape_url": self._scrape_url,
             "create_job": self._create_job,
             "list_jobs": self._list_jobs,
+            "read_user_profile": self._read_user_profile,
+            "update_user_profile": self._update_user_profile,
         }
         fn = methods.get(tool_name)
         if not fn:
@@ -196,3 +221,11 @@ class AgentTools:
             query = query.filter(Job.url.ilike(f"%{url}%"))
         jobs = query.order_by(Job.created_at.desc()).limit(limit).all()
         return {"jobs": [j.to_dict() for j in jobs], "total": len(jobs)}
+
+    def _read_user_profile(self):
+        content = read_profile()
+        return {"content": content}
+
+    def _update_user_profile(self, content):
+        write_profile(content)
+        return {"status": "updated", "content": content}

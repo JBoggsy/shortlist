@@ -12,3 +12,8 @@ class Config:
     LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
     LLM_MODEL = os.environ.get("LLM_MODEL", "")
     SEARCH_API_KEY = os.environ.get("SEARCH_API_KEY", "")
+
+    # Onboarding LLM — defaults to the main LLM provider when not set
+    ONBOARDING_LLM_PROVIDER = os.environ.get("ONBOARDING_LLM_PROVIDER", "")
+    ONBOARDING_LLM_API_KEY = os.environ.get("ONBOARDING_LLM_API_KEY", "")
+    ONBOARDING_LLM_MODEL = os.environ.get("ONBOARDING_LLM_MODEL", "")

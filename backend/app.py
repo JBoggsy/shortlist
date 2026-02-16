@@ -5,6 +5,7 @@ from backend.config import Config
 from backend.database import db
 from backend.routes.jobs import jobs_bp
 from backend.routes.chat import chat_bp
+from backend.routes.profile import profile_bp
 
 
 def create_app(config_class=Config):
@@ -19,5 +20,6 @@ def create_app(config_class=Config):
 
     app.register_blueprint(jobs_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(profile_bp)
 
     return app
