@@ -75,10 +75,27 @@ TOOL_DEFINITIONS = [
     },
     {
         "name": "list_jobs",
-        "description": "List jobs currently tracked in the application database.",
+        "description": "List and search jobs currently tracked in the application database. Use this to check what jobs are already saved, filter by status, or look up a specific company/title/URL before adding duplicates.",
         "parameters": {
             "type": "object",
             "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["saved", "applied", "interviewing", "offer", "rejected"],
+                    "description": "Filter by application status",
+                },
+                "company": {
+                    "type": "string",
+                    "description": "Filter by company name (case-insensitive partial match)",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Filter by job title (case-insensitive partial match)",
+                },
+                "url": {
+                    "type": "string",
+                    "description": "Filter by job posting URL (exact or partial match)",
+                },
                 "limit": {
                     "type": "integer",
                     "description": "Max number of jobs to return (default 20)",
@@ -167,6 +184,15 @@ class AgentTools:
         db.session.commit()
         return job.to_dict()
 
-    def _list_jobs(self, limit=20):
-        jobs = Job.query.order_by(Job.created_at.desc()).limit(limit).all()
-        return {"jobs": [j.to_dict() for j in jobs]}
+    def _list_jobs(self, limit=20, status=None, company=None, title=None, url=None):
+        query = Job.query
+        if status:
+            query = query.filter(Job.status == status)
+        if company:
+            query = query.filter(Job.company.ilike(f"%{company}%"))
+        if title:
+            query = query.filter(Job.title.ilike(f"%{title}%"))
+        if url:
+            query = query.filter(Job.url.ilike(f"%{url}%"))
+        jobs = query.order_by(Job.created_at.desc()).limit(limit).all()
+        return {"jobs": [j.to_dict() for j in jobs], "total": len(jobs)}
