@@ -42,18 +42,21 @@ Job application helper — a web app to track and manage job applications. Users
 - `backend/llm/gemini_provider.py` — Google Gemini provider
 - `backend/llm/ollama_provider.py` — Ollama local model provider
 - `backend/llm/factory.py` — `create_provider()` factory function
-- `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (search_jobs, scrape_url, create_job, list_jobs)
-- `backend/agent/agent.py` — `Agent` class with iterative tool-calling loop
+- `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (search_jobs, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile)
+- `backend/agent/agent.py` — `Agent` class with iterative tool-calling loop; `OnboardingAgent` for user profile interview; injects user profile into system prompt
+- `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag), read/write/onboarding helpers
+- `backend/routes/profile.py` — Profile blueprint (`profile_bp` at `/api/profile`)
 
 ### Frontend
 - `frontend/vite.config.js` — Vite config (React plugin, Tailwind CSS plugin, API proxy)
 - `frontend/src/main.jsx` — React entry point
 - `frontend/src/index.css` — Tailwind CSS base import
-- `frontend/src/App.jsx` — App shell with header and layout
-- `frontend/src/api.js` — API helper (`fetchJobs`, `createJob`, `updateJob`, `deleteJob`, chat functions, `streamMessage`)
+- `frontend/src/App.jsx` — App shell with header, layout, and onboarding auto-start
+- `frontend/src/api.js` — API helper (`fetchJobs`, `createJob`, `updateJob`, `deleteJob`, chat functions, `streamMessage`, `fetchProfile`, `updateProfile`, onboarding functions)
 - `frontend/src/pages/JobList.jsx` — Main dashboard: job table with status badges, add/edit/delete
 - `frontend/src/components/JobForm.jsx` — Reusable form for creating and editing jobs
 - `frontend/src/components/ChatPanel.jsx` — Slide-out AI assistant chat panel with SSE streaming
+- `frontend/src/components/ProfilePanel.jsx` — Slide-out user profile viewer/editor panel
 
 ## API Endpoints
 
@@ -69,6 +72,13 @@ Job application helper — a web app to track and manage job applications. Users
 | GET | `/api/chat/conversations/:id` | Get conversation with messages |
 | DELETE | `/api/chat/conversations/:id` | Delete conversation |
 | POST | `/api/chat/conversations/:id/messages` | Send message, returns SSE stream |
+| GET | `/api/profile` | Get user profile markdown content |
+| PUT | `/api/profile` | Update user profile markdown content |
+| GET | `/api/profile/onboarding-status` | Check if user has been onboarded |
+| POST | `/api/profile/onboarding-status` | Set onboarding status |
+| POST | `/api/chat/onboarding/conversations` | Create onboarding conversation |
+| POST | `/api/chat/onboarding/conversations/:id/messages` | Send onboarding message, returns SSE stream |
+| POST | `/api/chat/onboarding/kick` | Start onboarding (agent greeting), returns SSE stream |
 
 Job statuses: `saved`, `applied`, `interviewing`, `offer`, `rejected`
 Remote types: `onsite`, `hybrid`, `remote` (or `null`)
@@ -81,12 +91,18 @@ Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string)
 - `LLM_MODEL` — optional model override (each provider has a sensible default)
 - `SEARCH_API_KEY` — Tavily API key for web search tool
 
+### Onboarding LLM Configuration (env vars)
+- `ONBOARDING_LLM_PROVIDER` — optional, defaults to `LLM_PROVIDER`
+- `ONBOARDING_LLM_API_KEY` — optional, defaults to `LLM_API_KEY`
+- `ONBOARDING_LLM_MODEL` — optional, defaults to `LLM_MODEL` (use a cheaper model to save costs)
+
 ### SSE Event Types (chat streaming)
 - `text_delta` — `{"content": "..."}` — incremental text from the LLM
 - `tool_start` — `{"id": "...", "name": "...", "arguments": {...}}` — tool execution starting
 - `tool_result` — `{"id": "...", "name": "...", "result": {...}}` — tool completed successfully
 - `tool_error` — `{"id": "...", "name": "...", "error": "..."}` — tool execution failed
 - `done` — `{"content": "full text"}` — agent finished
+- `onboarding_complete` — `{}` — onboarding interview finished (only in onboarding flow)
 - `error` — `{"message": "..."}` — fatal error
 
 ## Conventions
@@ -94,6 +110,13 @@ Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string)
 - Backend API routes are prefixed with `/api/`
 - Frontend Vite dev server proxies `/api` to Flask at `localhost:5000`
 - SQLite database file is `app.db` in the project root (gitignored)
+- User profile file is `user_profile.md` in the project root (gitignored, auto-created with default template)
+- The AI agent reads the user profile on every turn and injects it into the system prompt
+- The agent proactively extracts job-search-relevant info from user messages and updates the profile via the `update_user_profile` tool
+- Users can also view and manually edit their profile via the Profile panel in the UI
+- User profile uses YAML frontmatter for metadata (`onboarded: true/false`); body is markdown
+- On first visit, the app auto-opens the chat in onboarding mode to interview the user and fill their profile
+- Onboarding uses a separate LLM config (`ONBOARDING_LLM_*`) so a cheaper model can be used
 - Frontend pages live in `frontend/src/pages/`, reusable components in `frontend/src/components/`
 - API helper functions in `frontend/src/api.js` — all backend calls go through this module
 
