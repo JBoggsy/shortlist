@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchJobs, createJob, updateJob, deleteJob } from "../api";
 import JobForm from "../components/JobForm";
+import JobDetailPanel from "../components/JobDetailPanel";
 
 const STATUS_COLORS = {
   saved: "bg-gray-100 text-gray-700",
@@ -15,6 +16,7 @@ export default function JobList() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
+  const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
     loadJobs();
@@ -104,13 +106,18 @@ export default function JobList() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {jobs.map((job) => (
-                <tr key={job.id} className="hover:bg-gray-50">
+                <tr
+                  key={job.id}
+                  onClick={() => setSelectedJob(job)}
+                  className="hover:bg-gray-50 cursor-pointer"
+                >
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {job.url ? (
                       <a
                         href={job.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className="text-blue-600 hover:underline"
                       >
                         {job.company}
@@ -155,13 +162,20 @@ export default function JobList() {
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setEditingJob(job)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedJob(null);
+                          setEditingJob(job);
+                        }}
                         className="text-sm text-blue-600 hover:underline"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(job.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(job.id);
+                        }}
                         className="text-sm text-red-600 hover:underline"
                       >
                         Delete
@@ -174,6 +188,16 @@ export default function JobList() {
           </table>
         </div>
       )}
+
+      <JobDetailPanel
+        job={selectedJob}
+        isOpen={!!selectedJob}
+        onClose={() => setSelectedJob(null)}
+        onEdit={(job) => {
+          setSelectedJob(null);
+          setEditingJob(job);
+        }}
+      />
     </div>
   );
 }

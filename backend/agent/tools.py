@@ -67,6 +67,8 @@ TOOL_DEFINITIONS = [
                 "contact_name": {"type": "string", "description": "Contact person name"},
                 "contact_email": {"type": "string", "description": "Contact email"},
                 "source": {"type": "string", "description": "Where the job was found"},
+                "requirements": {"type": "string", "description": "Job requirements or qualifications, as a newline-separated list"},
+                "nice_to_haves": {"type": "string", "description": "Nice-to-have qualifications, as a newline-separated list"},
             },
             "required": ["company", "title"],
         },
@@ -158,6 +160,8 @@ class AgentTools:
             contact_name=kwargs.get("contact_name"),
             contact_email=kwargs.get("contact_email"),
             source=kwargs.get("source"),
+            requirements=kwargs.get("requirements"),
+            nice_to_haves=kwargs.get("nice_to_haves"),
         )
         db.session.add(job)
         db.session.commit()

@@ -19,6 +19,8 @@ class Job(db.Model):
     contact_email = db.Column(db.String(200))
     applied_date = db.Column(db.Date)
     source = db.Column(db.String(200))
+    requirements = db.Column(db.Text)
+    nice_to_haves = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
@@ -39,6 +41,8 @@ class Job(db.Model):
             "contact_email": self.contact_email,
             "applied_date": self.applied_date.isoformat() if self.applied_date else None,
             "source": self.source,
+            "requirements": self.requirements,
+            "nice_to_haves": self.nice_to_haves,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

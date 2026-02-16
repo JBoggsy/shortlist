@@ -18,6 +18,8 @@ export default function JobForm({ onSubmit, initialData, onCancel }) {
     contact_name: initialData?.contact_name ?? "",
     contact_email: initialData?.contact_email ?? "",
     tags: initialData?.tags ?? "",
+    requirements: initialData?.requirements ?? "",
+    nice_to_haves: initialData?.nice_to_haves ?? "",
     notes: initialData?.notes ?? "",
   });
 
@@ -124,6 +126,18 @@ export default function JobForm({ onSubmit, initialData, onCancel }) {
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
         <input name="tags" value={form.tags} onChange={handleChange} placeholder="Comma-separated, e.g. python, startup, series-b" className={inputCls} />
+      </div>
+
+      {/* Requirements */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Requirements</label>
+        <textarea name="requirements" value={form.requirements} onChange={handleChange} rows={4} placeholder="Key qualifications and must-have skills..." className={inputCls} />
+      </div>
+
+      {/* Nice to Haves */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Nice to Haves</label>
+        <textarea name="nice_to_haves" value={form.nice_to_haves} onChange={handleChange} rows={4} placeholder="Preferred qualifications and bonus skills..." className={inputCls} />
       </div>
 
       {/* Notes */}

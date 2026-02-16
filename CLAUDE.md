@@ -73,7 +73,7 @@ Job application helper — a web app to track and manage job applications. Users
 Job statuses: `saved`, `applied`, `interviewing`, `offer`, `rejected`
 Remote types: `onsite`, `hybrid`, `remote` (or `null`)
 
-Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string), `remote_type` (string), `tags` (comma-separated string), `contact_name` (string), `contact_email` (string), `applied_date` (ISO date string), `source` (string)
+Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string), `remote_type` (string), `tags` (comma-separated string), `contact_name` (string), `contact_email` (string), `applied_date` (ISO date string), `source` (string), `requirements` (text, newline-separated), `nice_to_haves` (text, newline-separated)
 
 ### LLM Chat Configuration (env vars)
 - `LLM_PROVIDER` — provider name: `anthropic` (default), `openai`, `gemini`, `ollama`
