@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-17
+
+### Added
+
+**Simplified Installation & Startup**
+- Unified startup scripts for one-command setup (`start.sh` for Mac/Linux, `start.bat` for Windows)
+- Automatic dependency checking with friendly installation guidance
+- Auto-install of missing dependencies where possible
+- Concurrent backend and frontend server startup
+- Automatic browser opening to application URL
+- Graceful shutdown handling with Ctrl+C
+
+**Configuration System**
+- File-based configuration system using `config.json`
+- Configuration management API (`backend/config_manager.py`)
+- REST API endpoints for reading and updating configuration (`/api/config`)
+- LLM connection testing endpoint (`/api/config/test`)
+- Health check endpoint (`/api/health`)
+- Configuration template file (`config.example.json`)
+- Environment variables now override file-based config (backwards compatible)
+
+**Settings UI**
+- New Settings panel in the application UI (gear icon in header)
+- Visual LLM provider selection (Anthropic, OpenAI, Gemini, Ollama)
+- API key management with masked input fields
+- Real-time connection testing with "Test Connection" button
+- Integration settings (Tavily Search, JSearch, Adzuna)
+- In-app configuration with persistent storage
+- Clear success/error messages for user actions
+
+**Error Handling & UX**
+- Graceful error messages when LLM is not configured
+- User-friendly guidance to open Settings when configuration is missing
+- Better error messages for LLM provider initialization failures
+- Health check endpoint showing configuration status
+- Improved dependency version checking in startup scripts
+
+**Documentation**
+- Completely restructured README.md with "Easy Setup" section
+- Settings UI documented as primary configuration method
+- New Troubleshooting section with common issues and solutions
+- Updated DEVELOPMENT.md with config.json system details
+- Removed deprecated `.env` file references
+- Added configuration priority documentation (defaults → config.json → env vars)
+- Updated API reference with Config API endpoints
+
+### Changed
+- Configuration system now uses `config.json` as primary method (environment variables still supported)
+- Removed `example.env` in favor of `config.example.json`
+- README.md restructured to prioritize user experience over technical details
+- DEVELOPMENT.md updated with Quick Start section for new contributors
+- Startup workflow simplified from multi-terminal process to single command
+
+### Deprecated
+- Direct `.env` file usage (environment variables still work but config.json is recommended for local development)
+
 ## [0.1.0] - 2026-02-17
 
 Initial release of Job Application Helper - a full-stack web application for tracking job applications with an AI-powered assistant.
