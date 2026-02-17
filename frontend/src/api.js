@@ -178,3 +178,40 @@ export async function streamOnboardingMessage(conversationId, content, onEvent, 
   if (!res.ok) throw new Error("Failed to send onboarding message");
   return _readSSE(res, onEvent, signal);
 }
+
+// Config API
+
+const CONFIG_BASE = "/api/config";
+
+export async function fetchConfig() {
+  const res = await fetch(CONFIG_BASE);
+  if (!res.ok) throw new Error("Failed to fetch config");
+  return res.json();
+}
+
+export async function updateConfig(config) {
+  const res = await fetch(CONFIG_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) throw new Error("Failed to update config");
+  return res.json();
+}
+
+export async function testConnection(provider, apiKey, model) {
+  const res = await fetch(`${CONFIG_BASE}/test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider, api_key: apiKey, model }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Connection test failed");
+  return data;
+}
+
+export async function fetchProviders() {
+  const res = await fetch(`${CONFIG_BASE}/providers`);
+  if (!res.ok) throw new Error("Failed to fetch providers");
+  return res.json();
+}
