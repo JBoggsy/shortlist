@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-17
+
+### Fixed
+
+**Windows Compatibility**
+- Fixed Python detection on Windows when Microsoft Store app execution aliases are enabled
+- `start.bat` now automatically tries `python3` command as fallback when `python` is intercepted by Windows Store
+- Added clear error messages guiding Windows users to disable app execution aliases
+- Added troubleshooting section to README specifically for Windows Python detection issues
+
+This fix resolves the common issue where `python --version` fails on Windows even when Python is installed, due to Windows Store aliases intercepting the command.
+
 ## [0.2.0] - 2026-02-17
 
 ### Added
