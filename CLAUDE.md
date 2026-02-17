@@ -32,7 +32,7 @@ Job application helper — a web app to track and manage job applications. Users
 - `backend/app.py` — Flask app factory (`create_app`)
 - `backend/config.py` — app configuration
 - `backend/database.py` — SQLAlchemy `db` instance
-- `backend/models/job.py` — `Job` model (fields: `id`, `company`, `title`, `url`, `status`, `notes`, `salary_min`, `salary_max`, `location`, `remote_type`, `tags`, `contact_name`, `contact_email`, `applied_date`, `source`, `created_at`, `updated_at`)
+- `backend/models/job.py` — `Job` model (fields: `id`, `company`, `title`, `url`, `status`, `notes`, `salary_min`, `salary_max`, `location`, `remote_type`, `tags`, `contact_name`, `contact_email`, `applied_date`, `source`, `job_fit`, `created_at`, `updated_at`)
 - `backend/routes/jobs.py` — CRUD blueprint (`jobs_bp` at `/api/jobs`)
 - `backend/routes/chat.py` — Chat blueprint (`chat_bp` at `/api/chat`) with SSE streaming
 - `backend/models/chat.py` — `Conversation` and `Message` models for chat persistence
@@ -42,7 +42,7 @@ Job application helper — a web app to track and manage job applications. Users
 - `backend/llm/gemini_provider.py` — Google Gemini provider
 - `backend/llm/ollama_provider.py` — Ollama local model provider
 - `backend/llm/factory.py` — `create_provider()` factory function
-- `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (search_jobs, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile)
+- `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile)
 - `backend/agent/agent.py` — `Agent` class with iterative tool-calling loop; `OnboardingAgent` for user profile interview; injects user profile into system prompt
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag), read/write/onboarding helpers
 - `backend/routes/profile.py` — Profile blueprint (`profile_bp` at `/api/profile`)
@@ -83,13 +83,17 @@ Job application helper — a web app to track and manage job applications. Users
 Job statuses: `saved`, `applied`, `interviewing`, `offer`, `rejected`
 Remote types: `onsite`, `hybrid`, `remote` (or `null`)
 
-Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string), `remote_type` (string), `tags` (comma-separated string), `contact_name` (string), `contact_email` (string), `applied_date` (ISO date string), `source` (string), `requirements` (text, newline-separated), `nice_to_haves` (text, newline-separated)
+Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string), `remote_type` (string), `tags` (comma-separated string), `contact_name` (string), `contact_email` (string), `applied_date` (ISO date string), `source` (string), `job_fit` (int, 0-5 star rating), `requirements` (text, newline-separated), `nice_to_haves` (text, newline-separated)
 
 ### LLM Chat Configuration (env vars)
 - `LLM_PROVIDER` — provider name: `anthropic` (default), `openai`, `gemini`, `ollama`
 - `LLM_API_KEY` — API key for the chosen provider
 - `LLM_MODEL` — optional model override (each provider has a sensible default)
 - `SEARCH_API_KEY` — Tavily API key for web search tool
+- `ADZUNA_APP_ID` — Adzuna API application ID (for job search)
+- `ADZUNA_APP_KEY` — Adzuna API application key (for job search)
+- `ADZUNA_COUNTRY` — Adzuna country code (default: `us`)
+- `JSEARCH_API_KEY` — RapidAPI key for JSearch API (for job search); preferred over Adzuna when both are configured
 
 ### Onboarding LLM Configuration (env vars)
 - `ONBOARDING_LLM_PROVIDER` — optional, defaults to `LLM_PROVIDER`
@@ -119,6 +123,7 @@ Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string)
 - Onboarding uses a separate LLM config (`ONBOARDING_LLM_*`) so a cheaper model can be used
 - Frontend pages live in `frontend/src/pages/`, reusable components in `frontend/src/components/`
 - API helper functions in `frontend/src/api.js` — all backend calls go through this module
+- **Live job list refresh:** `ChatPanel` has a `JOB_MUTATING_TOOLS` set that tracks which agent tools modify job data (currently `create_job`). When a `tool_result` SSE event fires for one of these tools, the panel calls `onJobsChanged()` which bumps a `jobsVersion` counter in `App`, causing `JobList` to re-fetch. **When adding a new agent tool that creates, updates, or deletes jobs, add its name to `JOB_MUTATING_TOOLS` in `frontend/src/components/ChatPanel.jsx`.**
 
 ## Best Practices
 
