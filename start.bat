@@ -56,7 +56,8 @@ if errorlevel 1 (
 for /f "tokens=1" %%i in ('node --version') do set NODE_VERSION=%%i
 echo ✓ Node.js %NODE_VERSION%
 
-REM Check uv
+REM Check uv (handle PATH issues on Windows)
+set UV_CMD=uv
 uv --version >nul 2>&1
 if errorlevel 1 (
     echo ✗ uv is not installed
@@ -68,9 +69,28 @@ if errorlevel 1 (
         pause
         exit /b 1
     )
-)
 
-echo ✓ uv
+    REM Check if uv is now accessible
+    uv --version >nul 2>&1
+    if errorlevel 1 (
+        REM uv command not in PATH yet, use python -m uv instead
+        !PYTHON_CMD! -m uv --version >nul 2>&1
+        if errorlevel 1 (
+            echo   Failed to run uv. Please restart your terminal and try again.
+            pause
+            exit /b 1
+        )
+        set UV_CMD=!PYTHON_CMD! -m uv
+        echo   ✓ uv installed (using !PYTHON_CMD! -m uv)
+        echo.
+        echo   Note: Restart your terminal to use 'uv' command directly.
+        echo.
+    ) else (
+        echo   ✓ uv installed
+    )
+) else (
+    echo ✓ uv
+)
 echo.
 
 REM Check if dependencies are installed
@@ -79,7 +99,7 @@ echo.
 
 if not exist ".venv" (
     echo   Installing Python dependencies ^(this may take a minute^)...
-    uv sync
+    !UV_CMD! sync
     if errorlevel 1 (
         echo   Failed to install Python dependencies
         pause
@@ -122,7 +142,7 @@ echo.
 
 REM Start backend in a new window
 echo   Starting backend server...
-start "Job App Helper - Backend" cmd /c "uv run python main.py"
+start "Job App Helper - Backend" cmd /c "!UV_CMD! run python main.py"
 
 REM Wait for backend to start
 timeout /t 3 /nobreak >nul

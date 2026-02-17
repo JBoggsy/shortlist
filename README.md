@@ -223,6 +223,18 @@ See `config.example.json` for the complete configuration file format.
 
 **Alternative**: The updated `start.bat` script now automatically tries `python3` as a fallback, which may work even if `python` doesn't.
 
+### Windows: "uv is not recognized" after installation
+
+**Problem** (Windows only): The script says it installed `uv` but then says "uv is not recognized as an internal or external command."
+
+**Cause**: When `pip` installs `uv`, the executable goes to Python's Scripts directory, which may not be in your PATH for the current terminal session.
+
+**Solution**:
+1. **Restart your Command Prompt/PowerShell** - This is the simplest fix
+2. Run `start.bat` again - it should now work
+
+**Alternative**: The updated `start.bat` script automatically uses `python -m uv` as a fallback if the `uv` command isn't available, so the script should work even without restarting.
+
 ### Port already in use
 
 **Problem**: "Address already in use" error on port 3000 or 5000.
