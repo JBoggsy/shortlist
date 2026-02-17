@@ -1,4 +1,5 @@
 import json
+import logging
 
 from flask import Blueprint, Response, current_app, request, stream_with_context
 
@@ -6,6 +7,8 @@ from backend.agent.agent import Agent, OnboardingAgent
 from backend.database import db
 from backend.llm.factory import create_provider
 from backend.models.chat import Conversation, Message
+
+logger = logging.getLogger(__name__)
 
 chat_bp = Blueprint("chat", __name__, url_prefix="/api/chat")
 
@@ -53,6 +56,9 @@ def send_message(convo_id):
     if not data or not data.get("content"):
         return {"error": "content is required"}, 400
 
+    logger.info("Chat message received — conversation=%d content_len=%d",
+                convo_id, len(data["content"]))
+
     # Save user message
     user_msg = Message(conversation_id=convo_id, role="user", content=data["content"])
     db.session.add(user_msg)
@@ -99,6 +105,8 @@ def send_message(convo_id):
                 tool_calls_log.append(event["data"])
             elif event_type == "done":
                 # Save assistant message
+                logger.info("Chat response complete — conversation=%d text_len=%d tool_calls=%d",
+                            convo_id, len(full_text), len(tool_calls_log))
                 with current_app.app_context():
                     assistant_msg = Message(
                         conversation_id=convo_id,
@@ -159,6 +167,8 @@ def send_onboarding_message(convo_id):
     provider = _get_onboarding_provider(config)
     agent = OnboardingAgent(provider)
 
+    logger.info("Onboarding message received — conversation=%d", convo_id)
+
     def generate():
         full_text = ""
         tool_calls_log = []
@@ -175,6 +185,8 @@ def send_onboarding_message(convo_id):
             elif event_type == "done":
                 # Strip the onboarding marker from persisted text
                 clean_text = full_text.replace("[ONBOARDING_COMPLETE]", "").rstrip()
+                logger.info("Onboarding response complete — conversation=%d text_len=%d",
+                            convo_id, len(clean_text))
                 with current_app.app_context():
                     assistant_msg = Message(
                         conversation_id=convo_id,
@@ -223,6 +235,8 @@ def kick_onboarding():
     provider = _get_onboarding_provider(config)
     agent = OnboardingAgent(provider)
 
+    logger.info("Onboarding kick — conversation=%d", convo_id)
+
     def generate():
         full_text = ""
         tool_calls_log = []
@@ -238,6 +252,8 @@ def kick_onboarding():
                 tool_calls_log.append(event["data"])
             elif event_type == "done":
                 clean_text = full_text.replace("[ONBOARDING_COMPLETE]", "").rstrip()
+                logger.info("Onboarding kick complete — conversation=%d text_len=%d",
+                            convo_id, len(clean_text))
                 with current_app.app_context():
                     assistant_msg = Message(
                         conversation_id=convo_id,

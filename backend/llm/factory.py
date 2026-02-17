@@ -1,7 +1,11 @@
+import logging
+
 from backend.llm.anthropic_provider import AnthropicProvider
 from backend.llm.openai_provider import OpenAIProvider
 from backend.llm.gemini_provider import GeminiProvider
 from backend.llm.ollama_provider import OllamaProvider
+
+logger = logging.getLogger(__name__)
 
 PROVIDERS = {
     "anthropic": AnthropicProvider,
@@ -29,4 +33,5 @@ def create_provider(name, api_key, model=None):
     kwargs = {"api_key": api_key}
     if model:
         kwargs["model"] = model
+    logger.info("Created LLM provider: %s (model=%s)", name, model or "default")
     return cls(**kwargs)

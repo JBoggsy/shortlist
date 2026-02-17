@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import date
 
@@ -8,6 +9,8 @@ from bs4 import BeautifulSoup
 from backend.database import db
 from backend.models.job import Job
 from backend.agent.user_profile import read_profile, write_profile
+
+logger = logging.getLogger(__name__)
 
 TOOL_DEFINITIONS = [
     {
@@ -191,16 +194,20 @@ class AgentTools:
         }
         fn = methods.get(tool_name)
         if not fn:
+            logger.warning("Unknown tool requested: %s", tool_name)
             return {"error": f"Unknown tool: {tool_name}"}
         try:
-            return fn(**arguments)
+            result = fn(**arguments)
+            return result
         except Exception as e:
+            logger.exception("Tool %s raised an exception", tool_name)
             return {"error": str(e)}
 
     def _web_search(self, query, num_results=5):
         if not self.search_api_key:
             return {"error": "SEARCH_API_KEY not configured"}
         num_results = min(num_results, 10)
+        logger.info("web_search: query=%r num_results=%d", query, num_results)
         resp = requests.post(
             "https://api.tavily.com/search",
             json={
@@ -220,6 +227,7 @@ class AgentTools:
                 "url": r.get("url", ""),
                 "snippet": r.get("content", "")[:500],
             })
+        logger.info("web_search: returned %d results", len(results))
         return {"results": results}
 
     # ------------------------------------------------------------------
@@ -230,6 +238,8 @@ class AgentTools:
                     salary_min=None, salary_max=None, num_results=10,
                     provider=None):
         num_results = max(1, min(num_results, 20))
+        logger.info("job_search: query=%r location=%r remote_only=%s provider=%s",
+                    query, location, remote_only, provider)
 
         has_adzuna = bool(self.adzuna_app_id and self.adzuna_app_key)
         has_jsearch = bool(self.jsearch_api_key)
@@ -294,6 +304,7 @@ class AgentTools:
                 "source": "adzuna",
             })
 
+        logger.info("adzuna search: returned %d results", len(results))
         return {"results": results, "provider": "adzuna", "total": len(results)}
 
     def _search_jsearch(self, query, location, remote_only, num_results):
@@ -338,9 +349,11 @@ class AgentTools:
                 "source": "jsearch",
             })
 
+        logger.info("jsearch search: returned %d results", len(results))
         return {"results": results, "provider": "jsearch", "total": len(results)}
 
     def _scrape_url(self, url):
+        logger.info("scrape_url: %s", url)
         resp = requests.get(url, timeout=20, headers={"User-Agent": "JobAppHelper/1.0"})
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
@@ -350,9 +363,11 @@ class AgentTools:
         # Truncate to ~4000 chars to fit in LLM context
         if len(text) > 4000:
             text = text[:4000] + "\n...(truncated)"
+        logger.info("scrape_url: extracted %d chars from %s", len(text), url)
         return {"content": text, "url": url}
 
     def _create_job(self, **kwargs):
+        logger.info("create_job: company=%r title=%r", kwargs.get("company"), kwargs.get("title"))
         job = Job(
             company=kwargs["company"],
             title=kwargs["title"],
@@ -373,9 +388,11 @@ class AgentTools:
         )
         db.session.add(job)
         db.session.commit()
+        logger.info("create_job: created job id=%d", job.id)
         return job.to_dict()
 
     def _list_jobs(self, limit=20, status=None, company=None, title=None, url=None):
+        logger.info("list_jobs: status=%s company=%s title=%s limit=%d", status, company, title, limit)
         query = Job.query
         if status:
             query = query.filter(Job.status == status)
@@ -386,6 +403,7 @@ class AgentTools:
         if url:
             query = query.filter(Job.url.ilike(f"%{url}%"))
         jobs = query.order_by(Job.created_at.desc()).limit(limit).all()
+        logger.info("list_jobs: found %d jobs", len(jobs))
         return {"jobs": [j.to_dict() for j in jobs], "total": len(jobs)}
 
     def _read_user_profile(self):
@@ -393,5 +411,6 @@ class AgentTools:
         return {"content": content}
 
     def _update_user_profile(self, content):
+        logger.info("update_user_profile: writing %d chars", len(content))
         write_profile(content)
         return {"status": "updated", "content": content}

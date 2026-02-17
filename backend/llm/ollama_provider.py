@@ -1,9 +1,12 @@
 import json
+import logging
 import uuid
 
 import requests
 
 from backend.llm.base import LLMProvider, StreamChunk, ToolCall
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(LLMProvider):
@@ -45,6 +48,9 @@ class OllamaProvider(LLMProvider):
                 else:
                     api_messages.append({"role": msg["role"], "content": content})
 
+            logger.info("Ollama streaming request — model=%s messages=%d tools=%d",
+                        self.model, len(api_messages), len(tools))
+
             resp = requests.post(
                 f"{self.base_url}/api/chat",
                 json={
@@ -84,9 +90,15 @@ class OllamaProvider(LLMProvider):
                     break
 
             if tool_calls:
+                logger.info("Ollama response — %d tool call(s): %s",
+                            len(tool_calls),
+                            ", ".join(tc.name for tc in tool_calls))
                 yield StreamChunk(type="tool_calls", tool_calls=tool_calls)
+            else:
+                logger.info("Ollama response — text only")
 
             yield StreamChunk(type="done")
 
         except Exception as e:
+            logger.exception("Ollama streaming error")
             yield StreamChunk(type="error", content=str(e))

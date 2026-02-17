@@ -1,8 +1,11 @@
 import json
+import logging
 
 import anthropic
 
 from backend.llm.base import LLMProvider, StreamChunk, ToolCall
+
+logger = logging.getLogger(__name__)
 
 
 class AnthropicProvider(LLMProvider):
@@ -30,6 +33,9 @@ class AnthropicProvider(LLMProvider):
             }
             if system_prompt:
                 kwargs["system"] = system_prompt
+
+            logger.info("Anthropic streaming request — model=%s messages=%d tools=%d",
+                        self.model, len(messages), len(tools))
 
             with self.client.messages.stream(**kwargs) as stream:
                 current_text = ""
@@ -72,9 +78,15 @@ class AnthropicProvider(LLMProvider):
                         pass
 
                 if tool_calls:
+                    logger.info("Anthropic response — %d tool call(s): %s",
+                                len(tool_calls),
+                                ", ".join(tc.name for tc in tool_calls))
                     yield StreamChunk(type="tool_calls", tool_calls=tool_calls)
+                else:
+                    logger.info("Anthropic response — text only (%d chars)", len(current_text))
 
                 yield StreamChunk(type="done")
 
         except Exception as e:
+            logger.exception("Anthropic streaming error")
             yield StreamChunk(type="error", content=str(e))

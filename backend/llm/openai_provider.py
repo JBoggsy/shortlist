@@ -1,8 +1,11 @@
 import json
+import logging
 
 import openai
 
 from backend.llm.base import LLMProvider, StreamChunk, ToolCall
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAIProvider(LLMProvider):
@@ -62,6 +65,9 @@ class OpenAIProvider(LLMProvider):
                 else:
                     api_messages.append(msg)
 
+            logger.info("OpenAI streaming request — model=%s messages=%d tools=%d",
+                        self.model, len(api_messages), len(tools))
+
             stream = self.client.chat.completions.create(
                 model=self.model,
                 messages=api_messages,
@@ -104,9 +110,15 @@ class OpenAIProvider(LLMProvider):
                     tc = tool_calls[idx]
                     args = json.loads(tc["arguments_str"]) if tc["arguments_str"] else {}
                     parsed.append(ToolCall(id=tc["id"], name=tc["name"], arguments=args))
+                logger.info("OpenAI response — %d tool call(s): %s",
+                            len(parsed),
+                            ", ".join(tc.name for tc in parsed))
                 yield StreamChunk(type="tool_calls", tool_calls=parsed)
+            else:
+                logger.info("OpenAI response — text only (%d chars)", len(current_text))
 
             yield StreamChunk(type="done")
 
         except Exception as e:
+            logger.exception("OpenAI streaming error")
             yield StreamChunk(type="error", content=str(e))

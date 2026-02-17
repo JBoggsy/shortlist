@@ -1,9 +1,12 @@
+import logging
 import uuid
 
 from google import genai
 from google.genai import types
 
 from backend.llm.base import LLMProvider, StreamChunk, ToolCall
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiProvider(LLMProvider):
@@ -67,6 +70,9 @@ class GeminiProvider(LLMProvider):
                 tools=[types.Tool(function_declarations=tool_declarations)],
             )
 
+            logger.info("Gemini streaming request — model=%s messages=%d tools=%d",
+                        self.model_name, len(contents), len(tool_declarations))
+
             tool_calls = []
             for chunk in self.client.models.generate_content_stream(
                 model=self.model_name,
@@ -86,9 +92,15 @@ class GeminiProvider(LLMProvider):
                         )
 
             if tool_calls:
+                logger.info("Gemini response — %d tool call(s): %s",
+                            len(tool_calls),
+                            ", ".join(tc.name for tc in tool_calls))
                 yield StreamChunk(type="tool_calls", tool_calls=tool_calls)
+            else:
+                logger.info("Gemini response — text only")
 
             yield StreamChunk(type="done")
 
         except Exception as e:
+            logger.exception("Gemini streaming error")
             yield StreamChunk(type="error", content=str(e))

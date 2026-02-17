@@ -1,8 +1,11 @@
 import json
+import logging
 
 from backend.llm.base import LLMProvider
 from backend.agent.tools import TOOL_DEFINITIONS, AgentTools
 from backend.agent.user_profile import read_profile, set_onboarded
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are a helpful job search assistant. You help users find, research, and track job applications.
 
@@ -77,7 +80,10 @@ class Agent:
         user_profile = read_profile()
         system_prompt = SYSTEM_PROMPT.format(user_profile=user_profile)
 
-        for _ in range(MAX_ITERATIONS):
+        logger.info("Agent run started — %d messages in history", len(working_messages))
+
+        for iteration in range(MAX_ITERATIONS):
+            logger.info("Agent iteration %d/%d (messages: %d)", iteration + 1, MAX_ITERATIONS, len(working_messages))
             text_accum = ""
             tool_calls = []
             iteration_started = False
@@ -101,10 +107,12 @@ class Agent:
                     tool_calls = chunk.tool_calls
 
                 elif chunk.type == "error":
+                    logger.error("LLM stream error: %s", chunk.content)
                     yield {"event": "error", "data": {"message": chunk.content}}
                     return
 
             if not tool_calls:
+                logger.info("Agent done — %d iterations, %d chars of text", iteration + 1, len(full_text))
                 yield {"event": "done", "data": {"content": full_text}}
                 return
 
@@ -124,17 +132,22 @@ class Agent:
             # Execute tools and collect results
             tool_result_blocks = []
             for tc in tool_calls:
+                logger.info("Tool call: %s — args: %s", tc.name, json.dumps(tc.arguments, default=str))
                 yield {
                     "event": "tool_start",
                     "data": {"id": tc.id, "name": tc.name, "arguments": tc.arguments},
                 }
                 result = self.tools.execute(tc.name, tc.arguments)
                 if "error" in result:
+                    logger.warning("Tool error: %s — %s", tc.name, result["error"])
                     yield {
                         "event": "tool_error",
                         "data": {"id": tc.id, "name": tc.name, "error": result["error"]},
                     }
                 else:
+                    result_json = json.dumps(result, default=str)
+                    logger.info("Tool result: %s — %d chars", tc.name, len(result_json))
+                    logger.debug("Tool result full: %s — %s", tc.name, result_json)
                     yield {
                         "event": "tool_result",
                         "data": {"id": tc.id, "name": tc.name, "result": result},
@@ -147,6 +160,7 @@ class Agent:
 
             working_messages.append({"role": "user", "content": tool_result_blocks})
 
+        logger.warning("Agent hit max iterations (%d)", MAX_ITERATIONS)
         yield {"event": "error", "data": {"message": "Max iterations reached"}}
 
 
@@ -220,7 +234,10 @@ class OnboardingAgent:
         user_profile = read_profile()
         system_prompt = ONBOARDING_SYSTEM_PROMPT.format(user_profile=user_profile)
 
-        for _ in range(ONBOARDING_MAX_ITERATIONS):
+        logger.info("OnboardingAgent run started — %d messages in history", len(working_messages))
+
+        for iteration in range(ONBOARDING_MAX_ITERATIONS):
+            logger.info("Onboarding iteration %d/%d", iteration + 1, ONBOARDING_MAX_ITERATIONS)
             text_accum = ""
             tool_calls = []
             iteration_started = False
@@ -249,6 +266,7 @@ class OnboardingAgent:
             if not tool_calls:
                 # Check if onboarding is complete
                 if "[ONBOARDING_COMPLETE]" in full_text:
+                    logger.info("Onboarding complete — marking user as onboarded")
                     set_onboarded(True)
                     # Strip the marker from the text sent to the user
                     clean_text = full_text.replace("[ONBOARDING_COMPLETE]", "").rstrip()
@@ -274,6 +292,7 @@ class OnboardingAgent:
             # Execute tools
             tool_result_blocks = []
             for tc in tool_calls:
+                logger.info("Onboarding tool call: %s — args: %s", tc.name, json.dumps(tc.arguments, default=str))
                 yield {
                     "event": "tool_start",
                     "data": {"id": tc.id, "name": tc.name, "arguments": tc.arguments},
