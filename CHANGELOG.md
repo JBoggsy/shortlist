@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-02-17
+
+### Fixed
+
+**Windows Compatibility - uv PATH Issue**
+- Fixed `uv` command not being recognized after installation on Windows
+- `start.bat` now automatically uses `python -m uv` as fallback when `uv` command is not in PATH
+- Added `UV_CMD` variable used consistently throughout the script
+- Script notifies users they can use `uv` directly after restarting terminal
+- Added troubleshooting section to README for uv PATH issues
+
+This fix resolves the issue where `uv` installs successfully via `pip install uv` but the command is not recognized until the terminal is restarted, due to Windows PATH caching.
+
 ## [0.2.1] - 2026-02-17
 
 ### Fixed
