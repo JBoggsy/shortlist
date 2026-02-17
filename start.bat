@@ -13,18 +13,35 @@ echo.
 echo → Checking dependencies...
 echo.
 
-REM Check Python
+REM Check Python (handle Windows Store alias issue)
+set PYTHON_CMD=python
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo ✗ Python 3 is not installed
-    echo   Please install Python 3.12 or higher from:
-    echo   https://www.python.org/downloads/
-    pause
-    exit /b 1
+    REM Try python3 as fallback
+    python3 --version >nul 2>&1
+    if errorlevel 1 (
+        echo ✗ Python is not installed or not accessible
+        echo.
+        echo   Common issue on Windows: The Microsoft Store Python alias may be interfering.
+        echo.
+        echo   To fix:
+        echo   1. Open Settings → Apps → Advanced app settings → App execution aliases
+        echo   2. Turn OFF both python.exe and python3.exe
+        echo   3. Install Python from: https://www.python.org/downloads/
+        echo   4. Make sure to check "Add Python to PATH" during installation
+        echo.
+        echo   OR try running this script with python3 instead:
+        echo   python3 start.bat
+        echo.
+        pause
+        exit /b 1
+    ) else (
+        set PYTHON_CMD=python3
+    )
 )
 
-for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-echo ✓ Python %PYTHON_VERSION%
+for /f "tokens=2" %%i in ('!PYTHON_CMD! --version 2^>^&1') do set PYTHON_VERSION=%%i
+echo ✓ Python %PYTHON_VERSION% (using !PYTHON_CMD!)
 
 REM Check Node.js
 node --version >nul 2>&1
@@ -44,10 +61,10 @@ uv --version >nul 2>&1
 if errorlevel 1 (
     echo ✗ uv is not installed
     echo   Installing uv...
-    pip install uv
+    !PYTHON_CMD! -m pip install uv
     if errorlevel 1 (
         echo   Failed to install uv. Please install manually:
-        echo   pip install uv
+        echo   !PYTHON_CMD! -m pip install uv
         pause
         exit /b 1
     )

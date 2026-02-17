@@ -209,6 +209,20 @@ See `config.example.json` for the complete configuration file format.
 - **Node.js**: Download from [nodejs.org](https://nodejs.org/) (need 18+)
 - **uv**: Run `pip install uv` or see [installation guide](https://github.com/astral-sh/uv)
 
+### Windows: "Python was not found" but it's installed
+
+**Problem** (Windows only): Running `python --version` says "Python was not found" or opens the Microsoft Store, even though Python is installed.
+
+**Cause**: Windows has app execution aliases that intercept the `python` command and redirect it to the Microsoft Store.
+
+**Solution**:
+1. Open **Settings** → **Apps** → **Advanced app settings** → **App execution aliases**
+2. Turn **OFF** both `python.exe` and `python3.exe` aliases
+3. Close and reopen your Command Prompt/PowerShell
+4. Run `start.bat` again
+
+**Alternative**: The updated `start.bat` script now automatically tries `python3` as a fallback, which may work even if `python` doesn't.
+
 ### Port already in use
 
 **Problem**: "Address already in use" error on port 3000 or 5000.
