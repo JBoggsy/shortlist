@@ -12,7 +12,10 @@ import {
   streamOnboardingMessage,
 } from "../api";
 
-function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }) {
+// Tool names that modify job data — when these complete, notify parent to refresh
+const JOB_MUTATING_TOOLS = new Set(["create_job"]);
+
+function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, onJobsChanged }) {
   const [conversations, setConversations] = useState([]);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -20,6 +23,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   // Auto-resize textarea to fit content (up to ~8 lines)
   const autoResize = (el) => {
@@ -66,6 +70,9 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
             ]);
           }
 
+          const abortController = new AbortController();
+          abortControllerRef.current = abortController;
+
           await kickOnboarding(convo.id, (event) => {
             if (cancelled) return;
             if (event.event === "error") {
@@ -90,6 +97,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
             } else if (event.event === "tool_result") {
               const idx = segments.findIndex((s) => s.type === "tool" && s.id === event.data.id);
               if (idx >= 0) segments[idx] = { ...segments[idx], status: "completed" };
+              if (JOB_MUTATING_TOOLS.has(event.data.name) && onJobsChanged) onJobsChanged();
               pushUpdate();
             } else if (event.event === "tool_error") {
               const idx = segments.findIndex((s) => s.type === "tool" && s.id === event.data.id);
@@ -100,16 +108,27 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
             } else if (event.event === "done") {
               pushUpdate();
             }
-          });
+          }, { signal: abortController.signal });
 
           if (cancelled) return;
+          abortControllerRef.current = null;
           setIsStreaming(false);
           if (onboardingDone && onOnboardingComplete) {
             onOnboardingComplete();
           }
         } catch (e) {
+          if (e.name === "AbortError") {
+            if (!cancelled) {
+              abortControllerRef.current = null;
+              setIsStreaming(false);
+            }
+            return;
+          }
           console.error("Failed to start onboarding:", e);
-          if (!cancelled) setIsStreaming(false);
+          if (!cancelled) {
+            abortControllerRef.current = null;
+            setIsStreaming(false);
+          }
         }
       })();
     }
@@ -157,6 +176,14 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
     } catch (e) {
       console.error("Failed to create conversation:", e);
     }
+  }
+
+  function handleStop() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
   }
 
   async function handleDeleteConversation(id, e) {
@@ -213,6 +240,8 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
     }
 
     const streamer = onboarding ? streamOnboardingMessage : streamMessage;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       await streamer(convo.id, userMessage.content, (event) => {
@@ -241,6 +270,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
           if (idx >= 0) {
             segments[idx] = { ...segments[idx], status: "completed" };
           }
+          if (JOB_MUTATING_TOOLS.has(event.data.name) && onJobsChanged) onJobsChanged();
           pushUpdate();
         } else if (event.event === "tool_error") {
           const idx = segments.findIndex((s) => s.type === "tool" && s.id === event.data.id);
@@ -259,8 +289,15 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
           }
           pushUpdate();
         }
-      });
+      }, { signal: abortController.signal });
     } catch (e) {
+      if (e.name === "AbortError") {
+        // User cancelled — keep whatever content we have so far
+        pushUpdate();
+        abortControllerRef.current = null;
+        setIsStreaming(false);
+        return;
+      }
       console.error("Stream error:", e);
       if (!fullText) {
         fullText = "Failed to get response. Check your API configuration.";
@@ -269,6 +306,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
       pushUpdate();
     }
 
+    abortControllerRef.current = null;
     setIsStreaming(false);
     if (onboardingDone && onOnboardingComplete) {
       onOnboardingComplete();
@@ -419,8 +457,11 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
               ))}
               {isStreaming && messages[messages.length - 1]?.content === "" && (!messages[messages.length - 1]?.segments || messages[messages.length - 1].segments.length === 0) && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-lg px-4 py-2">
-                    <span className="inline-block w-2 h-2 bg-gray-400 rounded-full animate-pulse" />
+                  <div className="bg-gray-100 rounded-lg px-4 py-2 flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="ml-2 text-sm text-gray-500">Thinking...</span>
                   </div>
                 </div>
               )}
@@ -446,13 +487,25 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete }
                   className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none leading-6"
                   style={{ maxHeight: "12rem" }}
                 />
-                <button
-                  onClick={handleSend}
-                  disabled={isStreaming || !input.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Send
-                </button>
+                {isStreaming ? (
+                  <button
+                    onClick={handleStop}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-1.5"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Send
+                  </button>
+                )}
               </div>
             </div>
           </>

@@ -9,6 +9,11 @@ function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [onboarding, setOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [jobsVersion, setJobsVersion] = useState(0);
+
+  function handleJobsChanged() {
+    setJobsVersion((v) => v + 1);
+  }
 
   useEffect(() => {
     checkOnboarding();
@@ -67,13 +72,14 @@ function App() {
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8">
-        <JobList />
+        <JobList refreshVersion={jobsVersion} />
       </main>
       <ChatPanel
         isOpen={chatOpen}
         onClose={handleChatClose}
         onboarding={onboarding}
         onOnboardingComplete={handleOnboardingComplete}
+        onJobsChanged={handleJobsChanged}
       />
       <ProfilePanel isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>

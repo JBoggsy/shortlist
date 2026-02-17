@@ -64,47 +64,58 @@ export async function deleteConversation(id) {
   if (!res.ok) throw new Error("Failed to delete conversation");
 }
 
-export async function streamMessage(conversationId, content, onEvent) {
+export async function streamMessage(conversationId, content, onEvent, { signal } = {}) {
   const res = await fetch(
     `${CHAT_BASE}/conversations/${conversationId}/messages`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
+      signal,
     }
   );
 
   if (!res.ok) throw new Error("Failed to send message");
-  return _readSSE(res, onEvent);
+  return _readSSE(res, onEvent, signal);
 }
 
-async function _readSSE(res, onEvent) {
+async function _readSSE(res, onEvent, signal) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  // If aborted, cancel the reader
+  if (signal) {
+    signal.addEventListener("abort", () => reader.cancel(), { once: true });
+  }
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    let currentEvent = null;
-    for (const line of lines) {
-      if (line.startsWith("event: ")) {
-        currentEvent = line.slice(7).trim();
-      } else if (line.startsWith("data: ") && currentEvent) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          onEvent({ event: currentEvent, data });
-        } catch (e) {
-          console.error("Failed to parse SSE data:", e);
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      let currentEvent = null;
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7).trim();
+        } else if (line.startsWith("data: ") && currentEvent) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            onEvent({ event: currentEvent, data });
+          } catch (e) {
+            console.error("Failed to parse SSE data:", e);
+          }
+          currentEvent = null;
         }
-        currentEvent = null;
       }
     }
+  } catch (e) {
+    if (e.name === "AbortError") return;
+    throw e;
   }
 }
 
@@ -143,25 +154,27 @@ export async function createOnboardingConversation() {
   return res.json();
 }
 
-export async function kickOnboarding(conversationId, onEvent) {
+export async function kickOnboarding(conversationId, onEvent, { signal } = {}) {
   const res = await fetch(`${CHAT_BASE}/onboarding/kick`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ conversation_id: conversationId }),
+    signal,
   });
   if (!res.ok) throw new Error("Failed to kick onboarding");
-  return _readSSE(res, onEvent);
+  return _readSSE(res, onEvent, signal);
 }
 
-export async function streamOnboardingMessage(conversationId, content, onEvent) {
+export async function streamOnboardingMessage(conversationId, content, onEvent, { signal } = {}) {
   const res = await fetch(
     `${CHAT_BASE}/onboarding/conversations/${conversationId}/messages`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
+      signal,
     }
   );
   if (!res.ok) throw new Error("Failed to send onboarding message");
-  return _readSSE(res, onEvent);
+  return _readSSE(res, onEvent, signal);
 }
