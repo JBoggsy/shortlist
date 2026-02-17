@@ -74,13 +74,53 @@ def send_message(convo_id):
     for msg in convo.messages:
         llm_messages.append({"role": msg.role, "content": msg.content})
 
-    # Create provider and agent
+    # Check if LLM is configured
     config = current_app.config
-    provider = create_provider(
-        config["LLM_PROVIDER"],
-        config["LLM_API_KEY"],
-        config["LLM_MODEL"] or None,
-    )
+    if not config["LLM_API_KEY"] and config["LLM_PROVIDER"] != "ollama":
+        def error_stream():
+            error_msg = {
+                "event": "error",
+                "data": json.dumps({
+                    "message": "LLM is not configured. Please configure your API key in Settings (gear icon in the header)."
+                })
+            }
+            yield f"event: {error_msg['event']}\ndata: {error_msg['data']}\n\n"
+
+        return Response(
+            stream_with_context(error_stream()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    # Create provider and agent
+    try:
+        provider = create_provider(
+            config["LLM_PROVIDER"],
+            config["LLM_API_KEY"],
+            config["LLM_MODEL"] or None,
+        )
+    except Exception as e:
+        logger.error(f"Failed to create LLM provider: {e}")
+        def error_stream():
+            error_msg = {
+                "event": "error",
+                "data": json.dumps({
+                    "message": f"Failed to initialize LLM provider: {str(e)}"
+                })
+            }
+            yield f"event: {error_msg['event']}\ndata: {error_msg['data']}\n\n"
+
+        return Response(
+            stream_with_context(error_stream()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
     agent = Agent(
         provider,
         search_api_key=config["SEARCH_API_KEY"],
@@ -128,10 +168,17 @@ def send_message(convo_id):
 
 
 def _get_onboarding_provider(config):
-    """Build the LLM provider for onboarding, falling back to the main config."""
+    """Build the LLM provider for onboarding, falling back to the main config.
+
+    Raises ValueError if LLM is not configured.
+    """
     provider_name = config["ONBOARDING_LLM_PROVIDER"] or config["LLM_PROVIDER"]
     api_key = config["ONBOARDING_LLM_API_KEY"] or config["LLM_API_KEY"]
     model = config["ONBOARDING_LLM_MODEL"] or config["LLM_MODEL"] or None
+
+    if not api_key and provider_name != "ollama":
+        raise ValueError("LLM is not configured. Please configure your API key in Settings.")
+
     return create_provider(provider_name, api_key, model)
 
 
@@ -164,8 +211,29 @@ def send_onboarding_message(convo_id):
         llm_messages.append({"role": msg.role, "content": msg.content})
 
     config = current_app.config
-    provider = _get_onboarding_provider(config)
-    agent = OnboardingAgent(provider)
+
+    try:
+        provider = _get_onboarding_provider(config)
+        agent = OnboardingAgent(provider)
+    except Exception as e:
+        logger.error(f"Failed to create onboarding provider: {e}")
+        def error_stream():
+            error_msg = {
+                "event": "error",
+                "data": json.dumps({
+                    "message": f"Failed to initialize LLM: {str(e)}"
+                })
+            }
+            yield f"event: {error_msg['event']}\ndata: {error_msg['data']}\n\n"
+
+        return Response(
+            stream_with_context(error_stream()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     logger.info("Onboarding message received — conversation=%d", convo_id)
 
@@ -232,8 +300,29 @@ def kick_onboarding():
     llm_messages = [{"role": "user", "content": kick_text}]
 
     config = current_app.config
-    provider = _get_onboarding_provider(config)
-    agent = OnboardingAgent(provider)
+
+    try:
+        provider = _get_onboarding_provider(config)
+        agent = OnboardingAgent(provider)
+    except Exception as e:
+        logger.error(f"Failed to create onboarding provider: {e}")
+        def error_stream():
+            error_msg = {
+                "event": "error",
+                "data": json.dumps({
+                    "message": f"Failed to initialize LLM: {str(e)}"
+                })
+            }
+            yield f"event: {error_msg['event']}\ndata: {error_msg['data']}\n\n"
+
+        return Response(
+            stream_with_context(error_stream()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     logger.info("Onboarding kick — conversation=%d", convo_id)
 
