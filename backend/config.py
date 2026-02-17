@@ -1,4 +1,5 @@
 import os
+from backend.config_manager import get_config_value, get_onboarding_llm_config
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -8,21 +9,25 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 
-    LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "anthropic")
-    LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
-    LLM_MODEL = os.environ.get("LLM_MODEL", "")
-    SEARCH_API_KEY = os.environ.get("SEARCH_API_KEY", "")
+    # LLM configuration - uses config file with env var override
+    LLM_PROVIDER = get_config_value("llm.provider", "anthropic")
+    LLM_API_KEY = get_config_value("llm.api_key", "")
+    LLM_MODEL = get_config_value("llm.model", "")
+
+    # Search API
+    SEARCH_API_KEY = get_config_value("integrations.search_api_key", "")
 
     # Job search APIs
-    ADZUNA_APP_ID = os.environ.get("ADZUNA_APP_ID", "")
-    ADZUNA_APP_KEY = os.environ.get("ADZUNA_APP_KEY", "")
-    ADZUNA_COUNTRY = os.environ.get("ADZUNA_COUNTRY", "us")
-    JSEARCH_API_KEY = os.environ.get("JSEARCH_API_KEY", "")
+    ADZUNA_APP_ID = get_config_value("integrations.adzuna_app_id", "")
+    ADZUNA_APP_KEY = get_config_value("integrations.adzuna_app_key", "")
+    ADZUNA_COUNTRY = get_config_value("integrations.adzuna_country", "us")
+    JSEARCH_API_KEY = get_config_value("integrations.jsearch_api_key", "")
 
     # Logging
-    LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+    LOG_LEVEL = get_config_value("logging.level", "INFO")
 
     # Onboarding LLM — defaults to the main LLM provider when not set
-    ONBOARDING_LLM_PROVIDER = os.environ.get("ONBOARDING_LLM_PROVIDER", "")
-    ONBOARDING_LLM_API_KEY = os.environ.get("ONBOARDING_LLM_API_KEY", "")
-    ONBOARDING_LLM_MODEL = os.environ.get("ONBOARDING_LLM_MODEL", "")
+    _onboarding_config = get_onboarding_llm_config()
+    ONBOARDING_LLM_PROVIDER = _onboarding_config["provider"] or LLM_PROVIDER
+    ONBOARDING_LLM_API_KEY = _onboarding_config["api_key"] or LLM_API_KEY
+    ONBOARDING_LLM_MODEL = _onboarding_config["model"] or LLM_MODEL

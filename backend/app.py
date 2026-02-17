@@ -9,6 +9,7 @@ from backend.database import db
 from backend.routes.jobs import jobs_bp
 from backend.routes.chat import chat_bp
 from backend.routes.profile import profile_bp
+from backend.routes.config import config_bp
 
 
 def _setup_logging(log_level_name):
@@ -52,6 +53,7 @@ def create_app(config_class=Config):
     app.register_blueprint(jobs_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(config_bp)
 
     logging.getLogger(__name__).info("App created, log level: %s", app.config.get("LOG_LEVEL", "INFO"))
 
