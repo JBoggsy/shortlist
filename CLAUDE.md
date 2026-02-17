@@ -100,6 +100,12 @@ Optional job fields: `salary_min` (int), `salary_max` (int), `location` (string)
 - `ONBOARDING_LLM_API_KEY` — optional, defaults to `LLM_API_KEY`
 - `ONBOARDING_LLM_MODEL` — optional, defaults to `LLM_MODEL` (use a cheaper model to save costs)
 
+### Logging
+- `LOG_LEVEL` — `DEBUG`, `INFO` (default), `WARNING`, `ERROR`
+- Logs go to both the console and `logs/app.log` (file auto-rotated by the OS; directory auto-created)
+- Set `LOG_LEVEL=DEBUG` to see full tool result payloads in the log
+- Key loggers: `backend.agent.agent` (agent loop, iterations, tool calls), `backend.agent.tools` (tool execution details), `backend.llm.*` (provider requests/responses), `backend.routes.chat` (incoming messages, response completion)
+
 ### SSE Event Types (chat streaming)
 - `text_delta` — `{"content": "..."}` — incremental text from the LLM
 - `tool_start` — `{"id": "...", "name": "...", "arguments": {...}}` — tool execution starting
