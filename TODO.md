@@ -20,7 +20,7 @@
 
 ## Polish & Publication
 
-### Tier 1: Quick Wins ✅ (COMPLETED - v0.2.x)
+### Phase 1: Quick Wins
 
 - [x] **Polish repository for GitHub publication** (v0.1.0)
   - Expand README to better explain project to potential users (what it does, why use it, quick demo/screenshots)
@@ -48,22 +48,21 @@
   - Support for optional integrations (Tavily, JSearch, Adzuna)
   - Environment variables override config file for production deployments
 
-### Tier 1.5: Remaining Quick Wins
+- [x] **In-app help and documentation**
+  - Add Help section in app UI (help icon/button in header) ✓
+  - Build feature wiki or help docs within app (how to use chat, job tracking, etc.) ✓
+  - In-app guides for getting API keys (Anthropic, OpenAI, Gemini, Ollama, Tavily, JSearch, Adzuna) ✓
+  - Troubleshooting section in Help panel ✓
+  - Interactive tutorial/walkthrough: skipped (static help panel covers first-time user needs)
+  - Inline error message links: skipped (help panel accessible from header at all times)
 
-- [ ] **In-app help and documentation**
-  - Add Help section in app UI (help icon/button in header)
-  - Create interactive tutorial/walkthrough for first-time users
-  - Build feature wiki or help docs within app (how to use chat, job tracking, etc.)
-  - In-app guides for getting API keys (Anthropic, OpenAI, Gemini, Ollama)
-  - Link to troubleshooting documentation from error messages
+- [x] **Configuration improvements**
+  - Allow changing LLM provider/model without restarting app (hot reload) ✓ (LLM provider created fresh per-request; already worked)
+  - Separate configuration UI for onboarding agent vs chat agent ✓ (added collapsible Onboarding Agent section in Settings)
+  - Show current API usage/costs: skipped (complex per-provider, out of scope for Phase 1)
+  - Support for multiple API keys: skipped (out of scope for Phase 1)
 
-- [ ] **Configuration improvements**
-  - Allow changing LLM provider/model without restarting app (hot reload)
-  - Show current API usage/costs (if available from provider APIs)
-  - Support for multiple API keys (rotate/fallback)
-  - Separate configuration UI for onboarding agent vs chat agent
-
-### Tier 2: Standalone Desktop Application
+### Phase 2: Standalone Desktop Application
 
 **Goal**: Package as a true desktop app - no Python/Node.js installation required
 
@@ -115,7 +114,7 @@
   - Troubleshooting for desktop app issues
   - Migration guide from web version
 
-### Tier 3: Enhanced Features (Future)
+### Phase 3: Enhanced Features (Future)
 
 - [ ] **Multi-user support**
   - User accounts and authentication

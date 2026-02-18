@@ -14,6 +14,9 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
   const [llmProvider, setLlmProvider] = useState('anthropic');
   const [llmApiKey, setLlmApiKey] = useState('');
   const [llmModel, setLlmModel] = useState('');
+  const [onboardingProvider, setOnboardingProvider] = useState('');
+  const [onboardingApiKey, setOnboardingApiKey] = useState('');
+  const [onboardingModel, setOnboardingModel] = useState('');
   const [searchApiKey, setSearchApiKey] = useState('');
   const [jsearchApiKey, setJsearchApiKey] = useState('');
   const [adzunaAppId, setAdzunaAppId] = useState('');
@@ -36,6 +39,9 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
       setLlmProvider(data.llm?.provider || 'anthropic');
       setLlmApiKey(data.llm?.api_key || '');
       setLlmModel(data.llm?.model || '');
+      setOnboardingProvider(data.onboarding_llm?.provider || '');
+      setOnboardingApiKey(data.onboarding_llm?.api_key || '');
+      setOnboardingModel(data.onboarding_llm?.model || '');
       setSearchApiKey(data.integrations?.search_api_key || '');
       setJsearchApiKey(data.integrations?.jsearch_api_key || '');
       setAdzunaAppId(data.integrations?.adzuna_app_id || '');
@@ -67,6 +73,11 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
           provider: llmProvider,
           api_key: llmApiKey,
           model: llmModel,
+        },
+        onboarding_llm: {
+          provider: onboardingProvider,
+          api_key: onboardingApiKey,
+          model: onboardingModel,
         },
         integrations: {
           search_api_key: searchApiKey,
@@ -245,6 +256,64 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                     {testing ? 'Testing...' : 'Test Connection'}
                   </button>
                 </div>
+              </div>
+
+              {/* Onboarding Agent */}
+              <div>
+                <details>
+                  <summary className="text-lg font-semibold text-gray-900 cursor-pointer select-none">
+                    Onboarding Agent <span className="text-sm font-normal text-gray-500">(Optional)</span>
+                  </summary>
+                  <div className="mt-3 space-y-4">
+                    <p className="text-sm text-gray-600">
+                      Uses a separate model for the one-time onboarding interview. Leave blank to use the same AI Assistant configuration above. A cheaper model is recommended here to save costs.
+                    </p>
+                    {/* Onboarding Provider */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Provider
+                      </label>
+                      <select
+                        value={onboardingProvider}
+                        onChange={(e) => setOnboardingProvider(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Same as above</option>
+                        {providers.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* Onboarding API Key */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        API Key
+                      </label>
+                      <input
+                        type="password"
+                        value={onboardingApiKey}
+                        onChange={(e) => setOnboardingApiKey(e.target.value)}
+                        placeholder="Leave blank to use the same key as above"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                      />
+                    </div>
+                    {/* Onboarding Model */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Model Override (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={onboardingModel}
+                        onChange={(e) => setOnboardingModel(e.target.value)}
+                        placeholder="Leave blank to use the provider default"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                </details>
               </div>
 
               {/* Integrations */}
