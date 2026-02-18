@@ -215,3 +215,10 @@ export async function fetchProviders() {
   if (!res.ok) throw new Error("Failed to fetch providers");
   return res.json();
 }
+
+export async function fetchHealth() {
+  const res = await fetch("/api/health");
+  // Note: health endpoint returns 503 if not configured, but we still want the data
+  const data = await res.json();
+  return data;
+}

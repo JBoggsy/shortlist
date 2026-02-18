@@ -3,7 +3,7 @@ import JobList from "./pages/JobList";
 import ChatPanel from "./components/ChatPanel";
 import ProfilePanel from "./components/ProfilePanel";
 import SettingsPanel from "./components/SettingsPanel";
-import { fetchOnboardingStatus } from "./api";
+import { fetchOnboardingStatus, fetchHealth } from "./api";
 
 function App() {
   const [chatOpen, setChatOpen] = useState(false);
@@ -11,6 +11,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [onboarding, setOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [jobsVersion, setJobsVersion] = useState(0);
 
   function handleJobsChanged() {
@@ -18,20 +19,48 @@ function App() {
   }
 
   useEffect(() => {
-    checkOnboarding();
+    checkHealthAndOnboarding();
   }, []);
 
-  async function checkOnboarding() {
+  async function checkHealthAndOnboarding() {
     try {
-      const { onboarded } = await fetchOnboardingStatus();
-      if (!onboarded) {
-        setOnboarding(true);
-        setChatOpen(true);
+      // First check if LLM is configured
+      const health = await fetchHealth();
+      const llmConfigured = health.llm?.configured || false;
+
+      if (!llmConfigured) {
+        // LLM not configured - check if user needs onboarding
+        const { onboarded } = await fetchOnboardingStatus();
+        if (!onboarded) {
+          // User needs onboarding but LLM not configured
+          // Open Settings and flag to start onboarding after
+          setPendingOnboarding(true);
+          setSettingsOpen(true);
+        }
+        // If already onboarded, just let them use the app
+        // They can open settings manually if they want to chat
+      } else {
+        // LLM is configured - check if user needs onboarding
+        const { onboarded } = await fetchOnboardingStatus();
+        if (!onboarded) {
+          setOnboarding(true);
+          setChatOpen(true);
+        }
       }
     } catch (e) {
-      console.error("Failed to check onboarding status:", e);
+      console.error("Failed to check health and onboarding status:", e);
     } finally {
       setOnboardingChecked(true);
+    }
+  }
+
+  async function handleSettingsSaved() {
+    // Called when settings are successfully saved
+    // Check if we need to start onboarding now
+    if (pendingOnboarding) {
+      setPendingOnboarding(false);
+      setOnboarding(true);
+      setChatOpen(true);
     }
   }
 
@@ -95,7 +124,11 @@ function App() {
         onJobsChanged={handleJobsChanged}
       />
       <ProfilePanel isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={handleSettingsSaved}
+      />
     </div>
   );
 }

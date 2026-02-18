@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchConfig, updateConfig, testConnection, fetchProviders } from '../api';
 
-export default function SettingsPanel({ isOpen, onClose }) {
+export default function SettingsPanel({ isOpen, onClose, onSaved }) {
   const [config, setConfig] = useState(null);
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,10 +77,15 @@ export default function SettingsPanel({ isOpen, onClose }) {
       };
 
       await updateConfig(updatedConfig);
-      setMessage({ type: 'success', text: 'Settings saved successfully! Restart the app for changes to take effect.' });
+      setMessage({ type: 'success', text: 'Settings saved successfully!' });
 
       // Reload config to get masked values
       setTimeout(() => loadConfig(), 1000);
+
+      // Notify parent that settings were saved
+      if (onSaved) {
+        onSaved();
+      }
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
