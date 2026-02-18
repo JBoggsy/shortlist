@@ -16,6 +16,7 @@ Job Application Helper is a full-stack web app that helps you organize your job 
 - **User Profile System**: Personalized onboarding interview to understand your job preferences and goals
 - **Rich Job Details**: Track salary ranges, location, remote type, requirements, contact info, and more
 - **Job Fit Ratings**: Rate how well each job matches your profile (0-5 stars)
+- **Desktop App (Optional)**: Run as a native desktop application via Tauri, or use in the browser—your choice
 
 ## Quick Start
 
@@ -290,8 +291,25 @@ cd frontend && npm install
 
 - **Backend**: Python, Flask, SQLAlchemy, SQLite
 - **Frontend**: React 19, Vite, Tailwind CSS 4
+- **Desktop**: Tauri v2 (optional native wrapper, sidecar architecture)
 - **AI Providers**: Anthropic Claude, OpenAI GPT, Google Gemini, Ollama
 - **Package Managers**: uv (Python), npm (JavaScript)
+
+## Desktop App (Optional)
+
+The app can also run as a native desktop application using [Tauri v2](https://v2.tauri.app/). Tauri wraps the React frontend in a native webview and launches the Flask backend as a sidecar process. Data files are stored in platform-standard directories (e.g., `~/.local/share/com.jobapphelper.app` on Linux).
+
+```bash
+# Development: start Flask manually, then launch Tauri
+uv run python main.py                  # Terminal 1
+cd frontend && npm run tauri:dev       # Terminal 2
+
+# Production build (requires Rust toolchain)
+./build_sidecar.sh                     # Bundle Flask as standalone binary
+cd frontend && npm run tauri:build     # Build the desktop app
+```
+
+The browser-based workflow (`./start.sh` / `start.bat`) continues to work as before. See [DEVELOPMENT.md](DEVELOPMENT.md) for more details.
 
 ## Development
 

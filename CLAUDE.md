@@ -12,6 +12,7 @@ Job application helper — a web app to track and manage job applications. Users
 - **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars)
 - **Agent tools:** Tavily search API, BeautifulSoup web scraping, JSearch/Adzuna job search
 - **Frontend:** React 19, Vite, Tailwind CSS 4
+- **Desktop wrapper:** Tauri v2 (optional, sidecar approach — Flask as child process, React in native webview)
 - **Package management:** uv (Python), npm (JS)
 
 ## Key Commands
@@ -25,23 +26,32 @@ The start scripts handle everything automatically. Use the manual commands below
 ### Backend (Manual)
 - `uv sync` — install Python dependencies
 - `uv run python main.py` — start Flask dev server (port 5000)
+- `uv run python main.py --data-dir /path/to/dir` — start with custom data directory
+- `uv run python main.py --port 8080` — start on a custom port
 
 ### Frontend (Manual)
 - `cd frontend && npm install` — install JS dependencies
 - `cd frontend && npm run dev` — start Vite dev server (port 3000)
 - `cd frontend && npm run build` — production build (use to verify changes compile)
 
+### Desktop Mode (Tauri)
+- `cd frontend && npm run tauri:dev` — launch Tauri dev window (start Flask manually in a separate terminal first)
+- `cd frontend && npm run tauri:build` — build production desktop app (run `./build_sidecar.sh` first to bundle Flask)
+- `./build_sidecar.sh` — build Flask backend as a standalone binary for Tauri sidecar
+
 ## Project Structure
 
 ### Root
 - `start.sh` — unified startup script for Mac/Linux (checks deps, installs packages, starts servers, opens browser)
 - `start.bat` — unified startup script for Windows (checks deps, installs packages, starts servers, opens browser)
+- `build_sidecar.sh` — builds Flask backend as a PyInstaller binary for Tauri sidecar
 - `config.json` — application configuration file (auto-created, gitignored)
 - `app.db` — SQLite database (auto-created, gitignored)
 - `user_profile.md` — user job search profile with YAML frontmatter (auto-created, gitignored)
 
 ### Backend
-- `main.py` — entry point, runs Flask server
+- `main.py` — entry point, runs Flask server (supports `--data-dir` and `--port` CLI args)
+- `backend/data_dir.py` — centralized data directory resolver (`get_data_dir()`); uses `DATA_DIR` env var or defaults to project root
 - `backend/app.py` — Flask app factory (`create_app`)
 - `backend/config.py` — app configuration (Flask-specific settings)
 - `backend/config_manager.py` — configuration file management (read/write `config.json`, env var fallback)
@@ -63,17 +73,25 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag), read/write/onboarding helpers
 
 ### Frontend
-- `frontend/vite.config.js` — Vite config (React plugin, Tailwind CSS plugin, API proxy)
+- `frontend/vite.config.js` — Vite config (React plugin, Tailwind CSS plugin, API proxy, Tauri-compatible settings)
 - `frontend/src/main.jsx` — React entry point
 - `frontend/src/index.css` — Tailwind CSS base import
 - `frontend/src/App.jsx` — App shell with header, layout, settings auto-open, and onboarding auto-start
-- `frontend/src/api.js` — API helper (`fetchJobs`, `createJob`, `updateJob`, `deleteJob`, chat functions, `streamMessage`, `fetchProfile`, `updateProfile`, config functions, onboarding functions)
+- `frontend/src/api.js` — API helper with `getApiBase()` for Tauri URL resolution (`fetchJobs`, `createJob`, `updateJob`, `deleteJob`, chat functions, `streamMessage`, `fetchProfile`, `updateProfile`, config functions, onboarding functions)
 - `frontend/src/pages/JobList.jsx` — Main dashboard: job table with status badges, add/edit/delete
 - `frontend/src/components/JobForm.jsx` — Reusable form for creating and editing jobs
 - `frontend/src/components/ChatPanel.jsx` — Slide-out AI assistant chat panel with SSE streaming
 - `frontend/src/components/ProfilePanel.jsx` — Slide-out user profile viewer/editor panel
 - `frontend/src/components/SettingsPanel.jsx` — Slide-out settings panel for configuring LLM provider, API keys, and onboarding agent
 - `frontend/src/components/HelpPanel.jsx` — Slide-out help panel with Getting Started, Job Tracking, AI Chat, API Key Guides, and Troubleshooting sections
+
+### Tauri (Desktop Wrapper)
+- `src-tauri/tauri.conf.json` — Tauri configuration (build commands, window settings, sidecar config)
+- `src-tauri/Cargo.toml` — Rust dependencies (tauri 2, tauri-plugin-shell 2)
+- `src-tauri/build.rs` — Tauri build script
+- `src-tauri/src/main.rs` — Rust entry point
+- `src-tauri/src/lib.rs` — Sidecar launch logic (spawns Flask backend with `--data-dir` pointing to appDataDir)
+- `src-tauri/capabilities/default.json` — Shell permissions for sidecar spawning
 
 ## API Endpoints
 
@@ -158,6 +176,7 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - `ADZUNA_APP_KEY` — Adzuna API application key (for job search)
 - `ADZUNA_COUNTRY` — Adzuna country code (default: `us`)
 - `JSEARCH_API_KEY` — RapidAPI key for JSearch API (for job search); preferred over Adzuna when both are configured
+- `DATA_DIR` — directory for all data files (db, config, logs, profile); defaults to project root if unset
 
 ### Logging
 - `LOG_LEVEL` — `DEBUG`, `INFO` (default), `WARNING`, `ERROR`
@@ -185,8 +204,10 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - The `/api/health` endpoint returns 503 if LLM is not configured (used by frontend to trigger settings panel)
 
 ### Data Files & Storage
-- SQLite database file is `app.db` in the project root (gitignored, auto-created)
-- User profile file is `user_profile.md` in the project root (gitignored, auto-created with default template)
+- All data files are resolved via `backend/data_dir.get_data_dir()` — defaults to project root, overridden by `DATA_DIR` env var
+- `main.py --data-dir /path` sets `DATA_DIR` before app import; Tauri passes its `appDataDir` this way
+- SQLite database file is `app.db` in the data directory (gitignored, auto-created)
+- User profile file is `user_profile.md` in the data directory (gitignored, auto-created with default template)
 - User profile uses YAML frontmatter for metadata (`onboarded: true/false`); body is markdown
 
 ### User Onboarding Flow

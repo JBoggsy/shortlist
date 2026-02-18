@@ -22,8 +22,10 @@ The Job Application Helper is built as a full-stack web application with a clear
 
 - **Backend (Flask)**: Provides REST API and Server-Sent Events (SSE) streaming for real-time AI responses. Handles data persistence via SQLAlchemy/SQLite and orchestrates the AI agent system.
 - **Frontend (React + Vite)**: Single-page application that consumes the backend API. Uses Tailwind CSS for styling and includes real-time chat with SSE streaming.
+- **Desktop (Tauri v2, Optional)**: Native desktop wrapper using the sidecar approach — Tauri renders the React frontend in a native webview and launches Flask as a child process. The existing browser-based workflow is preserved as a fallback.
 - **AI Agent**: Tool-calling agent that can search the web, scrape URLs, search job boards, and manage job records. Supports multiple LLM providers (Anthropic, OpenAI, Gemini, Ollama).
 - **User Profile System**: Markdown-based user profile with YAML frontmatter. Includes onboarding flow with a dedicated agent that interviews users to build their profile.
+- **Data Directory Abstraction**: All data files (app.db, config.json, logs/, user_profile.md) are resolved via `backend/data_dir.get_data_dir()`. Defaults to the project root; overridden by the `DATA_DIR` environment variable (set automatically by Tauri to its appDataDir).
 
 ## Tech Stack
 
@@ -52,6 +54,11 @@ The Job Application Helper is built as a full-stack web application with a clear
 - **Tailwind CSS 4**: Utility-first CSS framework
 - **npm**: Package manager
 
+### Desktop (Optional)
+- **Tauri v2**: Native desktop wrapper with webview
+- **tauri-plugin-shell**: Sidecar process management for Flask backend
+- **PyInstaller**: Bundles Flask backend as standalone binary for distribution
+
 ## Project Structure
 
 ```
@@ -60,6 +67,7 @@ job_app_helper/
 │   ├── app.py                      # Flask app factory (create_app)
 │   ├── config.py                   # Configuration class with config file + env vars
 │   ├── config_manager.py           # Config file read/write utilities
+│   ├── data_dir.py                 # Centralized data directory resolver (DATA_DIR)
 │   ├── database.py                 # SQLAlchemy db instance
 │   ├── models/
 │   │   ├── __init__.py            # Model exports
@@ -98,11 +106,21 @@ job_app_helper/
 │           ├── ChatPanel.jsx      # AI assistant slide-out panel
 │           ├── ProfilePanel.jsx   # User profile slide-out panel
 │           └── SettingsPanel.jsx  # Settings configuration panel
+├── src-tauri/                     # Tauri desktop wrapper (optional)
+│   ├── tauri.conf.json            # Tauri configuration
+│   ├── Cargo.toml                 # Rust dependencies
+│   ├── build.rs                   # Tauri build script
+│   ├── capabilities/
+│   │   └── default.json           # Shell permissions for sidecar
+│   └── src/
+│       ├── main.rs                # Rust entry point
+│       └── lib.rs                 # Sidecar launch logic
 ├── logs/
 │   └── app.log                    # Application logs (auto-created, gitignored)
 ├── start.sh                       # Unified startup script (Mac/Linux)
 ├── start.bat                      # Unified startup script (Windows)
-├── main.py                        # Backend entry point
+├── build_sidecar.sh               # PyInstaller build script for Tauri sidecar
+├── main.py                        # Backend entry point (supports --data-dir and --port)
 ├── pyproject.toml                 # Python dependencies (uv)
 ├── config.json                    # User configuration (gitignored)
 ├── config.example.json            # Example configuration template
@@ -115,13 +133,15 @@ job_app_helper/
 
 #### Backend
 
-**`main.py`**: Entry point that calls `create_app()` and runs the Flask development server.
+**`main.py`**: Entry point that calls `create_app()` and runs the Flask development server. Accepts `--data-dir` (sets `DATA_DIR` env var for custom data file location) and `--port` (default 5000) CLI arguments.
+
+**`backend/data_dir.py`**: Centralized data directory resolver. `get_data_dir()` returns the directory where all runtime data files (app.db, config.json, logs/, user_profile.md) are stored. Uses `DATA_DIR` env var if set, otherwise defaults to the project root.
 
 **`backend/app.py`**: App factory that creates and configures the Flask app, registers blueprints, and initializes the database.
 
-**`backend/config.py`**: Centralized configuration loading from config.json file with environment variable fallback. Includes LLM provider settings, API keys, and logging configuration.
+**`backend/config.py`**: Centralized configuration loading from config.json file with environment variable fallback. Includes LLM provider settings, API keys, and logging configuration. Uses `get_data_dir()` for the database path.
 
-**`backend/config_manager.py`**: Configuration file management utilities. Provides functions to read/write config.json, get/set individual config values, and mask sensitive data. Environment variables override file-based config.
+**`backend/config_manager.py`**: Configuration file management utilities. Provides functions to read/write config.json, get/set individual config values, and mask sensitive data. Environment variables override file-based config. Config file path is resolved lazily via `get_data_dir()` to respect `DATA_DIR` set after import.
 
 **`backend/database.py`**: SQLAlchemy instance shared across the app.
 
@@ -155,7 +175,7 @@ job_app_helper/
 
 **`frontend/src/App.jsx`**: App shell with header navigation, layout, and onboarding auto-start logic. Manages global state like `jobsVersion` for triggering list refreshes.
 
-**`frontend/src/api.js`**: Centralized API client with helper functions for all backend endpoints. All fetch calls go through this module.
+**`frontend/src/api.js`**: Centralized API client with helper functions for all backend endpoints. All fetch calls go through this module. Includes `getApiBase()` which detects Tauri (via `window.__TAURI_INTERNALS__`) and returns absolute URLs to reach Flask directly, bypassing the Vite proxy.
 
 **`frontend/src/pages/JobList.jsx`**: Main dashboard displaying job table with sortable columns, status badges, and inline add/edit/delete.
 
@@ -285,6 +305,46 @@ npm run build
 ```
 
 This creates an optimized production build in `frontend/dist`.
+
+#### Desktop Development (Tauri)
+
+The app can optionally run as a native desktop application using Tauri v2. Tauri renders the React frontend in a native webview and launches the Flask backend as a sidecar child process.
+
+**Prerequisites** (in addition to standard prerequisites):
+- **Rust toolchain**: Install via [rustup.rs](https://rustup.rs/)
+- **Tauri system dependencies**: See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+
+**Development workflow:**
+
+```bash
+# Terminal 1: Start Flask backend manually
+uv run python main.py
+
+# Terminal 2: Launch Tauri dev window (starts Vite automatically)
+cd frontend && npm run tauri:dev
+```
+
+In debug mode, Tauri does not spawn the Flask sidecar — you start it manually. The Tauri webview loads from `http://localhost:3000` (Vite dev server), which proxies API requests to Flask at `localhost:5000`.
+
+**Custom data directory** (simulates Tauri production behavior):
+
+```bash
+uv run python main.py --data-dir /tmp/test-data --port 5000
+```
+
+This stores all data files (app.db, config.json, logs/, user_profile.md) in the specified directory instead of the project root.
+
+**Production build:**
+
+```bash
+# 1. Bundle Flask backend as standalone binary
+./build_sidecar.sh
+
+# 2. Build the desktop app
+cd frontend && npm run tauri:build
+```
+
+In production mode, Tauri spawns the Flask binary as a sidecar with `--data-dir` set to the platform-standard app data directory.
 
 ### Configuration Priority
 
@@ -752,7 +812,26 @@ npm run test
 
 ## Deployment
 
-### Production Considerations
+### Desktop Distribution (Tauri)
+
+For distributing the app as a standalone desktop application:
+
+1. Build the Flask sidecar binary:
+   ```bash
+   ./build_sidecar.sh
+   ```
+2. Build the Tauri desktop app:
+   ```bash
+   cd frontend && npm run tauri:build
+   ```
+3. The built application will be in `src-tauri/target/release/bundle/`
+
+In the desktop build, data files are stored in platform-standard directories:
+- **Linux**: `~/.local/share/com.jobapphelper.app/`
+- **macOS**: `~/Library/Application Support/com.jobapphelper.app/`
+- **Windows**: `C:\Users\<user>\AppData\Roaming\com.jobapphelper.app\`
+
+### Server Deployment (Web)
 
 1. **Database**: Replace SQLite with PostgreSQL or MySQL for production
 2. **Configuration**: Use environment variables (not `config.json`) with a secrets manager (AWS Secrets Manager, HashiCorp Vault, etc.)

@@ -635,6 +635,16 @@ If you run into issues not covered here:
 
 ---
 
+## Desktop App (Advanced, Optional)
+
+If you'd prefer to run the Job Application Helper as a native desktop application instead of in a browser, the project supports [Tauri v2](https://v2.tauri.app/) for building standalone desktop apps. This requires additional developer tools (Rust toolchain, Tauri system dependencies) and is intended for advanced users.
+
+See [DEVELOPMENT.md](DEVELOPMENT.md#desktop-development-tauri) for detailed instructions on building and running the desktop version.
+
+The browser-based setup described above is the recommended approach for most users.
+
+---
+
 ## Next Steps
 
 Now that you're all set up:

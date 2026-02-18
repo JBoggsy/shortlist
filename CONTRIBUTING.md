@@ -99,6 +99,7 @@ For detailed development setup instructions, see [DEVELOPMENT.md](DEVELOPMENT.md
 - Node.js 18+
 - uv (Python package manager)
 - npm (JavaScript package manager)
+- Rust toolchain (only if working on the Tauri desktop wrapper)
 
 ### Quick Setup
 
@@ -153,6 +154,9 @@ uv run python main.py
 # Frontend: Verify it builds without errors
 cd frontend
 npm run build
+
+# Desktop (if you changed Tauri/sidecar code): Verify Tauri dev mode works
+cd frontend && npm run tauri:dev
 ```
 
 4. **Commit your changes**:

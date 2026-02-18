@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+**Tauri v2 Desktop App (Optional)**
+- Added Tauri v2 as an optional native desktop wrapper using the sidecar approach
+- Tauri renders the React frontend in a native webview and launches Flask as a child process
+- Data files (app.db, config.json, logs/, user_profile.md) are stored in platform-standard directories when running under Tauri
+- Existing browser-based workflow (`start.sh` / `start.bat`) preserved as fallback
+
+**Data Directory Abstraction**
+- New `backend/data_dir.py` module with `get_data_dir()` for centralized data directory resolution
+- `DATA_DIR` environment variable support to override data file location
+- `main.py` now accepts `--data-dir` and `--port` CLI arguments
+- All data file paths (database, config, logs, user profile) now resolve through `get_data_dir()`
+
+**Frontend Tauri Compatibility**
+- Added `getApiBase()` in `frontend/src/api.js` for absolute URL resolution in Tauri webview (detects Tauri via `window.__TAURI_INTERNALS__`)
+- Tauri-compatible Vite config settings (`clearScreen`, `envPrefix`, `strictPort`)
+
+**Build & Tooling**
+- `build_sidecar.sh` script for bundling Flask backend as a standalone binary via PyInstaller with Tauri target-triple naming
+- Tauri project scaffolding (`src-tauri/`) with Rust sidecar launch logic, capabilities, and configuration
+- `npm run tauri:dev` and `npm run tauri:build` scripts in `frontend/package.json`
+- PyInstaller added as a dev dependency
+
 ## [0.3.0] - 2026-02-18
 
 ### Added
