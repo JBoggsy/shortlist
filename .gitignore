@@ -26,3 +26,10 @@ logs/
 .env
 config.json
 *.bkp
+
+# Tauri
+src-tauri/target/
+src-tauri/binaries/
+
+# PyInstaller
+*.spec
