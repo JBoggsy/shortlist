@@ -1,6 +1,15 @@
-const BASE = "/api/jobs";
-const CHAT_BASE = "/api/chat";
-const PROFILE_BASE = "/api/profile";
+function getApiBase() {
+  if (window.__TAURI_INTERNALS__) {
+    return `http://localhost:${window.__FLASK_PORT__ || 5000}`;
+  }
+  return "";
+}
+
+const API_BASE = getApiBase();
+const BASE = `${API_BASE}/api/jobs`;
+const CHAT_BASE = `${API_BASE}/api/chat`;
+const PROFILE_BASE = `${API_BASE}/api/profile`;
+const CONFIG_BASE = `${API_BASE}/api/config`;
 
 export async function fetchJobs() {
   const res = await fetch(BASE);
@@ -181,8 +190,6 @@ export async function streamOnboardingMessage(conversationId, content, onEvent, 
 
 // Config API
 
-const CONFIG_BASE = "/api/config";
-
 export async function fetchConfig() {
   const res = await fetch(CONFIG_BASE);
   if (!res.ok) throw new Error("Failed to fetch config");
@@ -217,7 +224,7 @@ export async function fetchProviders() {
 }
 
 export async function fetchHealth() {
-  const res = await fetch("/api/health");
+  const res = await fetch(`${API_BASE}/api/health`);
   // Note: health endpoint returns 503 if not configured, but we still want the data
   const data = await res.json();
   return data;
