@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-18
+
 ### Added
 
 **Tauri v2 Desktop App (Optional)**
@@ -30,6 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tauri project scaffolding (`src-tauri/`) with Rust sidecar launch logic, capabilities, and configuration
 - `npm run tauri:dev` and `npm run tauri:build` scripts in `frontend/package.json`
 - PyInstaller added as a dev dependency
+
+**Agent Improvements**
+- Increased agent `MAX_ITERATIONS` from 10 to 25 for handling complex multi-step tasks
+
+### Changed
+
+**Project Cleanup**
+- Moved developer/contributor documentation into `docs/` directory (CHANGELOG, CONTRIBUTING, DEVELOPMENT, INSTALLATION, TODO, config.example.json)
+- Updated all cross-references in README.md and other docs to reflect new locations
+- README.md and CLAUDE.md remain at project root per GitHub/Claude Code conventions
 
 ## [0.3.0] - 2026-02-18
 
