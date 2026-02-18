@@ -321,7 +321,7 @@ The app can optionally run as a native desktop application using Tauri v2. Tauri
 uv run python main.py
 
 # Terminal 2: Launch Tauri dev window (starts Vite automatically)
-cd frontend && npm run tauri:dev
+npm run tauri:dev
 ```
 
 In debug mode, Tauri does not spawn the Flask sidecar — you start it manually. The Tauri webview loads from `http://localhost:3000` (Vite dev server), which proxies API requests to Flask at `localhost:5000`.
@@ -341,7 +341,7 @@ This stores all data files (app.db, config.json, logs/, user_profile.md) in the 
 ./build_sidecar.sh
 
 # 2. Build the desktop app
-cd frontend && npm run tauri:build
+npm run tauri:build
 ```
 
 In production mode, Tauri spawns the Flask binary as a sidecar with `--data-dir` set to the platform-standard app data directory.
@@ -822,7 +822,7 @@ For distributing the app as a standalone desktop application:
    ```
 2. Build the Tauri desktop app:
    ```bash
-   cd frontend && npm run tauri:build
+   npm run tauri:build
    ```
 3. The built application will be in `src-tauri/target/release/bundle/`
 

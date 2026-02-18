@@ -302,11 +302,11 @@ The app can also run as a native desktop application using [Tauri v2](https://v2
 ```bash
 # Development: start Flask manually, then launch Tauri
 uv run python main.py                  # Terminal 1
-cd frontend && npm run tauri:dev       # Terminal 2
+npm run tauri:dev                      # Terminal 2
 
 # Production build (requires Rust toolchain)
 ./build_sidecar.sh                     # Bundle Flask as standalone binary
-cd frontend && npm run tauri:build     # Build the desktop app
+npm run tauri:build                    # Build the desktop app
 ```
 
 The browser-based workflow (`./start.sh` / `start.bat`) continues to work as before. See [DEVELOPMENT.md](DEVELOPMENT.md) for more details.

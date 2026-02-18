@@ -35,8 +35,8 @@ The start scripts handle everything automatically. Use the manual commands below
 - `cd frontend && npm run build` — production build (use to verify changes compile)
 
 ### Desktop Mode (Tauri)
-- `cd frontend && npm run tauri:dev` — launch Tauri dev window (start Flask manually in a separate terminal first)
-- `cd frontend && npm run tauri:build` — build production desktop app (run `./build_sidecar.sh` first to bundle Flask)
+- `npm run tauri:dev` — launch Tauri dev window (start Flask manually in a separate terminal first)
+- `npm run tauri:build` — build production desktop app (run `./build_sidecar.sh` first to bundle Flask)
 - `./build_sidecar.sh` — build Flask backend as a standalone binary for Tauri sidecar
 
 ## Project Structure

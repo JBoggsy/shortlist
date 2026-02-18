@@ -156,7 +156,7 @@ cd frontend
 npm run build
 
 # Desktop (if you changed Tauri/sidecar code): Verify Tauri dev mode works
-cd frontend && npm run tauri:dev
+npm run tauri:dev
 ```
 
 4. **Commit your changes**:

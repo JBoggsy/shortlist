@@ -25,6 +25,7 @@ logs/
 # Environment
 .env
 config.json
+package-lock.json
 *.bkp
 
 # Tauri
