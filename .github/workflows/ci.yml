@@ -60,11 +60,22 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Restore sidecar cache
+        id: sidecar-cache
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries/
+          key: sidecar-${{ matrix.target }}-${{ hashFiles('**/*.py', 'uv.lock') }}
 
       - name: Install Python dependencies
+        if: steps.sidecar-cache.outputs.cache-hit != 'true'
         run: uv sync --dev
 
       - name: Build sidecar
+        if: steps.sidecar-cache.outputs.cache-hit != 'true'
         run: ${{ matrix.sidecar-cmd }}
 
       - name: Install Node dependencies
