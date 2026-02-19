@@ -190,6 +190,15 @@ def list_models():
         provider_name = data.get('provider')
         api_key = data.get('api_key', '')
 
+        # If the key looks masked (contains asterisks), resolve the real key from config
+        if api_key and '*' in api_key:
+            config = load_config()
+            # Check if this matches the main LLM provider or onboarding provider
+            if config.get('llm', {}).get('provider') == provider_name:
+                api_key = config.get('llm', {}).get('api_key', '')
+            elif config.get('onboarding_llm', {}).get('provider') == provider_name:
+                api_key = config.get('onboarding_llm', {}).get('api_key', '')
+
         if not provider_name:
             return jsonify({"models": [], "error": "No provider specified"}), 200
 
