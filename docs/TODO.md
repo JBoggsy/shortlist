@@ -6,10 +6,7 @@
 - [x] **Improve onboarding intro message** — agent coaches users to give detailed, full-sentence answers
 - [x] **Clarify API key requirements** — Tavily marked as recommended, help text updated across Settings/Help/Installation
 
-- [ ] **Explore ways to simplify API key acquisition**
-  - Current flow requires users to visit multiple external sites and copy-paste keys
-  - Ideas: direct links to signup pages, embedded iframes, OAuth flows, or bundled free-tier keys
-  - Research what's feasible given provider TOS constraints
+- [x] **Simplify API key acquisition** — Added first-time setup wizard with inline how-to guides (step-by-step instructions + direct links) for all API key fields in both the wizard and Settings panel
 
 ## Features
 

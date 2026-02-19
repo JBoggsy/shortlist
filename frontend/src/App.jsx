@@ -5,6 +5,7 @@ import ProfilePanel from "./components/ProfilePanel";
 import SettingsPanel from "./components/SettingsPanel";
 import HelpPanel from "./components/HelpPanel";
 import UpdateBanner from "./components/UpdateBanner";
+import SetupWizard from "./components/SetupWizard";
 import { fetchOnboardingStatus, fetchHealth } from "./api";
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
   const [onboarding, setOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [jobsVersion, setJobsVersion] = useState(0);
   const [updateInfo, setUpdateInfo] = useState(null);
 
@@ -69,9 +71,9 @@ function App() {
         const { onboarded } = await fetchOnboardingStatus();
         if (!onboarded) {
           // User needs onboarding but LLM not configured
-          // Open Settings and flag to start onboarding after
+          // Open setup wizard and flag to start onboarding after
           setPendingOnboarding(true);
-          setSettingsOpen(true);
+          setWizardOpen(true);
         }
         // If already onboarded, just let them use the app
         // They can open settings manually if they want to chat
@@ -91,13 +93,25 @@ function App() {
   }
 
   async function handleSettingsSaved() {
-    // Called when settings are successfully saved
-    // Check if we need to start onboarding now
+    // Called when settings are successfully saved via Settings panel (manual path)
     if (pendingOnboarding) {
       setPendingOnboarding(false);
+      setSettingsOpen(false);
       setOnboarding(true);
       setChatOpen(true);
     }
+  }
+
+  function handleWizardComplete() {
+    setWizardOpen(false);
+    setPendingOnboarding(false);
+    setOnboarding(true);
+    setChatOpen(true);
+  }
+
+  function handleWizardClose() {
+    setWizardOpen(false);
+    // pendingOnboarding stays true: if user later saves via Settings, onboarding still triggers
   }
 
   function handleOnboardingComplete() {
@@ -181,6 +195,11 @@ function App() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onSaved={handleSettingsSaved}
+      />
+      <SetupWizard
+        isOpen={wizardOpen}
+        onClose={handleWizardClose}
+        onComplete={handleWizardComplete}
       />
     </div>
   );

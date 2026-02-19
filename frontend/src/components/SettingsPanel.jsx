@@ -1,6 +1,85 @@
 import { useState, useEffect } from 'react';
 import { fetchConfig, updateConfig, testConnection, fetchProviders } from '../api';
 
+const API_KEY_GUIDES = {
+  anthropic: {
+    label: "Anthropic",
+    url: "https://console.anthropic.com/settings/keys",
+    steps: [
+      "Go to console.anthropic.com and sign in",
+      "Click 'API Keys' in the left sidebar",
+      "Click '+ Create Key', name it, and copy the key",
+    ],
+  },
+  openai: {
+    label: "OpenAI",
+    url: "https://platform.openai.com/api-keys",
+    steps: [
+      "Go to platform.openai.com and sign in",
+      "Click 'API keys' in the left sidebar",
+      "Click '+ Create new secret key' and copy it immediately — won't be shown again",
+    ],
+  },
+  gemini: {
+    label: "Google AI Studio",
+    url: "https://aistudio.google.com/app/apikey",
+    steps: [
+      "Go to aistudio.google.com and sign in with your Google account",
+      "Click 'Get API Key' in the left panel",
+      "Select or create a Google Cloud project, then click 'Create API key' and copy it",
+    ],
+  },
+  tavily: {
+    label: "Tavily",
+    url: "https://app.tavily.com/",
+    steps: [
+      "Go to app.tavily.com and sign up for a free account",
+      "After sign-in, your API key is shown on the dashboard",
+      "Free tier includes 1,000 searches/month",
+    ],
+  },
+  jsearch: {
+    label: "RapidAPI (JSearch)",
+    url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch",
+    steps: [
+      "Go to rapidapi.com and sign up for a free account",
+      "Open the JSearch API page (link above)",
+      "Click 'Subscribe to Test' and choose the free tier",
+      "Copy your 'X-RapidAPI-Key' shown in the code examples panel",
+    ],
+  },
+  adzuna: {
+    label: "Adzuna",
+    url: "https://developer.adzuna.com/",
+    steps: [
+      "Go to developer.adzuna.com and sign up for a free account",
+      "Go to 'Application Overview' in your dashboard",
+      "Copy both the App ID and App Key shown there",
+    ],
+  },
+};
+
+function ApiKeyGuide({ guideKey }) {
+  const guide = API_KEY_GUIDES[guideKey];
+  if (!guide) return null;
+  return (
+    <details className="mt-2">
+      <summary className="text-xs text-blue-600 cursor-pointer select-none hover:text-blue-800">
+        How do I get this key? ▸
+      </summary>
+      <div className="bg-blue-50 rounded-lg p-3 mt-2 text-xs text-gray-700 space-y-2">
+        <ol className="list-decimal list-inside space-y-1">
+          {guide.steps.map((s, i) => <li key={i}>{s}</li>)}
+        </ol>
+        <a href={guide.url} target="_blank" rel="noreferrer"
+           className="inline-flex items-center gap-1 text-blue-600 hover:underline font-medium">
+          Open {guide.label} →
+        </a>
+      </div>
+    </details>
+  );
+}
+
 export default function SettingsPanel({ isOpen, onClose, onSaved }) {
   const [config, setConfig] = useState(null);
   const [providers, setProviders] = useState([]);
@@ -227,6 +306,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                       {errors.llmApiKey && (
                         <p className="mt-1 text-sm text-red-600">{errors.llmApiKey}</p>
                       )}
+                      <ApiKeyGuide guideKey={llmProvider} />
                     </div>
                   )}
 
@@ -339,6 +419,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                     <p className="mt-1 text-xs text-gray-500">
                       Required for the AI to search the web. Without this, the assistant can only read URLs you paste directly. Free tier: 1,000 searches/month at tavily.com
                     </p>
+                    <ApiKeyGuide guideKey="tavily" />
                   </div>
 
                   {/* JSearch */}
@@ -356,6 +437,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                     <p className="mt-1 text-xs text-gray-500">
                       Enables searching job boards (Indeed, LinkedIn, etc.) directly from the AI assistant. Preferred over Adzuna.
                     </p>
+                    <ApiKeyGuide guideKey="jsearch" />
                   </div>
 
                   {/* Adzuna */}
@@ -387,6 +469,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                       <p className="mt-1 text-xs text-gray-500">
                         Alternative job board search API
                       </p>
+                      <ApiKeyGuide guideKey="adzuna" />
                     </div>
                   </div>
                 </div>
