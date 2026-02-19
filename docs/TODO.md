@@ -1,6 +1,43 @@
 # TODO
 
-## 🚨 Urgent Bugfixes
+## Urgent Bugfixes
+
+- [ ] **Date Added column shows wrong timezone**
+  - Jobs added on 2/18 display as 2/19 — likely storing/displaying UTC instead of local time
+  - Need to convert timestamps to user's local timezone in the frontend
+
+- [ ] **Links in Tauri desktop app don't open web browser**
+  - Clicking URLs (e.g., job posting links) does nothing in the Tauri app
+  - Need to use Tauri's shell `open` API to open links in the user's default browser
+
+- [ ] **scrape_url tool frequently gets 403 errors**
+  - Many job posting sites block simple HTTP requests (LinkedIn, Greenhouse, etc.)
+  - Investigate adding proper User-Agent headers, retry logic, or a headless browser fallback
+  - Consider using a different scraping approach for known problematic domains
+
+## UX Improvements
+
+- [ ] **Make tool use errors less scary**
+  - Currently displayed as red blocks of text that alarm non-technical users
+  - Tool errors are often non-critical (e.g., a scrape fails but the agent retries or works around it)
+  - Redesign to use a subtle warning style instead of alarming error blocks
+  - Consider collapsing error details behind an expandable "Details" toggle
+
+- [ ] **Improve onboarding intro message**
+  - Have the agent tell the user at the outset that the onboarding process works better if they:
+    - Write full sentences with lots of detail
+    - Treat it like they're really working with a job consultant
+  - Non-technical users tend to give terse answers; coaching them upfront improves profile quality
+
+- [ ] **Clarify API key requirements in installation guide**
+  - Make it clear that Tavily is required for the AI assistant's web search to work
+  - JSearch and/or Adzuna are optional but recommended for job searching
+  - Update INSTALLATION.md and the Settings panel help text accordingly
+
+- [ ] **Explore ways to simplify API key acquisition**
+  - Current flow requires users to visit multiple external sites and copy-paste keys
+  - Ideas: direct links to signup pages, embedded iframes, OAuth flows, or bundled free-tier keys
+  - Research what's feasible given provider TOS constraints
 
 ## Features
 
@@ -18,122 +55,32 @@
 - [ ] **Resume uploading and parsing**
   - Add ability for user to upload resume, which will be parsed and used to inform job search
 
-## Polish & Publication
-
-### Phase 1: Quick Wins
-
-- [x] **Polish repository for GitHub publication** (v0.1.0)
-  - Expand README to better explain project to potential users (what it does, why use it, quick demo/screenshots)
-  - Move technical components (project structure, tech stack, API endpoints, conventions) to new DEVELOPMENT.md
-  - Fill in DEVELOPMENT.md as comprehensive onboarding guide for project developers
-  - Add LICENSE file (MIT)
-  - Add CHANGELOG.md to track version history and notable changes
-  - Add CONTRIBUTING.md with guidelines for contributors
-  - Add .github/ISSUE_TEMPLATE and PULL_REQUEST_TEMPLATE
-  - Add application screenshots to docs/screenshots/
-
-- [x] **Simplify installation and startup** (v0.2.0-v0.2.2)
-  - Create single startup script/command that runs both backend and frontend (`start.sh`, `start.bat`)
-  - Automatic dependency checking with friendly error messages
-  - Auto-install missing dependencies where possible
-  - Document installation process clearly in README
-  - Add troubleshooting section for common issues
-  - Handle Windows-specific issues (Python Store aliases, uv PATH)
-
-- [x] **In-app configuration** (v0.2.0)
-  - Add Settings panel in UI for LLM provider and API key configuration
-  - Store LLM configuration in config.json file (not just env vars)
-  - Show available LLM providers with their default models
-  - Validate API keys with "Test Connection" button
-  - Support for optional integrations (Tavily, JSearch, Adzuna)
-  - Environment variables override config file for production deployments
-
-- [x] **In-app help and documentation**
-  - Add Help section in app UI (help icon/button in header) ✓
-  - Build feature wiki or help docs within app (how to use chat, job tracking, etc.) ✓
-  - In-app guides for getting API keys (Anthropic, OpenAI, Gemini, Ollama, Tavily, JSearch, Adzuna) ✓
-  - Troubleshooting section in Help panel ✓
-  - Interactive tutorial/walkthrough: skipped (static help panel covers first-time user needs)
-  - Inline error message links: skipped (help panel accessible from header at all times)
-
-- [x] **Configuration improvements**
-  - Allow changing LLM provider/model without restarting app (hot reload) ✓ (LLM provider created fresh per-request; already worked)
-  - Separate configuration UI for onboarding agent vs chat agent ✓ (added collapsible Onboarding Agent section in Settings)
-  - Show current API usage/costs: skipped (complex per-provider, out of scope for Phase 1)
-  - Support for multiple API keys: skipped (out of scope for Phase 1)
-
-### Phase 2: Standalone Desktop Application
-
-**Goal**: Package as a true desktop app - no Python/Node.js installation required
-
-- [x] **Tauri Migration** (v0.4.0)
-  - ~~Migrate from Flask dev server to Tauri desktop app framework~~ Tauri wraps Flask as sidecar
-  - Embed Python backend using PyInstaller or similar
-  - Use existing React frontend with Tauri webview
-  - [ ] Replace HTTP/SSE with Tauri IPC (inter-process communication) — deferred; HTTP/SSE works well via sidecar
-  - Maintain feature parity with web version
-
-- [x] **Platform-Specific Installers** (v0.4.2)
-  - Windows: `.exe` installer with MSI option
-  - macOS: `.dmg` installer (code signing not yet configured — see CI/CD notes)
-  - Linux: `.AppImage`, `.deb`, and `.rpm` packages
-  - Include all dependencies (Python runtime, SQLite, etc.)
-  - No separate backend/frontend setup required
+## Desktop App (Phase 2 Remaining)
 
 - [ ] **Auto-Update System**
   - Integrate Tauri's built-in updater
   - Check for updates on startup (optional/configurable)
   - Download and apply updates in background
   - Changelog display in update prompt
-  - Rollback capability for failed updates
 
 - [ ] **Native OS Integration**
   - System tray icon with quick actions
   - Native notifications for job status changes
   - Native file picker for resume upload
   - OS-specific menu bar integration
-  - Platform-native dialogs and UI elements
 
-- [x] **Desktop-Specific Features** (partial)
-  - [x] Local SQLite database (no external database needed) — always used SQLite
-  - [ ] Offline mode (work without internet, sync later)
-  - [ ] Multiple workspace/profile support
-  - [ ] Data import/export (JSON, CSV)
-  - [ ] Backup and restore functionality
+- [ ] **Desktop-Specific Features**
+  - Offline mode (work without internet, sync later)
+  - Multiple workspace/profile support
+  - Data import/export (JSON, CSV)
+  - Backup and restore functionality
 
-- [x] **Developer Experience** (v0.4.0–v0.4.2)
-  - Hot reload for development
-  - Build scripts for all platforms (`build_sidecar.sh`, `build_sidecar.ps1`)
-  - CI/CD pipeline for automated releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`)
-  - [ ] Code signing certificates setup — macOS and Windows code signing not yet configured
-  - Release artifact publishing to GitHub Releases
+- [ ] **Code signing certificates setup**
+  - macOS and Windows code signing not yet configured
 
-- [x] **Documentation Updates** (v0.4.2)
-  - Installation guide for standalone app
-  - Building from source instructions
-  - Troubleshooting for desktop app issues
-  - ~~Migration guide from web version~~ N/A — no migration needed, same app
+## Future (Phase 3)
 
-### Phase 3: Enhanced Features (Future)
-
-- [ ] **Multi-user support**
-  - User accounts and authentication
-  - Cloud sync across devices
-  - Shared job boards for teams
-  - Collaboration features
-
-- [ ] **Advanced analytics**
-  - Application success rate tracking
-  - Time-to-hire metrics
-  - Salary range analysis
-  - Job market insights
-
-- [ ] **Browser extension**
-  - One-click job saving from LinkedIn, Indeed, etc.
-  - Auto-fill application forms
-  - Quick notes on job postings
-
-- [ ] **Mobile app**
-  - React Native or Flutter mobile app
-  - Job tracking on the go
-  - Push notifications for deadlines
+- [ ] **Multi-user support** — accounts, cloud sync, shared job boards, collaboration
+- [ ] **Advanced analytics** — success rates, time-to-hire, salary analysis, market insights
+- [ ] **Browser extension** — one-click save from LinkedIn/Indeed, auto-fill, quick notes
+- [ ] **Mobile app** — React Native or Flutter, job tracking on the go, push notifications
