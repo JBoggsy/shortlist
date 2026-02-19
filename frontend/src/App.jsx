@@ -4,6 +4,7 @@ import ChatPanel from "./components/ChatPanel";
 import ProfilePanel from "./components/ProfilePanel";
 import SettingsPanel from "./components/SettingsPanel";
 import HelpPanel from "./components/HelpPanel";
+import UpdateBanner from "./components/UpdateBanner";
 import { fetchOnboardingStatus, fetchHealth } from "./api";
 
 function App() {
@@ -26,6 +27,19 @@ function App() {
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, []);
+
+  // Check for app updates in Tauri
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return;
+    import("@tauri-apps/plugin-updater").then(({ check }) => {
+      check().then((update) => {
+        if (update) setUpdateInfo(update);
+      }).catch((err) => {
+        console.error("Update check failed:", err);
+      });
+    });
+  }, []);
+
   const [chatOpen, setChatOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -34,6 +48,7 @@ function App() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [pendingOnboarding, setPendingOnboarding] = useState(false);
   const [jobsVersion, setJobsVersion] = useState(0);
+  const [updateInfo, setUpdateInfo] = useState(null);
 
   function handleJobsChanged() {
     setJobsVersion((v) => v + 1);
@@ -98,6 +113,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {updateInfo && (
+        <UpdateBanner
+          update={updateInfo}
+          onDismiss={() => setUpdateInfo(null)}
+        />
+      )}
       <header className="bg-white shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Job App Helper</h1>

@@ -87,6 +87,7 @@ The start scripts handle everything automatically. Use the manual commands below
 - `frontend/src/components/ProfilePanel.jsx` — Slide-out user profile viewer/editor panel
 - `frontend/src/components/SettingsPanel.jsx` — Slide-out settings panel for configuring LLM provider, API keys, and onboarding agent
 - `frontend/src/components/HelpPanel.jsx` — Slide-out help panel with Getting Started, Job Tracking, AI Chat, API Key Guides, and Troubleshooting sections
+- `frontend/src/components/UpdateBanner.jsx` — Auto-update notification banner (Tauri desktop only); shows version info, download progress, and restart button
 
 ### Tauri (Desktop Wrapper)
 - `src-tauri/tauri.conf.json` — Tauri configuration (build commands, window settings, sidecar config)
@@ -239,7 +240,8 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - Keep changes focused — one feature or fix per commit
 - Run `cd frontend && npm run build` to verify frontend changes compile before committing
 - Prefer editing existing files over creating new ones to avoid file bloat
-- After implementing a feature or fix, update `docs/TODO.md` to mark completed items as done (`[x]`)
+- After implementing a feature or fix, update `docs/TODO.md` to mark completed items as done (`[x]`) and **condense the item to a single line** — remove sub-bullets and detailed descriptions, keeping only the essential summary of what was done
+- After implementing a feature or fix, update `docs/CHANGELOG.md` under `[Unreleased]` with a concise entry describing the change
 - After making changes, update any relevant documentation (CLAUDE.md, README.md, INSTALLATION.md, etc.) to reflect the current state of the codebase
 
 ### Git Commits
@@ -284,9 +286,28 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - `build_sidecar.sh` — Mac/Linux: detects arch, runs PyInstaller, places binary in `src-tauri/binaries/`
 - `build_sidecar.ps1` — Windows PowerShell equivalent of the above
 
+### Auto-Update System
+The desktop app uses `tauri-plugin-updater` to check for updates on startup. When a new version is published on GitHub Releases, users see a banner with the new version number, a download progress bar, and a restart button.
+
+**How it works:**
+1. On startup, the app fetches `latest.json` from the latest GitHub Release
+2. If a newer version exists, an `UpdateBanner` component appears at the top of the page
+3. User clicks "Update Now" to download and install, or "Later" to dismiss
+4. After download completes, user clicks "Restart Now" to apply the update
+
+**Signing key setup (required for auto-updates to work):**
+```bash
+npx @tauri-apps/cli signer generate -w ~/.tauri/job-app-helper.key
+```
+This generates a keypair. Then:
+1. Copy the **public key** (printed to stdout) into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey` (replacing `PLACEHOLDER_PUBLIC_KEY`)
+2. Add the **private key file contents** as GitHub secret `TAURI_SIGNING_PRIVATE_KEY`
+3. Add the **password** (if set) as GitHub secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+**Important:** The `latest.json` endpoint (`/releases/latest/download/latest.json`) only works with **published** releases, not drafts. After the CI creates a draft release, you must publish it on GitHub for auto-updates to detect it.
+
 ### Code Signing (Future)
 - macOS: add Apple Developer secrets (`APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, etc.) to repo settings; uncomment env vars in `release.yml`
-- Windows: add Tauri signing key secrets (`TAURI_SIGNING_PRIVATE_KEY`, etc.) to repo settings; uncomment env vars in `release.yml`
 
 ## Documentation
 
