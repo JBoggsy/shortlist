@@ -2,19 +2,19 @@
 
 ## UX Improvements
 
-- [ ] **Make tool use errors less scary**
+- [x] **Make tool use errors less scary**
   - Currently displayed as red blocks of text that alarm non-technical users
   - Tool errors are often non-critical (e.g., a scrape fails but the agent retries or works around it)
   - Redesign to use a subtle warning style instead of alarming error blocks
   - Consider collapsing error details behind an expandable "Details" toggle
 
-- [ ] **Improve onboarding intro message**
+- [x] **Improve onboarding intro message**
   - Have the agent tell the user at the outset that the onboarding process works better if they:
     - Write full sentences with lots of detail
     - Treat it like they're really working with a job consultant
   - Non-technical users tend to give terse answers; coaching them upfront improves profile quality
 
-- [ ] **Clarify API key requirements in installation guide**
+- [x] **Clarify API key requirements in installation guide**
   - Make it clear that Tavily is required for the AI assistant's web search to work
   - JSearch and/or Adzuna are optional but recommended for job searching
   - Update INSTALLATION.md and the Settings panel help text accordingly

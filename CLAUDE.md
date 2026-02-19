@@ -239,6 +239,8 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - Keep changes focused — one feature or fix per commit
 - Run `cd frontend && npm run build` to verify frontend changes compile before committing
 - Prefer editing existing files over creating new ones to avoid file bloat
+- After implementing a feature or fix, update `docs/TODO.md` to mark completed items as done (`[x]`)
+- After making changes, update any relevant documentation (CLAUDE.md, README.md, INSTALLATION.md, etc.) to reflect the current state of the codebase
 
 ### Git Commits
 - Use **conventional commit** format: `type: description`
