@@ -133,9 +133,9 @@ If you have a powerful computer (16GB+ RAM recommended), you can run AI models l
 
 > **Note:** Even with the desktop app, Ollama must be running separately. Start it with `ollama serve` before using the app.
 
-### Getting a Search API Key
+### Getting a Search API Key (Recommended)
 
-The AI assistant can search the web for job information. This requires a Tavily API key:
+The AI assistant can search the web for job information — this is one of its most useful features. It requires a Tavily API key:
 
 1. Go to [tavily.com](https://tavily.com/)
 2. Sign up for a free account
@@ -196,13 +196,13 @@ This section configures the AI that powers the assistant.
    - You'll see a success message if everything is configured correctly
    - If there's an error, double-check your API key
 
-#### Integrations (Optional)
+#### Integrations
 
-This section adds extra capabilities to the AI assistant. You can skip these for now and add them later.
+This section adds extra capabilities to the AI assistant.
 
-- **Tavily Search API Key**: Allows the AI to search the web for job information
-- **JSearch API Key**: Enables the AI to search job boards (recommended if you want job search)
-- **Adzuna App ID & Key**: Alternative job board search (use either JSearch or Adzuna)
+- **Tavily Search API Key** *(Recommended)*: Required for the AI to search the web. Without this, the assistant can only read URLs you paste directly. Free tier includes 1,000 searches/month.
+- **JSearch API Key**: Enables the AI to search job boards like Indeed and LinkedIn for listings. Optional, but useful if you want the AI to find jobs for you.
+- **Adzuna App ID & Key**: Alternative job board search (use either JSearch or Adzuna, not both)
 
 ### Saving Your Settings
 

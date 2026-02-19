@@ -318,12 +318,16 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
 
               {/* Integrations */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Integrations (Optional)</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Integrations</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  These keys give the AI assistant extra capabilities. Tavily is recommended — it's required for web search, the assistant's most useful feature.
+                </p>
                 <div className="space-y-4">
                   {/* Search API */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tavily Search API Key
+                      <span className="ml-2 inline-block px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">Recommended</span>
                     </label>
                     <input
                       type="password"
@@ -333,7 +337,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Enables web search tool in the AI assistant
+                      Required for the AI to search the web. Without this, the assistant can only read URLs you paste directly. Free tier: 1,000 searches/month at tavily.com
                     </p>
                   </div>
 
@@ -350,7 +354,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Enables job board search via JSearch (preferred)
+                      Enables searching job boards (Indeed, LinkedIn, etc.) directly from the AI assistant. Preferred over Adzuna.
                     </p>
                   </div>
 
@@ -366,6 +370,9 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                         onChange={(e) => setAdzunaAppId(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Alternative job board search — use either JSearch or Adzuna, not both
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -156,12 +156,12 @@ export default function HelpPanel({ isOpen, onClose }) {
                 </ul>
               </div>
               <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">Integrations (optional)</p>
+                <p className="text-sm font-medium text-gray-700">Integrations</p>
                 <ul className="space-y-1.5 text-sm">
                   {[
-                    { name: "Tavily (web search)", url: "https://app.tavily.com/" },
-                    { name: "JSearch via RapidAPI (job board search)", url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" },
-                    { name: "Adzuna (job board search, alternative to JSearch)", url: "https://developer.adzuna.com/" },
+                    { name: "Tavily — recommended, required for web search", url: "https://app.tavily.com/" },
+                    { name: "JSearch via RapidAPI — needed for job board search", url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" },
+                    { name: "Adzuna — job board search, alternative to JSearch", url: "https://developer.adzuna.com/" },
                   ].map(({ name, url }) => (
                     <li key={url} className="flex items-center gap-2">
                       <span className="text-blue-400 flex-shrink-0">›</span>
