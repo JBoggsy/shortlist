@@ -7,6 +7,25 @@ import HelpPanel from "./components/HelpPanel";
 import { fetchOnboardingStatus, fetchHealth } from "./api";
 
 function App() {
+  // In Tauri, intercept external link clicks and open in system browser
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return;
+
+    function handleClick(e) {
+      const anchor = e.target.closest("a[href]");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      // Only intercept external URLs (http/https/mailto)
+      if (/^(https?:|mailto:)/i.test(href)) {
+        e.preventDefault();
+        import("@tauri-apps/plugin-shell").then(({ open }) => open(href));
+      }
+    }
+
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, []);
   const [chatOpen, setChatOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
