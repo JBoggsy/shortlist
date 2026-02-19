@@ -14,6 +14,7 @@ Job Application Helper helps you organize your job search. Track applications th
 - **Web Search Integration**: Built-in web search (via Tavily) for finding job postings and company information
 - **Job Board Integration**: Search Adzuna and JSearch job boards directly from the chat
 - **User Profile System**: Personalized onboarding interview to understand your job preferences and goals
+- **Resume Upload**: Upload your resume (PDF or DOCX) so the AI assistant can reference it for job fit evaluation and recommendations
 - **Rich Job Details**: Track salary ranges, location, remote type, requirements, contact info, and more
 - **Job Fit Ratings**: Rate how well each job matches your profile (0-5 stars)
 - **Guided Setup Wizard**: First-time setup walks you through choosing a provider and entering your API key, with inline step-by-step instructions for each key
@@ -135,13 +136,14 @@ See [`docs/config.example.json`](docs/config.example.json) for the complete conf
 2. **Enter your API key** — On first launch, a setup wizard opens automatically. Choose an AI provider, follow the inline instructions to get your API key, and test the connection before continuing
 3. **Complete onboarding** — The AI assistant will interview you to build your job search profile
 4. **Add jobs manually** — Click "Add Job" to create entries from the dashboard
-5. **Use the AI assistant** — Click the chat icon to open the assistant panel:
+5. **Upload your resume** — Click the profile icon and upload your resume (PDF or DOCX). The AI assistant will reference it when evaluating job fit
+6. **Use the AI assistant** — Click the chat icon to open the assistant panel:
    - Ask it to search for jobs: "Find software engineer jobs in San Francisco"
    - Scrape job postings: "Scrape this URL: https://example.com/job"
    - Research companies: "Search the web for info about Acme Corp"
    - The assistant will automatically add jobs to your tracker
-6. **Track your progress** — Update job statuses (saved → applied → interviewing → offer/rejected)
-7. **Manage your profile** — Click the profile icon to view or edit your job preferences
+7. **Track your progress** — Update job statuses (saved → applied → interviewing → offer/rejected)
+8. **Manage your profile** — Click the profile icon to view or edit your job preferences
 
 ## Troubleshooting
 

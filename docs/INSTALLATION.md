@@ -238,6 +238,13 @@ The AI will ask questions like:
 3. Click "Edit Profile" to make changes
 4. Click "Save" when done
 
+**To upload your resume:**
+1. Click the "Profile" button in the top navigation
+2. In the **Resume** section at the top, click **Upload** (or **Replace** if you already have one)
+3. Select a PDF or DOCX file from your computer
+4. The file will be parsed and stored — click **Preview** to verify the extracted text
+5. The AI assistant will automatically reference your resume when evaluating job fit
+
 ---
 
 ## Using the App
@@ -247,8 +254,9 @@ Now that you're set up, here's how to get started:
 1. **Add your first job:** Click "Add Job" to manually track a position you're interested in
 2. **Try the AI assistant:** Click "Chat" and ask it to find jobs for you — try something like "Find software engineer jobs in San Francisco" or "Scrape this job posting: [paste a URL]"
 3. **Track your progress:** Update job statuses as you move through the pipeline (saved → applied → interviewing → offer/rejected)
-4. **Manage your profile:** Click the Profile button to view or update your job preferences — the AI uses this to give you better recommendations
-5. **Get help:** Click the "?" button in the header for built-in guides and tips
+4. **Upload your resume:** Click the Profile button and use the resume section at the top to upload a PDF or DOCX file. The AI assistant will reference your resume when evaluating job fit and searching for jobs
+5. **Manage your profile:** Click the Profile button to view or update your job preferences — the AI uses this to give you better recommendations
+6. **Get help:** Click the "?" button in the header for built-in guides and tips
 
 ---
 

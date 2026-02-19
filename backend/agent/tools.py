@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from backend.database import db
 from backend.models.job import Job
 from backend.agent.user_profile import read_profile, write_profile
+from backend.resume_parser import get_resume_text
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,14 @@ TOOL_DEFINITIONS = [
         },
     },
     {
+        "name": "read_resume",
+        "description": "Read the user's uploaded resume. Returns the full parsed text of the resume file (PDF or DOCX). Use this to understand the user's detailed work history, skills, and qualifications when evaluating job fit or tailoring applications. Returns null if no resume is uploaded.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
         "name": "list_jobs",
         "description": "List and search jobs currently tracked in the application database. Use this to check what jobs are already saved, filter by status, or look up a specific company/title/URL before adding duplicates.",
         "parameters": {
@@ -192,6 +201,7 @@ class AgentTools:
             "list_jobs": self._list_jobs,
             "read_user_profile": self._read_user_profile,
             "update_user_profile": self._update_user_profile,
+            "read_resume": self._read_resume,
         }
         fn = methods.get(tool_name)
         if not fn:
@@ -444,3 +454,9 @@ class AgentTools:
         logger.info("update_user_profile: writing %d chars", len(content))
         write_profile(content)
         return {"status": "updated", "content": content}
+
+    def _read_resume(self):
+        text = get_resume_text()
+        if text is None:
+            return {"content": None, "message": "No resume uploaded. The user can upload a resume via the Profile panel."}
+        return {"content": text}

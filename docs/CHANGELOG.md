@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Resume uploading and parsing** — Users can upload a resume (PDF or DOCX) via the Profile panel. The file is parsed and stored so the AI agent can reference it when evaluating job fit and searching for jobs. New `read_resume` agent tool, `/api/resume` endpoints, and resume section in ProfilePanel.
 - **Model name discovery** — Model override fields in Settings and Setup Wizard now show a searchable dropdown populated from each provider's API; gracefully falls back to free-text input when the API call fails or no key is entered yet
 
 ### Fixed

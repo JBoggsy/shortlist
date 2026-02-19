@@ -4,6 +4,7 @@ import logging
 from backend.llm.base import LLMProvider
 from backend.agent.tools import TOOL_DEFINITIONS, AgentTools
 from backend.agent.user_profile import read_profile, set_onboarded
+from backend.resume_parser import get_saved_resume
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,12 @@ You maintain a user profile document that stores information about the user rele
 
 ### Current User Profile
 {user_profile}
+
+### Resume
+
+The user may have uploaded a resume (PDF or DOCX). Use the `read_resume` tool to access the full parsed text when you need detailed information about the user's qualifications, work history, or skills — especially when evaluating job fit or helping with application preparation.
+
+Resume status: {resume_status}
 
 ## Job Search Behavior
 
@@ -78,7 +85,9 @@ class Agent:
 
         # Inject current user profile into the system prompt
         user_profile = read_profile()
-        system_prompt = SYSTEM_PROMPT.format(user_profile=user_profile)
+        resume_info = get_saved_resume()
+        resume_status = f"Uploaded — {resume_info['filename']}" if resume_info else "No resume uploaded"
+        system_prompt = SYSTEM_PROMPT.format(user_profile=user_profile, resume_status=resume_status)
 
         logger.info("Agent run started — %d messages in history", len(working_messages))
 

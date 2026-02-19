@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { fetchProfile, updateProfile } from "../api";
+import { fetchProfile, updateProfile, uploadResume, fetchResume, deleteResume } from "../api";
 
 function ProfilePanel({ isOpen, onClose }) {
   const [content, setContent] = useState("");
@@ -12,9 +12,17 @@ function ProfilePanel({ isOpen, onClose }) {
   const [error, setError] = useState(null);
   const textareaRef = useRef(null);
 
+  // Resume state
+  const [resumeInfo, setResumeInfo] = useState(null);
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeError, setResumeError] = useState(null);
+  const [resumeExpanded, setResumeExpanded] = useState(false);
+  const fileInputRef = useRef(null);
+
   useEffect(() => {
     if (isOpen) {
       loadProfile();
+      loadResume();
     }
   }, [isOpen]);
 
@@ -57,6 +65,54 @@ function ProfilePanel({ isOpen, onClose }) {
   function handleCancel() {
     setEditContent(content);
     setIsEditing(false);
+  }
+
+  async function loadResume() {
+    try {
+      const data = await fetchResume();
+      setResumeInfo(data.resume);
+    } catch (e) {
+      console.error("Failed to load resume:", e);
+    }
+  }
+
+  async function handleResumeUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setResumeUploading(true);
+    setResumeError(null);
+    try {
+      const data = await uploadResume(file);
+      setResumeInfo({
+        filename: data.filename,
+        size: data.size,
+        text: data.text,
+        text_length: data.text_length,
+      });
+    } catch (err) {
+      setResumeError(err.message);
+    } finally {
+      setResumeUploading(false);
+      // Reset the file input so the same file can be re-uploaded
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleResumeDelete() {
+    try {
+      await deleteResume();
+      setResumeInfo(null);
+      setResumeExpanded(false);
+    } catch (err) {
+      setResumeError(err.message);
+    }
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   if (!isOpen) return null;
@@ -110,6 +166,77 @@ function ProfilePanel({ isOpen, onClose }) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Resume Upload Section */}
+          {!isEditing && !loading && (
+            <div className="mb-6 border rounded-lg bg-gray-50">
+              <div className="px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="font-medium text-gray-900 text-sm">Resume</span>
+                  {resumeInfo && (
+                    <span className="text-xs text-gray-500">
+                      {resumeInfo.filename} ({formatFileSize(resumeInfo.size)})
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {resumeInfo && (
+                    <>
+                      <button
+                        onClick={() => setResumeExpanded(!resumeExpanded)}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        {resumeExpanded ? "Hide" : "Preview"}
+                      </button>
+                      <button
+                        onClick={handleResumeDelete}
+                        className="text-xs text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx"
+                    onChange={handleResumeUpload}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={resumeUploading}
+                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {resumeUploading ? (
+                      <span className="flex items-center gap-1">
+                        <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Parsing...
+                      </span>
+                    ) : resumeInfo ? "Replace" : "Upload"}
+                  </button>
+                </div>
+              </div>
+              {resumeError && (
+                <div className="px-4 pb-3 text-xs text-red-600">{resumeError}</div>
+              )}
+              {!resumeInfo && !resumeUploading && (
+                <div className="px-4 pb-3 text-xs text-gray-500">
+                  Upload your resume (PDF or DOCX) so the AI assistant can reference it when searching for jobs and evaluating fit.
+                </div>
+              )}
+              {resumeExpanded && resumeInfo?.text && (
+                <div className="px-4 pb-3 border-t">
+                  <pre className="mt-2 text-xs text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto bg-white rounded p-3 border">
+                    {resumeInfo.text}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center h-32">
               <span className="inline-block w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />

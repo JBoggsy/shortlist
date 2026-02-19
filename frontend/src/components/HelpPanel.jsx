@@ -52,6 +52,15 @@ export default function HelpPanel({ isOpen, onClose }) {
                   </p>
                 </div>
               </li>
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-sm font-semibold">4</span>
+                <div>
+                  <p className="font-medium text-gray-800">Upload your resume</p>
+                  <p className="text-sm text-gray-600 mt-0.5">
+                    Click the <strong>Profile</strong> button and upload your resume (PDF or DOCX). The AI assistant will reference it when evaluating job fit and searching for jobs.
+                  </p>
+                </div>
+              </li>
             </ol>
           </section>
 
@@ -121,6 +130,7 @@ export default function HelpPanel({ isOpen, onClose }) {
                   <li><strong>Web search</strong> — Requires a <strong>Tavily API key</strong> in Settings. Searches the live web for jobs and company info.</li>
                   <li><strong>Job board search</strong> — Requires a <strong>JSearch</strong> or <strong>Adzuna API key</strong>. Searches real job listings by title, location, and more.</li>
                   <li><strong>Job management</strong> — Always available. The assistant can create, list, and update jobs in your database.</li>
+                  <li><strong>Resume reading</strong> — Always available when a resume is uploaded. The assistant can read your resume to evaluate job fit and tailor recommendations.</li>
                 </ul>
               </div>
             </div>

@@ -10,6 +10,7 @@ const BASE = `${API_BASE}/api/jobs`;
 const CHAT_BASE = `${API_BASE}/api/chat`;
 const PROFILE_BASE = `${API_BASE}/api/profile`;
 const CONFIG_BASE = `${API_BASE}/api/config`;
+const RESUME_BASE = `${API_BASE}/api/resume`;
 
 export async function fetchJobs() {
   const res = await fetch(BASE);
@@ -238,4 +239,30 @@ export async function fetchHealth() {
   // Note: health endpoint returns 503 if not configured, but we still want the data
   const data = await res.json();
   return data;
+}
+
+// Resume API
+
+export async function uploadResume(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(RESUME_BASE, {
+    method: "POST",
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to upload resume");
+  return data;
+}
+
+export async function fetchResume() {
+  const res = await fetch(RESUME_BASE);
+  if (!res.ok) throw new Error("Failed to fetch resume");
+  return res.json();
+}
+
+export async function deleteResume() {
+  const res = await fetch(RESUME_BASE, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete resume");
+  return res.json();
 }

@@ -64,6 +64,8 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/routes/chat.py` — Chat blueprint (`chat_bp` at `/api/chat`) with SSE streaming
 - `backend/routes/config.py` — Configuration blueprint (`config_bp` at `/api/config`, `/api/health`)
 - `backend/routes/profile.py` — Profile blueprint (`profile_bp` at `/api/profile`)
+- `backend/routes/resume.py` — Resume upload blueprint (`resume_bp` at `/api/resume`) — upload, fetch, delete resume files
+- `backend/resume_parser.py` — Resume parsing utilities (PDF via PyMuPDF, DOCX via python-docx); file save/load/delete helpers
 - `backend/models/chat.py` — `Conversation` and `Message` models for chat persistence
 - `backend/llm/base.py` — `LLMProvider` ABC, `StreamChunk`, `ToolCall` dataclasses
 - `backend/llm/anthropic_provider.py` — Anthropic Claude provider
@@ -71,8 +73,8 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/llm/gemini_provider.py` — Google Gemini provider
 - `backend/llm/ollama_provider.py` — Ollama local model provider
 - `backend/llm/factory.py` — `create_provider()` factory function
-- `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile)
-- `backend/agent/agent.py` — `Agent` class with iterative tool-calling loop; `OnboardingAgent` for user profile interview; injects user profile into system prompt
+- `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume)
+- `backend/agent/agent.py` — `Agent` class with iterative tool-calling loop; `OnboardingAgent` for user profile interview; injects user profile and resume status into system prompt
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
 
 ### Frontend
@@ -80,11 +82,11 @@ The start scripts handle everything automatically. Use the manual commands below
 - `frontend/src/main.jsx` — React entry point
 - `frontend/src/index.css` — Tailwind CSS base import
 - `frontend/src/App.jsx` — App shell with header, layout, settings auto-open, onboarding auto-start, and Tauri external link interceptor (opens http/https/mailto links in system browser)
-- `frontend/src/api.js` — API helper with `getApiBase()` for Tauri URL resolution (`fetchJobs`, `createJob`, `updateJob`, `deleteJob`, chat functions, `streamMessage`, `fetchProfile`, `updateProfile`, config functions, onboarding functions)
+- `frontend/src/api.js` — API helper with `getApiBase()` for Tauri URL resolution (`fetchJobs`, `createJob`, `updateJob`, `deleteJob`, chat functions, `streamMessage`, `fetchProfile`, `updateProfile`, config functions, onboarding functions, resume functions)
 - `frontend/src/pages/JobList.jsx` — Main dashboard: job table with status badges, add/edit/delete
 - `frontend/src/components/JobForm.jsx` — Reusable form for creating and editing jobs
 - `frontend/src/components/ChatPanel.jsx` — Slide-out AI assistant chat panel with SSE streaming
-- `frontend/src/components/ProfilePanel.jsx` — Slide-out user profile viewer/editor panel
+- `frontend/src/components/ProfilePanel.jsx` — Slide-out user profile viewer/editor panel with resume upload section (PDF/DOCX)
 - `frontend/src/components/SettingsPanel.jsx` — Slide-out settings panel for configuring LLM provider, API keys, and onboarding agent; includes `ApiKeyGuide` sub-component that renders expandable step-by-step instructions + direct links for each key field (Anthropic, OpenAI, Gemini, Tavily, JSearch, Adzuna); Ollama renders nothing (no key needed)
 - `frontend/src/components/SetupWizard.jsx` — First-time setup wizard (centered modal, 4 steps: welcome → provider selection → API key entry with inline how-to guide + test connection → done); auto-opens for new users instead of Settings panel; calls `onComplete()` to launch onboarding chat or `onClose()` to dismiss; `pendingOnboarding` stays true on dismiss so the Settings manual-save path still triggers onboarding
 - `frontend/src/components/ModelCombobox.jsx` — Searchable combobox for model selection; fetches available models from provider API, with client-side cache (5-min TTL) and graceful fallback to free-text input on error
@@ -129,6 +131,9 @@ The start scripts handle everything automatically. Use the manual commands below
 | POST | `/api/config/models` | List available models for a provider |
 | POST | `/api/config/test` | Test LLM provider connection |
 | GET | `/api/config/providers` | Get list of available LLM providers |
+| POST | `/api/resume` | Upload resume (multipart/form-data, PDF/DOCX) |
+| GET | `/api/resume` | Get saved resume info and parsed text |
+| DELETE | `/api/resume` | Delete saved resume |
 | GET | `/api/health` | Health check (returns 503 if LLM not configured) |
 
 Job statuses: `saved`, `applied`, `interviewing`, `offer`, `rejected`

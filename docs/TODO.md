@@ -24,8 +24,7 @@
   - Store preparation notes/materials linked to each job
   - Agent tools to generate and manage prep content
 
-- [ ] **Resume uploading and parsing**
-  - Add ability for user to upload resume, which will be parsed and used to inform job search
+- [x] **Resume uploading and parsing** — PDF/DOCX upload via Profile panel, parsed text available to AI agent via `read_resume` tool
 
 ## Desktop App (Phase 2 Remaining)
 

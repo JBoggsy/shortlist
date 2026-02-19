@@ -73,11 +73,13 @@ job_app_helper/
 │   │   ├── __init__.py            # Model exports
 │   │   ├── job.py                 # Job model with CRUD methods
 │   │   └── chat.py                # Conversation and Message models
+│   ├── resume_parser.py               # Resume parsing (PDF via PyMuPDF, DOCX via python-docx)
 │   ├── routes/
 │   │   ├── __init__.py
 │   │   ├── jobs.py                # CRUD endpoints for jobs
 │   │   ├── chat.py                # Chat endpoints with SSE streaming
 │   │   ├── profile.py             # User profile endpoints
+│   │   ├── resume.py              # Resume upload, fetch, delete endpoints
 │   │   └── config.py              # Config and health check endpoints
 │   ├── llm/
 │   │   ├── base.py                # LLMProvider ABC, StreamChunk, ToolCall dataclasses
@@ -169,15 +171,19 @@ job_app_helper/
 
 **`backend/routes/config.py`**: Configuration blueprint for settings management. Provides endpoints for getting/updating config, testing LLM connections, listing providers, and health checks. Mounted at `/api/config`.
 
+**`backend/routes/resume.py`**: Resume upload blueprint. Handles file upload (multipart/form-data), parsing, storage, retrieval, and deletion. Supports PDF and DOCX files up to 10 MB. Mounted at `/api/resume`.
+
+**`backend/resume_parser.py`**: Resume parsing utilities. Extracts plain text from PDF files (via PyMuPDF) and DOCX files (via python-docx, including table content). Provides file save/load/delete helpers with resume files stored in a `resumes/` subdirectory under the data dir.
+
 **`backend/llm/base.py`**: Abstract base class defining the interface all LLM providers must implement (`stream_with_tools`). Also defines `StreamChunk` and `ToolCall` dataclasses.
 
 **`backend/llm/factory.py`**: `create_provider(provider_name, api_key, model)` factory function that instantiates the appropriate provider.
 
 **`backend/llm/*_provider.py`**: Provider implementations. Each translates the generic tool format to the provider's native format and handles streaming responses.
 
-**`backend/agent/tools.py`**: Defines all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`) with their schemas and execution logic. Tools are exposed via the `AgentTools` class.
+**`backend/agent/tools.py`**: Defines all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`) with their schemas and execution logic. Tools are exposed via the `AgentTools` class.
 
-**`backend/agent/agent.py`**: Main `Agent` class that runs the tool-calling loop. Takes a user message, calls the LLM, executes tools, and iterates until completion. Also includes `OnboardingAgent` subclass for the onboarding interview flow.
+**`backend/agent/agent.py`**: Main `Agent` class that runs the tool-calling loop. Takes a user message, calls the LLM, executes tools, and iterates until completion. Also includes `OnboardingAgent` subclass for the onboarding interview flow. Injects resume availability status into the system prompt.
 
 **`backend/agent/user_profile.py`**: User profile file management with YAML frontmatter parsing. Handles reading, writing, and onboarding status checking.
 
@@ -195,7 +201,7 @@ job_app_helper/
 
 **`frontend/src/components/ChatPanel.jsx`**: Slide-out AI assistant panel with SSE streaming, markdown rendering, and tool execution visibility. Includes `JOB_MUTATING_TOOLS` set for live job list refresh.
 
-**`frontend/src/components/ProfilePanel.jsx`**: Slide-out user profile viewer/editor panel. Users can manually update their profile markdown.
+**`frontend/src/components/ProfilePanel.jsx`**: Slide-out user profile viewer/editor panel with resume upload section (PDF/DOCX). Users can upload, preview, replace, or remove their resume. Also supports manual profile markdown editing.
 
 **`frontend/src/components/SettingsPanel.jsx`**: Slide-out settings panel for configuring LLM provider, API keys, and integrations. Includes "Test Connection" functionality and saves to config.json. Contains `ApiKeyGuide` sub-component that renders expandable step-by-step instructions and a direct link for each key field (Anthropic, OpenAI, Gemini, Tavily, JSearch, Adzuna); renders nothing for Ollama (no key required).
 
@@ -459,6 +465,18 @@ Auto-generated:
 | GET | `/api/config/providers` | List available LLM providers | — | `[{id, name, default_model, requires_api_key}, ...]` |
 | GET | `/api/health` | Health check endpoint | — | `{status, llm: {...}, integrations: {...}}` |
 
+### Resume API
+
+| Method | Endpoint | Description | Request Body | Response |
+|--------|----------|-------------|--------------|----------|
+| POST | `/api/resume` | Upload resume (PDF/DOCX) | multipart/form-data with `file` field | `{filename, size, text, text_length}` |
+| GET | `/api/resume` | Get saved resume info + text | — | `{resume: {filename, size, text, text_length} \| null}` |
+| DELETE | `/api/resume` | Delete saved resume | — | `{status: "deleted" \| "no_resume"}` |
+
+**Supported formats:** PDF (`.pdf`) and Microsoft Word (`.docx`). Maximum file size: 10 MB.
+
+The parsed text is extracted using PyMuPDF (PDF) or python-docx (DOCX, including table content). Resume files are stored in a `resumes/` subdirectory under the data directory.
+
 **Configuration Object Format:**
 ```json
 {
@@ -663,6 +681,7 @@ Defined in `backend/agent/tools.py`:
 | `list_jobs` | List jobs from database | `status` (optional), `limit` (optional) |
 | `read_user_profile` | Read the user's profile markdown | — |
 | `update_user_profile` | Update the user's profile | `content` (string) |
+| `read_resume` | Read the user's uploaded resume text | — |
 
 ### Tool Definitions
 
