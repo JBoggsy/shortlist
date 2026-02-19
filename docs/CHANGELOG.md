@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+- **Tool error display** — Tool errors in chat now show as an amber warning icon instead of a red X, with error details hidden behind a collapsible "Details" toggle; less alarming for non-technical users when errors are non-critical
+- **Onboarding interview quality** — The onboarding agent now coaches users upfront to give detailed, full-sentence answers (e.g., "Think of this like talking to a career consultant"), leading to richer user profiles
+- **API key guidance** — Tavily is now marked as "Recommended" in the Settings panel with an amber badge, and help text across Settings, Help, and Installation docs clarifies that it's required for web search; JSearch/Adzuna descriptions also improved
+
 ### Fixed
 - **Timezone display bug** — Job timestamps now include explicit UTC offset (`+00:00`) so browsers parse them correctly instead of treating bare ISO strings as local time
 - **External links in Tauri desktop app** — Added `@tauri-apps/plugin-shell` and a global click interceptor in `App.jsx` that opens http/https/mailto links in the system browser; added `shell:allow-open` permission to Tauri capabilities
