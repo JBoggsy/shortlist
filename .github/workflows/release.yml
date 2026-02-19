@@ -45,7 +45,9 @@ jobs:
         with:
           node-version: lts/*
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -70,7 +72,9 @@ jobs:
         run: ${{ matrix.sidecar-cmd }}
 
       - name: Install Node dependencies
-        run: cd frontend && npm ci
+        run: |
+          npm ci
+          cd frontend && npm ci
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
