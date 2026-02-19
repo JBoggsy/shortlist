@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Job application helper — a web app to track and manage job applications. Users can add, edit, and delete job applications and track their status through the hiring pipeline. Includes an LLM-powered AI assistant that can research job postings, scrape URLs, search the web, and automatically add jobs to the database via a chat interface.
+Job application helper — a desktop application and web app to track and manage job applications. Users can add, edit, and delete job applications and track their status through the hiring pipeline. Includes an LLM-powered AI assistant that can research job postings, scrape URLs, search the web, and automatically add jobs to the database via a chat interface.
+
+Available as a downloadable desktop app (via Tauri — the primary distribution method for regular users) or as a web app run from source (for developers). User-facing documentation (README, INSTALLATION.md) prioritizes the desktop download path, with "run from source" as an advanced alternative.
 
 ## Tech Stack
 
@@ -12,7 +14,7 @@ Job application helper — a web app to track and manage job applications. Users
 - **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars)
 - **Agent tools:** Tavily search API, BeautifulSoup web scraping, JSearch/Adzuna job search
 - **Frontend:** React 19, Vite, Tailwind CSS 4
-- **Desktop wrapper:** Tauri v2 (optional, sidecar approach — Flask as child process, React in native webview)
+- **Desktop wrapper:** Tauri v2 (sidecar approach — Flask as child process, React in native webview)
 - **Package management:** uv (Python), npm (JS)
 
 ## Key Commands

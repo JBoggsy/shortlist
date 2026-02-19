@@ -105,8 +105,9 @@ job_app_helper/
 │           ├── JobForm.jsx        # Create/edit job form
 │           ├── ChatPanel.jsx      # AI assistant slide-out panel
 │           ├── ProfilePanel.jsx   # User profile slide-out panel
-│           └── SettingsPanel.jsx  # Settings configuration panel
-├── src-tauri/                     # Tauri desktop wrapper (optional)
+│           ├── SettingsPanel.jsx  # Settings configuration panel
+│           └── HelpPanel.jsx     # Help panel with guides and tips
+├── src-tauri/                     # Tauri desktop wrapper
 │   ├── tauri.conf.json            # Tauri configuration
 │   ├── Cargo.toml                 # Rust dependencies
 │   ├── build.rs                   # Tauri build script
@@ -119,7 +120,16 @@ job_app_helper/
 │   └── app.log                    # Application logs (auto-created, gitignored)
 ├── start.sh                       # Unified startup script (Mac/Linux)
 ├── start.bat                      # Unified startup script (Windows)
-├── build_sidecar.sh               # PyInstaller build script for Tauri sidecar
+├── build_sidecar.sh               # PyInstaller build script for Tauri sidecar (Mac/Linux)
+├── build_sidecar.ps1              # PyInstaller build script for Tauri sidecar (Windows)
+├── .github/
+│   ├── workflows/
+│   │   ├── release.yml            # Build + release workflow (triggered by v* tags)
+│   │   └── ci.yml                 # CI build check (triggered on PRs to main)
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.md
+│   │   └── feature_request.md
+│   └── PULL_REQUEST_TEMPLATE.md
 ├── main.py                        # Backend entry point (supports --data-dir and --port)
 ├── pyproject.toml                 # Python dependencies (uv)
 ├── config.json                    # User configuration (gitignored)
@@ -904,6 +914,59 @@ LOG_LEVEL=INFO
 ```
 
 Environment variables take precedence over `config.json`, making them ideal for containerized deployments and CI/CD pipelines.
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and automated releases.
+
+### CI Workflow (`.github/workflows/ci.yml`)
+
+- **Triggers:** Pull requests to `main`
+- **Matrix:** Linux (ubuntu-latest) + Windows (windows-latest)
+- **What it does:** Checks out code, installs dependencies (Rust, Node.js, Python/uv), builds the Flask sidecar binary, and runs `tauri build` to verify the app compiles
+- **Purpose:** Catch build failures before merging PRs
+
+### Release Workflow (`.github/workflows/release.yml`)
+
+- **Triggers:** Push of `v*` tags (e.g., `v0.4.2`) or manual `workflow_dispatch`
+- **Matrix:** Linux x86_64, macOS ARM64, Windows x86_64
+- **Artifacts produced:**
+  - **Linux:** `.deb`, `.rpm`, `.AppImage`
+  - **macOS:** `.dmg`
+  - **Windows:** `.exe` (NSIS installer), `.msi`
+- **What it does:**
+  1. Checks out code and installs all dependencies
+  2. Builds the Flask sidecar binary via PyInstaller (`build_sidecar.sh` or `build_sidecar.ps1`)
+  3. Runs `tauri build` to produce platform-specific installers
+  4. Creates a **draft** GitHub Release and uploads all artifacts
+
+### Creating a Release
+
+1. Update version in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`
+2. Commit and tag:
+   ```bash
+   git tag v0.4.2
+   git push origin v0.4.2
+   ```
+3. Wait for the release workflow to complete (check the Actions tab)
+4. Go to GitHub Releases, review the draft, and click **Publish**
+
+### Build Scripts
+
+| Script | Platform | Description |
+|--------|----------|-------------|
+| `build_sidecar.sh` | Mac/Linux | Detects architecture, runs PyInstaller, places binary in `src-tauri/binaries/` with Tauri target-triple naming |
+| `build_sidecar.ps1` | Windows | PowerShell equivalent — builds Flask as standalone `.exe` for Tauri sidecar |
+
+### Code Signing Status
+
+Code signing is **not yet configured**. This means:
+- **Windows:** Users will see a SmartScreen warning on first install ("More info" → "Run anyway")
+- **macOS:** Users need to approve the app in System Settings → Privacy & Security
+
+To enable code signing in the future:
+- **macOS:** Add Apple Developer secrets (`APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, etc.) to the GitHub repo settings and uncomment the relevant env vars in `release.yml`
+- **Windows:** Add Tauri signing key secrets (`TAURI_SIGNING_PRIVATE_KEY`, etc.) to the GitHub repo settings and uncomment the relevant env vars in `release.yml`
 
 ## Contributing
 

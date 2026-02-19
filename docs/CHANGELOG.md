@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-02-18
+
+### Added
+
+**CI/CD Pipeline**
+- GitHub Actions release workflow (`.github/workflows/release.yml`) — builds Tauri desktop app for Linux x86_64, macOS ARM64, and Windows x86_64 on `v*` tag push; creates draft GitHub Release with installer artifacts
+- GitHub Actions CI workflow (`.github/workflows/ci.yml`) — builds Linux + Windows on PRs to `main` to verify the app compiles
+- Windows sidecar build script (`build_sidecar.ps1`) — PowerShell equivalent of `build_sidecar.sh` for building Flask backend as standalone binary on Windows
+
+### Changed
+
+**Documentation Restructure for Desktop Distribution**
+- `docs/INSTALLATION.md` restructured into two-track layout: "Desktop App (Recommended)" for regular users and "Running from Source (Advanced)" for developers
+- `README.md` hero section restructured with prominent Download section and platform table; "Run from Source" demoted to brief subsection
+- `docs/DEVELOPMENT.md` updated with CI/CD Pipeline section covering workflows, build scripts, and release process
+- `docs/CONTRIBUTING.md` updated with desktop app notes in bug reports and PR checklist
+- `.github/ISSUE_TEMPLATE/bug_report.md` updated with installation method and app version fields
+- `CLAUDE.md` updated to reflect desktop app as primary distribution method
+- `docs/TODO.md` updated with completed Phase 2 items and version annotations
+
 ## [0.4.0] - 2026-02-18
 
 ### Added

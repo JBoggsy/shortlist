@@ -66,16 +66,16 @@
 
 **Goal**: Package as a true desktop app - no Python/Node.js installation required
 
-- [ ] **Tauri Migration**
-  - Migrate from Flask dev server to Tauri desktop app framework
+- [x] **Tauri Migration** (v0.4.0)
+  - ~~Migrate from Flask dev server to Tauri desktop app framework~~ Tauri wraps Flask as sidecar
   - Embed Python backend using PyInstaller or similar
   - Use existing React frontend with Tauri webview
-  - Replace HTTP/SSE with Tauri IPC (inter-process communication)
+  - [ ] Replace HTTP/SSE with Tauri IPC (inter-process communication) — deferred; HTTP/SSE works well via sidecar
   - Maintain feature parity with web version
 
-- [ ] **Platform-Specific Installers**
+- [x] **Platform-Specific Installers** (v0.4.2)
   - Windows: `.exe` installer with MSI option
-  - macOS: `.dmg` installer with code signing
+  - macOS: `.dmg` installer (code signing not yet configured — see CI/CD notes)
   - Linux: `.AppImage`, `.deb`, and `.rpm` packages
   - Include all dependencies (Python runtime, SQLite, etc.)
   - No separate backend/frontend setup required
@@ -94,25 +94,25 @@
   - OS-specific menu bar integration
   - Platform-native dialogs and UI elements
 
-- [ ] **Desktop-Specific Features**
-  - Local SQLite database (no external database needed)
-  - Offline mode (work without internet, sync later)
-  - Multiple workspace/profile support
-  - Data import/export (JSON, CSV)
-  - Backup and restore functionality
+- [x] **Desktop-Specific Features** (partial)
+  - [x] Local SQLite database (no external database needed) — always used SQLite
+  - [ ] Offline mode (work without internet, sync later)
+  - [ ] Multiple workspace/profile support
+  - [ ] Data import/export (JSON, CSV)
+  - [ ] Backup and restore functionality
 
-- [ ] **Developer Experience**
+- [x] **Developer Experience** (v0.4.0–v0.4.2)
   - Hot reload for development
-  - Build scripts for all platforms
-  - CI/CD pipeline for automated releases
-  - Code signing certificates setup
+  - Build scripts for all platforms (`build_sidecar.sh`, `build_sidecar.ps1`)
+  - CI/CD pipeline for automated releases (`.github/workflows/release.yml`, `.github/workflows/ci.yml`)
+  - [ ] Code signing certificates setup — macOS and Windows code signing not yet configured
   - Release artifact publishing to GitHub Releases
 
-- [ ] **Documentation Updates**
+- [x] **Documentation Updates** (v0.4.2)
   - Installation guide for standalone app
   - Building from source instructions
   - Troubleshooting for desktop app issues
-  - Migration guide from web version
+  - ~~Migration guide from web version~~ N/A — no migration needed, same app
 
 ### Phase 3: Enhanced Features (Future)
 

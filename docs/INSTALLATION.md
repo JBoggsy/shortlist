@@ -6,139 +6,78 @@ Welcome! This guide will help you install and run the Job Application Helper on 
 
 - A computer running Windows, Mac, or Linux
 - An internet connection
-- About 30 minutes to complete the setup
 - An API key from at least one AI provider (we'll show you how to get these)
 
 ## Table of Contents
 
-1. [Installing Required Software](#step-1-installing-required-software)
-2. [Downloading the Code](#step-2-downloading-the-code)
-3. [Getting Your API Keys](#step-3-getting-your-api-keys)
-4. [Setting Up the Application](#step-4-setting-up-the-application)
-5. [Running the Application](#step-5-running-the-application)
-6. [First-Time Setup](#step-6-first-time-setup)
-7. [Accessing the App Later](#step-7-accessing-the-app-later)
-8. [Troubleshooting](#troubleshooting)
+1. [Option A: Desktop App (Recommended)](#option-a-desktop-app-recommended)
+2. [Getting Your API Keys](#getting-your-api-keys)
+3. [First-Time Setup](#first-time-setup)
+4. [Using the App](#using-the-app)
+5. [Option B: Running from Source (Advanced)](#option-b-running-from-source-advanced)
+6. [Troubleshooting](#troubleshooting)
+7. [Updating the App](#updating-the-app)
 
 ---
 
-## Step 1: Installing Required Software
+## Option A: Desktop App (Recommended)
 
-You need to install three programs before you can run the Job Application Helper.
+The easiest way to use Job Application Helper is to download the desktop app. No programming tools required—just download, install, and run.
 
-### 1.1 Install Python (3.12 or newer)
+### Step 1: Download
 
-Python is the programming language that powers the backend of this application.
+Go to the [GitHub Releases page](https://github.com/JBoggsy/job_app_helper/releases) and download the installer for your operating system:
+
+| Platform | File to Download | Notes |
+|----------|-----------------|-------|
+| **Windows** | `.exe` or `.msi` | Choose `.msi` for a standard Windows installer |
+| **macOS** | `.dmg` | Requires macOS 11 (Big Sur) or newer |
+| **Linux (Debian/Ubuntu)** | `.deb` | For Debian-based distributions |
+| **Linux (Fedora/RHEL)** | `.rpm` | For Red Hat-based distributions |
+| **Linux (Other)** | `.AppImage` | Works on most Linux distributions |
+
+### Step 2: Install
 
 **Windows:**
-1. Go to [python.org/downloads](https://www.python.org/downloads/)
-2. Download the **standalone installer** which is linked beneaththe big yellow button. Avoid the big
-   yellow button itself.
-3. Run the downloaded installer
-4. **Important:** Check the box that says "Add Python to PATH" before clicking Install
-5. Click "Install Now"
+1. Double-click the downloaded `.exe` or `.msi` file
+2. If you see a "Windows protected your PC" (SmartScreen) warning, click **"More info"** then **"Run anyway"** — this appears because the app is not yet code-signed
+3. Follow the installation prompts
 
-**Mac:**
-1. Go to [python.org/downloads](https://www.python.org/downloads/)
-2. Click the yellow "Download Python 3.12" button
-3. Open the downloaded .pkg file and follow the installation steps
+**macOS:**
+1. Double-click the downloaded `.dmg` file
+2. Drag the app to your Applications folder
+3. When you first open the app, you may see a warning that it's from an unidentified developer. Go to **System Settings → Privacy & Security** and click **"Open Anyway"**
+   - This happens because the app is not yet code-signed with an Apple Developer certificate
 
-**Linux (Ubuntu/Debian):**
-Open a terminal and run:
+**Linux (.deb):**
 ```bash
-sudo apt update
-sudo apt install python3.12 python3.12-venv python3-pip
+sudo dpkg -i job-app-helper_*.deb
 ```
 
-**Verify Python is installed:**
-Open a terminal/command prompt and type:
+**Linux (.rpm):**
 ```bash
-python --version
+sudo rpm -i job-app-helper-*.rpm
 ```
-You should see something like "Python 3.12.x"
 
-### 1.2 Install Node.js and npm
-
-Node.js and npm are needed to run the web interface.
-
-1. Go to [nodejs.org](https://nodejs.org/)
-2. Click the big green "Get Node.js" button
-3. Click the green "Windows Installer" or "macOS Installer" depending on your OS
-3. Run the installer and follow the default options
-4. Verify installation by opening a terminal/command prompt and typing:
+**Linux (.AppImage):**
 ```bash
-node --version
-npm --version
+chmod +x job-app-helper_*.AppImage
+./job-app-helper_*.AppImage
 ```
 
-### 1.3 Install uv (Python Package Manager)
+### Step 3: Launch
 
-uv is a fast tool for managing Python dependencies.
-
-**Windows (PowerShell):**
-```powershell
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-**Mac/Linux:**
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-After installing, close and reopen your terminal, then verify:
-```bash
-uv --version
-```
-
-### 1.4 Install Git (Optional but Recommended)
-
-Git helps you download and update the code easily.
-
-1. Go to [git-scm.com/downloads](https://git-scm.com/downloads)
-2. Download the installer for your operating system
-3. Run the installer with default settings
+1. Open the app from your Applications menu, Start menu, or desktop
+2. On first launch, the **Settings** panel will open automatically — this is where you'll enter your API key
+3. Continue to [Getting Your API Keys](#getting-your-api-keys) below
 
 ---
 
-## Step 2: Downloading the Code
-
-Now let's get the Job Application Helper code onto your computer.
-
-### Option A: Using Git (Recommended)
-
-1. Open a terminal/command prompt
-2. Navigate to where you want to store the app. For example:
-   ```bash
-   cd Documents
-   ```
-3. Download the code:
-   ```bash
-   git clone https://github.com/YOUR-USERNAME/job_app_helper.git
-   ```
-   (Replace `YOUR-USERNAME` with the actual GitHub username or organization)
-4. Go into the new folder:
-   ```bash
-   cd job_app_helper
-   ```
-
-### Option B: Download as ZIP (Alternative)
-
-1. Go to the GitHub repository in your web browser
-2. Click the green "Code" button
-3. Click "Download ZIP"
-4. Extract the ZIP file to a location you'll remember (like Documents)
-5. Open a terminal/command prompt and navigate to the extracted folder:
-   ```bash
-   cd Documents/job_app_helper-main
-   ```
-
----
-
-## Step 3: Getting Your API Keys
+## Getting Your API Keys
 
 The Job Application Helper uses AI to help you find and track jobs. To use AI, you need an API key from at least one provider.
 
-### 3.1 Choose an AI Provider
+### Choose an AI Provider
 
 You only need **one** of these, but you can set up multiple:
 
@@ -147,7 +86,7 @@ You only need **one** of these, but you can set up multiple:
 - **Google Gemini** - Good free tier available
 - **Ollama** - Run AI models locally on your computer (no API key needed, but requires a powerful computer)
 
-### 3.2 Getting an Anthropic API Key (Recommended)
+### Getting an Anthropic API Key (Recommended)
 
 1. Go to [console.anthropic.com](https://console.anthropic.com/)
 2. Click "Sign Up" and create an account
@@ -159,7 +98,7 @@ You only need **one** of these, but you can set up multiple:
 
 **Pricing:** Anthropic charges per usage. You'll get some free credits to start. Check [anthropic.com/pricing](https://www.anthropic.com/pricing) for current rates.
 
-### 3.3 Getting an OpenAI API Key
+### Getting an OpenAI API Key
 
 1. Go to [platform.openai.com](https://platform.openai.com/)
 2. Sign up or log in
@@ -170,7 +109,7 @@ You only need **one** of these, but you can set up multiple:
 
 **Pricing:** Check [openai.com/pricing](https://openai.com/pricing) for current rates.
 
-### 3.4 Getting a Google Gemini API Key
+### Getting a Google Gemini API Key
 
 1. Go to [aistudio.google.com](https://aistudio.google.com/)
 2. Sign in with your Google account
@@ -180,7 +119,7 @@ You only need **one** of these, but you can set up multiple:
 
 **Pricing:** Gemini has a generous free tier. Check [ai.google.dev/pricing](https://ai.google.dev/pricing) for details.
 
-### 3.5 Using Ollama (Local AI, No API Key)
+### Using Ollama (Local AI, No API Key)
 
 If you have a powerful computer (16GB+ RAM recommended), you can run AI models locally:
 
@@ -192,7 +131,9 @@ If you have a powerful computer (16GB+ RAM recommended), you can run AI models l
    ```
 4. No API key needed! Just set your provider to "ollama" in the configuration.
 
-### 3.6 Getting a Search API Key
+> **Note:** Even with the desktop app, Ollama must be running separately. Start it with `ollama serve` before using the app.
+
+### Getting a Search API Key
 
 The AI assistant can search the web for job information. This requires a Tavily API key:
 
@@ -204,7 +145,7 @@ The AI assistant can search the web for job information. This requires a Tavily 
 
 **Pricing:** Tavily offers a free tier with 1,000 searches/month.
 
-### 3.7 Getting Job Search API Keys (Optional)
+### Getting Job Search API Keys (Optional)
 
 For enhanced job searching, you can set up one of these:
 
@@ -225,123 +166,11 @@ For enhanced job searching, you can set up one of these:
 
 ---
 
-## Step 4: Setting Up the Application
-
-Now we'll install all the necessary components.
-
-### 4.1 Install Python Dependencies
-
-1. Make sure you're in the job_app_helper folder:
-   ```bash
-   cd job_app_helper
-   ```
-2. Install Python packages:
-   ```bash
-   uv sync
-   ```
-   This will take a few minutes as it downloads everything needed.
-
-### 4.2 Install Frontend Dependencies
-
-1. Navigate to the frontend folder:
-   ```bash
-   cd frontend
-   ```
-2. Install JavaScript packages:
-   ```bash
-   npm install
-   ```
-   This will also take a few minutes.
-3. Go back to the main folder:
-   ```bash
-   cd ..
-   ```
-
-**Note:** You don't need to create any configuration files manually. The app will create a `config.json` file automatically, and you'll enter your settings through a user-friendly interface in the next step!
-
----
-
-## Step 5: Running the Application
-
-We've made this easy! There's a single command that starts everything automatically.
-
-### 5.1 Start the Application
-
-**Windows:**
-1. Open a command prompt or PowerShell
-2. Navigate to the job_app_helper folder:
-   ```bash
-   cd path\to\job_app_helper
-   ```
-   (Replace `path\to` with the actual location, e.g., `cd Documents\job_app_helper`)
-3. Run the start script:
-   ```bash
-   start.bat
-   ```
-4. The script will:
-   - Check that Python, Node.js, and uv are installed
-   - Install any missing dependencies automatically
-   - Start the backend in a new window
-   - Start the frontend in another new window
-   - Automatically open your browser to [http://localhost:3000](http://localhost:3000)
-6. Press **Ctrl+C** in the terminal when you want to stop the app
-
-**Mac/Linux:**
-1. Open a terminal
-2. Navigate to the job_app_helper folder:
-   ```bash
-   cd path/to/job_app_helper
-   ```
-   (Replace `path/to` with the actual location, e.g., `cd Documents/job_app_helper`)
-3. Run the start script:
-   ```bash
-   ./start.sh
-   ```
-   (If you get a "permission denied" error, run `chmod +x start.sh` first)
-4. The script will:
-   - Check that Python, Node.js, and uv are installed
-   - Install any missing dependencies automatically
-   - Start both the backend and frontend
-   - Automatically open your browser to [http://localhost:3000](http://localhost:3000)
-5. You'll see a nice startup message:
-   ```
-   ╔═══════════════════════════════════════╗
-   ║          🚀 App is running!          ║
-   ╚═══════════════════════════════════════╝
-   ```
-6. Press **Ctrl+C**/**Cmd+C** in the terminal when you want to stop the app
-
-### 5.2 What to Expect
-
-- Two windows will open (Windows) or one terminal will show both processes (Mac/Linux)
-- Your browser will automatically open to the app
-- If your browser doesn't open automatically, go to [http://localhost:3000](http://localhost:3000) manually
-
-### 5.3 Manual Method (Alternative)
-
-If you prefer to start the backend and frontend separately, or if the start script doesn't work:
-
-1. **Backend:** In one terminal, run:
-   ```bash
-   cd path/to/job_app_helper
-   uv run python main.py
-   ```
-
-2. **Frontend:** In another terminal, run:
-   ```bash
-   cd path/to/job_app_helper/frontend
-   npm run dev
-   ```
-
-3. **Browser:** Go to [http://localhost:3000](http://localhost:3000)
-
----
-
-## Step 6: First-Time Setup
+## First-Time Setup
 
 When you open the app for the first time, a **Settings** panel will automatically open on the right side of the screen. This is where you'll enter your API keys.
 
-### 6.1 Entering Your Settings
+### Entering Your Settings
 
 The Settings panel has two main sections:
 
@@ -355,7 +184,7 @@ This section configures the AI that powers the assistant.
    - Google Gemini
    - Ollama (local, no API key needed)
 
-2. **API Key**: Paste your API key here (the one you saved in Step 3)
+2. **API Key**: Paste your API key here (the one you saved earlier)
    - This field won't show if you selected Ollama
    - Your key will be masked with asterisks for security
 
@@ -375,13 +204,13 @@ This section adds extra capabilities to the AI assistant. You can skip these for
 - **JSearch API Key**: Enables the AI to search job boards (recommended if you want job search)
 - **Adzuna App ID & Key**: Alternative job board search (use either JSearch or Adzuna)
 
-### 6.2 Saving Your Settings
+### Saving Your Settings
 
 1. Once you've entered at least your **Provider** and **API Key**, click **"Save Settings"** at the bottom
 2. You'll see a "Settings saved successfully!" message
 3. The app will automatically close the Settings panel and start the onboarding interview
 
-### 6.3 Onboarding Interview
+### Onboarding Interview
 
 After saving your settings, the AI Assistant chat panel will automatically open and interview you about your job search preferences.
 
@@ -408,10 +237,10 @@ The AI will ask questions like:
 2. When you've answered enough questions, the AI will thank you and save your profile
 3. The onboarding is complete, and you can start using the app!
 
-### 6.4 Editing Settings or Profile Later
+### Editing Settings or Profile Later
 
 **To change your API keys or provider:**
-1. Click the "Settings" button (⚙️ icon) in the top navigation
+1. Click the "Settings" button (gear icon) in the top navigation
 2. Update any fields you want to change
 3. Click "Save Settings"
 
@@ -423,21 +252,139 @@ The AI will ask questions like:
 
 ---
 
-## Step 7: Accessing the App Later
+## Using the App
 
-After you close the terminal windows or restart your computer, here's how to run the app again:
+Now that you're set up, here's how to get started:
 
-### Quick Start (Recommended)
+1. **Add your first job:** Click "Add Job" to manually track a position you're interested in
+2. **Try the AI assistant:** Click "Chat" and ask it to find jobs for you — try something like "Find software engineer jobs in San Francisco" or "Scrape this job posting: [paste a URL]"
+3. **Track your progress:** Update job statuses as you move through the pipeline (saved → applied → interviewing → offer/rejected)
+4. **Manage your profile:** Click the Profile button to view or update your job preferences — the AI uses this to give you better recommendations
+5. **Get help:** Click the "?" button in the header for built-in guides and tips
 
-This is the easiest way to restart the app:
+---
+
+## Option B: Running from Source (Advanced)
+
+If you prefer to run the application from source code (for development or customization), follow the steps below. This requires installing Python, Node.js, and other developer tools.
+
+> **Note:** Most users should use [Option A: Desktop App](#option-a-desktop-app-recommended) instead. Running from source is intended for developers or users who want to modify the code.
+
+### Prerequisites
+
+You need to install three programs before you can run the Job Application Helper.
+
+#### Install Python (3.12 or newer)
+
+Python is the programming language that powers the backend of this application.
 
 **Windows:**
-1. Open a command prompt
+1. Go to [python.org/downloads](https://www.python.org/downloads/)
+2. Download the **standalone installer** which is linked beneath the big yellow button. Avoid the big yellow button itself.
+3. Run the downloaded installer
+4. **Important:** Check the box that says "Add Python to PATH" before clicking Install
+5. Click "Install Now"
+
+**Mac:**
+1. Go to [python.org/downloads](https://www.python.org/downloads/)
+2. Click the yellow "Download Python 3.12" button
+3. Open the downloaded .pkg file and follow the installation steps
+
+**Linux (Ubuntu/Debian):**
+Open a terminal and run:
+```bash
+sudo apt update
+sudo apt install python3.12 python3.12-venv python3-pip
+```
+
+**Verify Python is installed:**
+Open a terminal/command prompt and type:
+```bash
+python --version
+```
+You should see something like "Python 3.12.x"
+
+#### Install Node.js and npm
+
+Node.js and npm are needed to run the web interface.
+
+1. Go to [nodejs.org](https://nodejs.org/)
+2. Click the big green "Get Node.js" button
+3. Click the green "Windows Installer" or "macOS Installer" depending on your OS
+3. Run the installer and follow the default options
+4. Verify installation by opening a terminal/command prompt and typing:
+```bash
+node --version
+npm --version
+```
+
+#### Install uv (Python Package Manager)
+
+uv is a fast tool for managing Python dependencies.
+
+**Windows (PowerShell):**
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+**Mac/Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+After installing, close and reopen your terminal, then verify:
+```bash
+uv --version
+```
+
+#### Install Git (Optional but Recommended)
+
+Git helps you download and update the code easily.
+
+1. Go to [git-scm.com/downloads](https://git-scm.com/downloads)
+2. Download the installer for your operating system
+3. Run the installer with default settings
+
+### Downloading the Code
+
+#### Using Git (Recommended)
+
+1. Open a terminal/command prompt
+2. Navigate to where you want to store the app. For example:
+   ```bash
+   cd Documents
+   ```
+3. Download the code:
+   ```bash
+   git clone https://github.com/JBoggsy/job_app_helper.git
+   ```
+4. Go into the new folder:
+   ```bash
+   cd job_app_helper
+   ```
+
+#### Download as ZIP (Alternative)
+
+1. Go to the [GitHub repository](https://github.com/JBoggsy/job_app_helper) in your web browser
+2. Click the green "Code" button
+3. Click "Download ZIP"
+4. Extract the ZIP file to a location you'll remember (like Documents)
+5. Open a terminal/command prompt and navigate to the extracted folder:
+   ```bash
+   cd Documents/job_app_helper-main
+   ```
+
+### Running the Application
+
+We've made this easy! There's a single command that starts everything automatically.
+
+**Windows:**
+1. Open a command prompt or PowerShell
 2. Navigate to the job_app_helper folder:
    ```bash
    cd path\to\job_app_helper
    ```
-3. Run:
+3. Run the start script:
    ```bash
    start.bat
    ```
@@ -448,88 +395,121 @@ This is the easiest way to restart the app:
    ```bash
    cd path/to/job_app_helper
    ```
-3. Run:
+3. Run the start script:
    ```bash
    ./start.sh
    ```
+   (If you get a "permission denied" error, run `chmod +x start.sh` first)
 
-The start script handles everything automatically, just like the first time!
+The script will:
+- Check that Python, Node.js, and uv are installed
+- Install any missing dependencies automatically
+- Start both the backend and frontend servers
+- Automatically open your browser to [http://localhost:3000](http://localhost:3000)
 
-### Creating a Desktop Shortcut (Optional)
+Press **Ctrl+C** in the terminal when you want to stop the app.
 
-For even easier access, you can create a shortcut on your desktop:
+#### Manual Method
 
-**Windows:**
-1. Right-click on your desktop → New → Shortcut
-2. For the location, enter:
-   ```
-   cmd /c "cd /d C:\path\to\job_app_helper && start.bat"
-   ```
-   (Replace `C:\path\to\job_app_helper` with the actual path)
-3. Name it "Job App Helper"
-4. Click Finish
-5. Now you can double-click this shortcut to start the app!
+If you prefer to start the backend and frontend separately:
 
-**Mac:**
-1. Open Automator (search in Spotlight)
-2. Create a new "Application"
-3. Add a "Run Shell Script" action
-4. Paste this code:
-   ```bash
-   cd /path/to/job_app_helper
-   ./start.sh
-   ```
-   (Replace `/path/to/job_app_helper` with the actual path)
-5. Save it to your Desktop as "Job App Helper"
-6. Double-click to run!
-
-**Linux:**
-1. Create a file on your desktop called `job-app-helper.desktop`
-2. Add this content:
-   ```ini
-   [Desktop Entry]
-   Type=Application
-   Name=Job App Helper
-   Exec=/path/to/job_app_helper/start.sh
-   Path=/path/to/job_app_helper
-   Terminal=true
-   ```
-   (Replace `/path/to/job_app_helper` with the actual path)
-3. Make it executable: `chmod +x job-app-helper.desktop`
-4. Double-click to run!
-
-### Manual Method (Alternative)
-
-If you prefer not to use the start script:
-
-1. **Open two terminal/command prompt windows**
-2. **In the first terminal:**
+1. **Backend:** In one terminal, run:
    ```bash
    cd path/to/job_app_helper
    uv run python main.py
    ```
-3. **In the second terminal:**
+
+2. **Frontend:** In another terminal, run:
    ```bash
    cd path/to/job_app_helper/frontend
    npm run dev
    ```
-4. **Open your browser** and go to [http://localhost:3000](http://localhost:3000)
+
+3. **Browser:** Go to [http://localhost:3000](http://localhost:3000)
+
+### Running Again Later
+
+Just run the start script again — it handles everything automatically:
+
+**Windows:**
+```bash
+cd path\to\job_app_helper
+start.bat
+```
+
+**Mac/Linux:**
+```bash
+cd path/to/job_app_helper
+./start.sh
+```
+
+After starting, continue to [Getting Your API Keys](#getting-your-api-keys) (first time) or [First-Time Setup](#first-time-setup) to configure the app.
 
 ---
 
 ## Troubleshooting
 
-### "Command not found" errors
+### Desktop App Issues
+
+#### Windows SmartScreen warning
+
+**Problem:** When installing, you see "Windows protected your PC."
+
+**Solution:** Click **"More info"** then **"Run anyway"**. This warning appears because the app is not yet code-signed. It's safe to proceed.
+
+#### macOS "unidentified developer" warning
+
+**Problem:** macOS won't open the app, showing a security warning.
+
+**Solution:**
+1. Go to **System Settings → Privacy & Security**
+2. Scroll down and click **"Open Anyway"** next to the message about the app
+3. The app will open normally from now on
+
+#### Linux AppImage won't run
+
+**Problem:** The `.AppImage` file doesn't launch when double-clicked.
+
+**Solution:** Make it executable first:
+```bash
+chmod +x job-app-helper_*.AppImage
+./job-app-helper_*.AppImage
+```
+
+#### Desktop app shows blank screen
+
+**Problem:** The app window opens but shows nothing.
+
+**Solution:**
+- Wait a few seconds — the backend may still be starting up
+- Try closing and reopening the app
+- Check if your antivirus/firewall is blocking the app
+- If the issue persists, try [running from source](#option-b-running-from-source-advanced) instead
+
+#### API key errors
+
+**Problem:** You see "Invalid API key" or "Authentication failed" errors.
+
+**Solution:**
+- Double-check that you copied the full API key (no extra spaces)
+- Open Settings and use the "Test Connection" button to verify your configuration
+- Verify your API key is still valid (check the provider's dashboard)
+- Make sure you have credits/quota remaining with your AI provider
+- If you just signed up, some providers take a few minutes to activate new API keys
+
+### Run from Source Issues
+
+#### "Command not found" errors
 
 **Problem:** When you try to run `python`, `npm`, or `uv`, you get a "command not found" error.
 
 **Solution:**
-- Make sure you installed the software correctly in Step 1
+- Make sure you installed the software correctly (see [Prerequisites](#prerequisites))
 - Close and reopen your terminal after installing
 - On Windows, make sure you checked "Add to PATH" during Python installation
 - Try `python3` instead of `python` on Mac/Linux
 
-### Port already in use
+#### Port already in use
 
 **Problem:** You see an error like "Port 5000 is already in use" or "Port 3000 is already in use"
 
@@ -545,7 +525,7 @@ If you prefer not to use the start script:
   lsof -ti:3000 | xargs kill -9
   ```
 
-### Frontend shows blank page
+#### Frontend shows blank page
 
 **Problem:** The browser loads but shows nothing or shows an error.
 
@@ -556,18 +536,7 @@ If you prefer not to use the start script:
 - Clear your browser cache
 - Try a different browser
 
-### API key errors
-
-**Problem:** You see "Invalid API key" or "Authentication failed" errors.
-
-**Solution:**
-- Double-check that you copied the full API key (no extra spaces)
-- Open Settings and use the "Test Connection" button to verify your configuration
-- Verify your API key is still valid (check the provider's dashboard)
-- Make sure you have credits/quota remaining with your AI provider
-- If you just signed up, some providers take a few minutes to activate new API keys
-
-### Installation fails during `uv sync` or `npm install`
+#### Installation fails during `uv sync` or `npm install`
 
 **Problem:** You get errors when installing dependencies.
 
@@ -577,7 +546,25 @@ If you prefer not to use the start script:
 - Delete the `.venv` folder (if it exists) and the `frontend/node_modules` folder, then try again
 - Update uv: `curl -LsSf https://astral.sh/uv/install.sh | sh` (Mac/Linux) or reinstall from the website (Windows)
 
-### AI responses are very slow
+#### Windows: "Python was not found" but it's installed
+
+**Problem:** Running `python --version` says "Python was not found" or opens the Microsoft Store.
+
+**Solution:**
+1. Open **Settings → Apps → Advanced app settings → App execution aliases**
+2. Turn **OFF** both `python.exe` and `python3.exe` aliases
+3. Close and reopen your terminal
+4. Run `start.bat` again
+
+#### Windows: "uv is not recognized" after installation
+
+**Problem:** The script says it installed `uv` but then says "uv is not recognized."
+
+**Solution:** Restart your Command Prompt/PowerShell and run `start.bat` again. The script automatically uses `python -m uv` as a fallback.
+
+### General Issues
+
+#### AI responses are very slow
 
 **Problem:** The AI takes a long time to respond.
 
@@ -587,36 +574,53 @@ If you prefer not to use the start script:
 - If using Ollama, make sure you have enough RAM and a good CPU/GPU
 - Check your internet connection
 
-### Settings panel doesn't open automatically
+#### Settings panel doesn't open automatically
 
 **Problem:** The Settings panel doesn't open when you first launch the app.
 
 **Solution:**
-- Click the "Settings" button (⚙️ icon) in the top navigation bar to open it manually
-- Make sure both the backend and frontend are running (check your terminal windows)
-- Try refreshing the browser page
+- Click the "Settings" button (gear icon) in the top navigation bar to open it manually
+- Try refreshing the browser page (if running from source)
 - Check the browser console for errors (press F12, click "Console" tab)
 
-### Can't save settings
+#### Ollama connection failed
 
-**Problem:** When you click "Save Settings", nothing happens or you get an error.
-
-**Solution:**
-- Make sure you've selected a Provider and entered an API key (required fields are marked with *)
-- Check that the backend server is running (should see output in the terminal)
-- Look for error messages in the Settings panel (shown in red at the top)
-- Try clicking "Test Connection" first to verify your API key works
-- Check the browser console for errors (press F12, click "Console" tab)
-
-### Can't find where I saved the folder
-
-**Problem:** You can't remember where you saved the job_app_helper folder.
+**Problem:** Can't connect to Ollama for local LLM.
 
 **Solution:**
-- Use your file browser's search feature to search for "job_app_helper"
-- On Windows: Press Win+S and search for "job_app_helper"
-- On Mac: Press Cmd+Space and search for "job_app_helper"
-- If you used Git, it's likely in your home folder or Documents
+1. Make sure Ollama is installed: [ollama.com](https://ollama.com/)
+2. Start the Ollama server: `ollama serve`
+3. Pull a model: `ollama pull llama3.1`
+4. In Settings, select "Ollama (Local)" as your provider
+
+> **Note:** Even with the desktop app, Ollama must be running as a separate process.
+
+---
+
+## Updating the App
+
+### Desktop App
+
+1. Go to the [GitHub Releases page](https://github.com/JBoggsy/job_app_helper/releases)
+2. Download the latest installer for your platform
+3. Install it over the existing version — your data (jobs, profile, settings) is preserved because it's stored in a separate data directory
+
+### Running from Source
+
+```bash
+cd path/to/job_app_helper
+
+# Pull latest code
+git pull
+
+# Update backend dependencies
+uv sync
+
+# Update frontend dependencies
+cd frontend && npm install
+```
+
+Then restart the app with `./start.sh` or `start.bat`.
 
 ---
 
@@ -624,34 +628,11 @@ If you prefer not to use the start script:
 
 If you run into issues not covered here:
 
-1. Check the `logs/app.log` file in the job_app_helper folder for error messages
-2. Make sure all software is up to date
-3. Try searching for the error message online
-4. Open an issue on the GitHub repository with:
+1. Check the built-in help panel (click the "?" button in the app header)
+2. Check the `logs/app.log` file for error messages (in the app folder for source installs, or in your system's app data directory for desktop installs)
+3. Open an issue on the [GitHub repository](https://github.com/JBoggsy/job_app_helper/issues) with:
+   - Whether you're using the desktop app or running from source
    - What you were trying to do
    - What error message you saw
    - Your operating system
    - Screenshots if applicable
-
----
-
-## Desktop App (Advanced, Optional)
-
-If you'd prefer to run the Job Application Helper as a native desktop application instead of in a browser, the project supports [Tauri v2](https://v2.tauri.app/) for building standalone desktop apps. This requires additional developer tools (Rust toolchain, Tauri system dependencies) and is intended for advanced users.
-
-See [DEVELOPMENT.md](DEVELOPMENT.md#desktop-development-tauri) for detailed instructions on building and running the desktop version.
-
-The browser-based setup described above is the recommended approach for most users.
-
----
-
-## Next Steps
-
-Now that you're all set up:
-
-1. **Add your first job:** Click "Add Job" to manually track a position
-2. **Try the AI assistant:** Click "Chat" and ask it to find jobs for you based on your profile
-3. **Explore features:** Update job statuses, add notes, track your progress
-4. **Customize your profile:** Keep your profile updated as your job search evolves
-
-Happy job hunting!

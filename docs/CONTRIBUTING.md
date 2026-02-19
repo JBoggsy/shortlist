@@ -37,9 +37,10 @@ Before submitting a bug report:
 
 When submitting a bug report, use the [Bug Report template](.github/ISSUE_TEMPLATE/bug_report.md) and include:
 
+- **Installation method**: Whether you're using the desktop app or running from source
 - **Clear description**: What happened vs. what you expected
 - **Steps to reproduce**: Detailed steps to recreate the issue
-- **Environment**: OS, Python version, Node version, LLM provider
+- **Environment**: OS, app version (desktop) or Python/Node version (source), LLM provider
 - **Screenshots/logs**: Visual evidence or error logs when relevant
 
 **Example:**
@@ -193,6 +194,7 @@ Before submitting, ensure:
 - [ ] Commit messages are clear and descriptive
 - [ ] No secrets or API keys are committed
 - [ ] Frontend builds successfully (`npm run build`)
+- [ ] If changes affect the desktop app, CI workflow passes (check GitHub Actions)
 
 ## Code Style Guidelines
 

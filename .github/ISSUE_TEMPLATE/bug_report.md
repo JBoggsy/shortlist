@@ -31,11 +31,13 @@ If applicable, add screenshots to help explain your problem.
 
 ## Environment
 
+- **Installation method**: [Desktop App / Running from Source]
+- **App version (desktop)**: [e.g., 0.4.2 — check Settings or About]
 - **OS**: [e.g., macOS 14.1, Windows 11, Ubuntu 22.04]
-- **Python Version**: [e.g., 3.12.0]
-- **Node.js Version**: [e.g., 18.17.0]
+- **Python Version** (if running from source): [e.g., 3.12.0]
+- **Node.js Version** (if running from source): [e.g., 18.17.0]
 - **LLM Provider**: [e.g., Anthropic, OpenAI, Gemini, Ollama]
-- **Browser**: [e.g., Chrome 120, Firefox 121, Safari 17]
+- **Browser** (if running from source): [e.g., Chrome 120, Firefox 121, Safari 17]
 
 ## Logs
 

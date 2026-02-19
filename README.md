@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> A web application to track and manage job applications with an AI-powered assistant
+> A desktop application and web app to track and manage job applications with an AI-powered assistant
 
-Job Application Helper is a full-stack web app that helps you organize your job search. Track applications through the hiring pipeline, store job details, and leverage an AI assistant that can search the web, scrape job postings, and automatically add jobs to your tracker—all through a simple chat interface.
+Job Application Helper helps you organize your job search. Track applications through the hiring pipeline, store job details, and leverage an AI assistant that can search the web, scrape job postings, and automatically add jobs to your tracker—all through a simple chat interface. Available as a downloadable desktop app or as a web app you can run from source.
 
 ## Features
 
@@ -16,84 +16,32 @@ Job Application Helper is a full-stack web app that helps you organize your job 
 - **User Profile System**: Personalized onboarding interview to understand your job preferences and goals
 - **Rich Job Details**: Track salary ranges, location, remote type, requirements, contact info, and more
 - **Job Fit Ratings**: Rate how well each job matches your profile (0-5 stars)
-- **Desktop App (Optional)**: Run as a native desktop application via Tauri, or use in the browser—your choice
+- **Desktop App**: Download and install—no programming tools required. Also runs as a web app from source.
 
-## Quick Start
+## Download
 
-See [the Installation guide](docs/INSTALLATION.md) for an easy-to-follow guide to installing and running
-the Job App Helper.
+Download the latest desktop app from [GitHub Releases](https://github.com/JBoggsy/job_app_helper/releases):
 
-### Easy Setup (Recommended)
+| Platform | Download |
+|----------|----------|
+| **Windows** | `.exe` or `.msi` installer |
+| **macOS** | `.dmg` installer |
+| **Linux** | `.deb`, `.rpm`, or `.AppImage` |
 
-The easiest way to get started is with our one-command startup script:
+Install it, launch it, and the Settings panel will guide you through entering your API key. See the [Installation Guide](docs/INSTALLATION.md) for detailed step-by-step instructions.
 
-1. **Clone the repository**:
+### Run from Source (Alternative)
 
-```bash
-git clone https://github.com/JBoggsy/job_app_helper.git
-cd job_app_helper
-```
-
-2. **Run the startup script**:
-
-**On Mac/Linux:**
-```bash
-./start.sh
-```
-
-**On Windows:**
-```bash
-start.bat
-```
-
-That's it! The script will:
-- ✅ Check if Python, Node.js, and uv are installed (and guide you if not)
-- ✅ Install all dependencies automatically
-- ✅ Start both backend and frontend servers
-- ✅ Open your browser to http://localhost:3000
-
-When you first open the app, configure your LLM API key by clicking the **Settings** (gear icon) in the header.
-
-### Manual Setup (Advanced)
-
-If you prefer to set things up manually or need more control:
-
-#### Prerequisites
-
-- **Python 3.12+** — [Download](https://www.python.org/downloads/)
-- **Node.js 18+** — [Download](https://nodejs.org/)
-- **uv** — [Install](https://github.com/astral-sh/uv): `pip install uv`
-
-#### Installation Steps
-
-1. **Clone the repository**:
+For developers or users who prefer running from source:
 
 ```bash
 git clone https://github.com/JBoggsy/job_app_helper.git
 cd job_app_helper
+./start.sh        # Mac/Linux
+start.bat          # Windows
 ```
 
-2. **Set up the backend**:
-
-```bash
-# Install Python dependencies
-uv sync
-
-# Run the Flask server
-uv run python main.py
-```
-
-The backend API will be available at `http://localhost:5000`.
-
-3. **Set up the frontend** (in a new terminal):
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend will be available at `http://localhost:3000`.
+**Requires:** Python 3.12+, Node.js 18+, uv. See [Installation Guide — Running from Source](docs/INSTALLATION.md#option-b-running-from-source-advanced) for full details.
 
 ## Screenshots
 
@@ -178,11 +126,11 @@ export LOG_LEVEL=INFO
 
 See [`docs/config.example.json`](docs/config.example.json) for the complete configuration file format.
 
-## Usage
+## Getting Started
 
-1. **Start the application** — Follow the Quick Start steps above
-2. **Open your browser** — Navigate to `http://localhost:3000`
-3. **Complete onboarding** — On first visit, the AI assistant will interview you to build your profile
+1. **Download and install** — Get the app from [GitHub Releases](https://github.com/JBoggsy/job_app_helper/releases) (or [run from source](#run-from-source-alternative))
+2. **Enter your API key** — On first launch, the Settings panel opens automatically. Choose an AI provider and enter your API key ([guide](docs/INSTALLATION.md#getting-your-api-keys))
+3. **Complete onboarding** — The AI assistant will interview you to build your job search profile
 4. **Add jobs manually** — Click "Add Job" to create entries from the dashboard
 5. **Use the AI assistant** — Click the chat icon to open the assistant panel:
    - Ask it to search for jobs: "Find software engineer jobs in San Francisco"
@@ -194,98 +142,33 @@ See [`docs/config.example.json`](docs/config.example.json) for the complete conf
 
 ## Troubleshooting
 
-### "LLM is not configured" error
+### Desktop App Issues
 
-**Problem**: The AI assistant shows "LLM is not configured" when you try to use it.
+**Windows SmartScreen warning**: Click "More info" → "Run anyway" (the app is not yet code-signed).
 
-**Solution**:
-1. Click the **Settings** (gear icon) in the header
-2. Select an LLM provider and enter your API key
-3. Click **Test Connection** to verify it works
-4. Click **Save Settings**
+**macOS "unidentified developer"**: Go to System Settings → Privacy & Security → Click "Open Anyway".
 
-### Dependencies not installed
+**Blank screen on launch**: Wait a few seconds for the backend to start. If it persists, try restarting the app.
 
-**Problem**: The startup script says Python, Node.js, or uv is not installed.
+### General Issues
 
-**Solution**:
-- **Python**: Download from [python.org](https://www.python.org/downloads/) (need 3.12+)
-- **Node.js**: Download from [nodejs.org](https://nodejs.org/) (need 18+)
-- **uv**: Run `pip install uv` or see [installation guide](https://github.com/astral-sh/uv)
+**"LLM is not configured"**: Click the Settings gear icon, select an LLM provider, enter your API key, and click Save Settings.
 
-### Windows: "Python was not found" but it's installed
+**Ollama connection failed**: Make sure Ollama is running separately (`ollama serve`) with a model pulled (`ollama pull llama3.1`).
 
-**Problem** (Windows only): Running `python --version` says "Python was not found" or opens the Microsoft Store, even though Python is installed.
+### Run from Source Issues
 
-**Cause**: Windows has app execution aliases that intercept the `python` command and redirect it to the Microsoft Store.
+**Dependencies not installed**: Install [Python 3.12+](https://www.python.org/downloads/), [Node.js 18+](https://nodejs.org/), and [uv](https://github.com/astral-sh/uv).
 
-**Solution**:
-1. Open **Settings** → **Apps** → **Advanced app settings** → **App execution aliases**
-2. Turn **OFF** both `python.exe` and `python3.exe` aliases
-3. Close and reopen your Command Prompt/PowerShell
-4. Run `start.bat` again
+**Windows "Python was not found"**: Disable app execution aliases in Settings → Apps → Advanced app settings → App execution aliases.
 
-**Alternative**: The updated `start.bat` script now automatically tries `python3` as a fallback, which may work even if `python` doesn't.
+**Port already in use**: Stop other processes using ports 3000/5000, or restart your computer.
 
-### Windows: "uv is not recognized" after installation
-
-**Problem** (Windows only): The script says it installed `uv` but then says "uv is not recognized as an internal or external command."
-
-**Cause**: When `pip` installs `uv`, the executable goes to Python's Scripts directory, which may not be in your PATH for the current terminal session.
-
-**Solution**:
-1. **Restart your Command Prompt/PowerShell** - This is the simplest fix
-2. Run `start.bat` again - it should now work
-
-**Alternative**: The updated `start.bat` script automatically uses `python -m uv` as a fallback if the `uv` command isn't available, so the script should work even without restarting.
-
-### Port already in use
-
-**Problem**: "Address already in use" error on port 3000 or 5000.
-
-**Solution**:
-- Stop any other processes using those ports
-- Or change the ports in `vite.config.js` (frontend) and `main.py` (backend)
-
-### Ollama connection failed
-
-**Problem**: Can't connect to Ollama for local LLM.
-
-**Solution**:
-1. Make sure Ollama is installed: [ollama.com](https://ollama.com/)
-2. Start the Ollama server: `ollama serve`
-3. Pull a model: `ollama pull llama3.1`
-4. In Settings, select "Ollama (Local)" as your provider
-
-### AI assistant not responding
-
-**Problem**: Messages sent to the AI don't get responses.
-
-**Solution**:
-1. Check the browser console (F12) for errors
-2. Check the backend terminal for error messages
-3. Verify your API key is correct in Settings
-4. Try the "Test Connection" button in Settings
-5. Check your internet connection (for cloud providers)
-
-### Missing dependencies after git pull
-
-**Problem**: App won't start after pulling latest changes.
-
-**Solution**:
-```bash
-# Reinstall backend dependencies
-uv sync
-
-# Reinstall frontend dependencies
-cd frontend && npm install
-```
+**Missing dependencies after git pull**: Run `uv sync` and `cd frontend && npm install`.
 
 ### Need more help?
 
-- Check the [DEVELOPMENT.md](docs/DEVELOPMENT.md) for technical details
-- Report bugs at [GitHub Issues](https://github.com/JBoggsy/job_app_helper/issues)
-- See logs in `logs/app.log` for backend errors
+See the full [Troubleshooting guide](docs/INSTALLATION.md#troubleshooting) or report bugs at [GitHub Issues](https://github.com/JBoggsy/job_app_helper/issues).
 
 ## Tech Stack
 
@@ -295,21 +178,19 @@ cd frontend && npm install
 - **AI Providers**: Anthropic Claude, OpenAI GPT, Google Gemini, Ollama
 - **Package Managers**: uv (Python), npm (JavaScript)
 
-## Desktop App (Optional)
+## Desktop App
 
-The app can also run as a native desktop application using [Tauri v2](https://v2.tauri.app/). Tauri wraps the React frontend in a native webview and launches the Flask backend as a sidecar process. Data files are stored in platform-standard directories (e.g., `~/.local/share/com.jobapphelper.app` on Linux).
+The desktop app is built with [Tauri v2](https://v2.tauri.app/), which wraps the React frontend in a native webview and bundles the Flask backend as a sidecar process. No Python or Node.js installation required.
 
-```bash
-# Development: start Flask manually, then launch Tauri
-uv run python main.py                  # Terminal 1
-npm run tauri:dev                      # Terminal 2
+Download the latest release from [GitHub Releases](https://github.com/JBoggsy/job_app_helper/releases). Data files are stored in platform-standard directories:
 
-# Production build (requires Rust toolchain)
-./build_sidecar.sh                     # Bundle Flask as standalone binary
-npm run tauri:build                    # Build the desktop app
-```
+| Platform | Data Location |
+|----------|---------------|
+| **Linux** | `~/.local/share/com.jobapphelper.app/` |
+| **macOS** | `~/Library/Application Support/com.jobapphelper.app/` |
+| **Windows** | `C:\Users\<user>\AppData\Roaming\com.jobapphelper.app\` |
 
-The browser-based workflow (`./start.sh` / `start.bat`) continues to work as before. See [DEVELOPMENT.md](docs/DEVELOPMENT.md) for more details.
+For building from source or developing the desktop app, see [DEVELOPMENT.md](docs/DEVELOPMENT.md#desktop-development-tauri).
 
 ## Development
 
