@@ -172,4 +172,50 @@ def delete_resume() -> bool:
             f.unlink()
             deleted = True
             logger.info("Deleted resume: %s", f)
+    # Also delete parsed resume JSON
+    delete_parsed_resume()
     return deleted
+
+
+def _parsed_resume_path() -> Path:
+    """Return the path to the parsed resume JSON file."""
+    return get_resume_dir() / "resume_parsed.json"
+
+
+def save_parsed_resume(data: dict) -> Path:
+    """Save the LLM-parsed structured resume data as JSON.
+
+    Args:
+        data: Structured resume data dictionary.
+
+    Returns:
+        Path to the saved JSON file.
+    """
+    import json
+    dest = _parsed_resume_path()
+    dest.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    logger.info("Saved parsed resume JSON to %s (%d bytes)", dest, dest.stat().st_size)
+    return dest
+
+
+def get_parsed_resume() -> dict | None:
+    """Load the parsed resume JSON, or return None if it doesn't exist."""
+    import json
+    path = _parsed_resume_path()
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.warning("Failed to read parsed resume JSON: %s", e)
+        return None
+
+
+def delete_parsed_resume() -> bool:
+    """Delete the parsed resume JSON file. Returns True if deleted."""
+    path = _parsed_resume_path()
+    if path.exists():
+        path.unlink()
+        logger.info("Deleted parsed resume JSON: %s", path)
+        return True
+    return False

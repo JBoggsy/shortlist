@@ -9,6 +9,8 @@ from backend.resume_parser import (
     get_saved_resume,
     get_resume_text,
     delete_resume,
+    get_parsed_resume,
+    delete_parsed_resume,
     MAX_FILE_SIZE,
 )
 
@@ -63,19 +65,21 @@ def upload_resume():
 
 @resume_bp.route("", methods=["GET"])
 def get_resume():
-    """Get info about the currently saved resume and its parsed text."""
+    """Get info about the currently saved resume, its parsed text, and structured data."""
     info = get_saved_resume()
     if not info:
         return {"resume": None}
 
     try:
         text = get_resume_text()
+        parsed = get_parsed_resume()
         return {
             "resume": {
                 "filename": info["filename"],
                 "size": info["size"],
                 "text": text,
                 "text_length": len(text) if text else 0,
+                "parsed": parsed,
             }
         }
     except Exception as e:
@@ -97,3 +101,47 @@ def remove_resume():
     if deleted:
         return {"status": "deleted"}
     return {"status": "no_resume"}
+
+
+@resume_bp.route("/parse", methods=["POST"])
+def parse_resume_with_llm():
+    """Parse the uploaded resume using an LLM to produce structured JSON.
+
+    Uses the configured LLM provider to clean up raw extracted text and
+    return a structured representation of the resume.
+    """
+    from backend.config_manager import get_llm_config
+    from backend.llm.factory import create_provider
+    from backend.agent.agent import ResumeParsingAgent
+
+    # Get the raw resume text
+    raw_text = get_resume_text()
+    if not raw_text:
+        return {"error": "No resume uploaded. Please upload a resume first."}, 400
+
+    # Check LLM configuration
+    llm_config = get_llm_config()
+    if not llm_config["api_key"] and llm_config["provider"] != "ollama":
+        return {"error": "LLM is not configured. Please configure your API key in Settings."}, 400
+
+    try:
+        provider = create_provider(
+            llm_config["provider"],
+            llm_config["api_key"],
+            llm_config["model"],
+        )
+    except Exception as e:
+        logger.error("Failed to create LLM provider for resume parsing: %s", e)
+        return {"error": f"Failed to initialize LLM provider: {str(e)}"}, 500
+
+    try:
+        agent = ResumeParsingAgent(provider)
+        parsed = agent.parse(raw_text)
+        logger.info("Resume parsed successfully via LLM")
+        return {"parsed": parsed}
+    except RuntimeError as e:
+        logger.exception("Resume parsing agent failed")
+        return {"error": str(e)}, 500
+    except Exception as e:
+        logger.exception("Unexpected error during resume parsing")
+        return {"error": f"Resume parsing failed: {str(e)}"}, 500

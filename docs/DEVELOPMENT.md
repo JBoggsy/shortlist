@@ -73,13 +73,13 @@ job_app_helper/
 │   │   ├── __init__.py            # Model exports
 │   │   ├── job.py                 # Job model with CRUD methods
 │   │   └── chat.py                # Conversation and Message models
-│   ├── resume_parser.py               # Resume parsing (PDF via PyMuPDF, DOCX via python-docx)
+│   ├── resume_parser.py               # Resume parsing (PDF via PyMuPDF, DOCX via python-docx), parsed JSON storage
 │   ├── routes/
 │   │   ├── __init__.py
 │   │   ├── jobs.py                # CRUD endpoints for jobs
 │   │   ├── chat.py                # Chat endpoints with SSE streaming
 │   │   ├── profile.py             # User profile endpoints
-│   │   ├── resume.py              # Resume upload, fetch, delete endpoints
+│   │   ├── resume.py              # Resume upload, fetch, delete, LLM parse endpoints
 │   │   └── config.py              # Config and health check endpoints
 │   ├── llm/
 │   │   ├── base.py                # LLMProvider ABC, StreamChunk, ToolCall dataclasses
@@ -174,9 +174,9 @@ job_app_helper/
 
 **`backend/routes/config.py`**: Configuration blueprint for settings management. Provides endpoints for getting/updating config, testing LLM connections, listing providers, and health checks. Mounted at `/api/config`.
 
-**`backend/routes/resume.py`**: Resume upload blueprint. Handles file upload (multipart/form-data), parsing, storage, retrieval, and deletion. Supports PDF and DOCX files up to 10 MB. Mounted at `/api/resume`.
+**`backend/routes/resume.py`**: Resume upload blueprint. Handles file upload (multipart/form-data), parsing, storage, retrieval, and deletion. Supports PDF and DOCX files up to 10 MB. Also provides an LLM-powered parsing endpoint (`POST /api/resume/parse`) that uses `ResumeParsingAgent` to clean up raw extracted text and structure it into JSON. Mounted at `/api/resume`.
 
-**`backend/resume_parser.py`**: Resume parsing utilities. Extracts plain text from PDF files (via PyMuPDF) and DOCX files (via python-docx, including table content). Provides file save/load/delete helpers with resume files stored in a `resumes/` subdirectory under the data dir.
+**`backend/resume_parser.py`**: Resume parsing utilities. Extracts plain text from PDF files (via PyMuPDF) and DOCX files (via python-docx, including table content). Provides file save/load/delete helpers with resume files stored in a `resumes/` subdirectory under the data dir. Also stores LLM-parsed structured JSON (`save_parsed_resume`, `get_parsed_resume`, `delete_parsed_resume`).
 
 **`backend/llm/base.py`**: Abstract base class defining the interface all LLM providers must implement (`stream_with_tools`). Also defines `StreamChunk` and `ToolCall` dataclasses.
 
@@ -186,7 +186,7 @@ job_app_helper/
 
 **`backend/agent/tools.py`**: Defines all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`) with their schemas and execution logic. Tools are exposed via the `AgentTools` class.
 
-**`backend/agent/agent.py`**: Main `Agent` class that runs the tool-calling loop. Takes a user message, calls the LLM, executes tools, and iterates until completion. Also includes `OnboardingAgent` subclass for the onboarding interview flow. Injects resume availability status into the system prompt.
+**`backend/agent/agent.py`**: Main `Agent` class that runs the tool-calling loop. Takes a user message, calls the LLM, executes tools, and iterates until completion. Also includes `OnboardingAgent` subclass for the onboarding interview flow and `ResumeParsingAgent` for LLM-powered resume cleanup and JSON structuring. Injects resume availability status into the system prompt.
 
 **`backend/agent/user_profile.py`**: User profile file management with YAML frontmatter parsing. Handles reading, writing, and onboarding status checking.
 
@@ -204,7 +204,7 @@ job_app_helper/
 
 **`frontend/src/components/ChatPanel.jsx`**: Slide-out AI assistant panel with SSE streaming, markdown rendering, and tool execution visibility. Includes `JOB_MUTATING_TOOLS` set for live job list refresh.
 
-**`frontend/src/components/ProfilePanel.jsx`**: Slide-out user profile viewer/editor panel with resume upload section (PDF/DOCX). Users can upload, preview, replace, or remove their resume. Also supports manual profile markdown editing.
+**`frontend/src/components/ProfilePanel.jsx`**: Slide-out user profile viewer/editor panel with resume upload section (PDF/DOCX). Users can upload, preview (Structured/Raw toggle), replace, or remove their resume. Auto-triggers LLM parsing on upload; includes a Re-parse button. `StructuredResumeView` sub-component renders parsed JSON as a rich formatted view. Also supports manual profile markdown editing.
 
 **`frontend/src/components/SettingsPanel.jsx`**: Slide-out settings panel for configuring LLM provider, API keys, and integrations. Includes "Test Connection" functionality and saves to config.json. Contains `ApiKeyGuide` sub-component that renders expandable step-by-step instructions and a direct link for each key field (Anthropic, OpenAI, Gemini, Tavily, JSearch, Adzuna); renders nothing for Ollama (no key required).
 
@@ -477,12 +477,15 @@ Auto-generated:
 | Method | Endpoint | Description | Request Body | Response |
 |--------|----------|-------------|--------------|----------|
 | POST | `/api/resume` | Upload resume (PDF/DOCX) | multipart/form-data with `file` field | `{filename, size, text, text_length}` |
-| GET | `/api/resume` | Get saved resume info + text | — | `{resume: {filename, size, text, text_length} \| null}` |
+| GET | `/api/resume` | Get saved resume info + text + structured data | — | `{resume: {filename, size, text, text_length, parsed} \| null}` |
 | DELETE | `/api/resume` | Delete saved resume | — | `{status: "deleted" \| "no_resume"}` |
+| POST | `/api/resume/parse` | Parse resume with LLM | — | `{parsed: {...}}` |
 
 **Supported formats:** PDF (`.pdf`) and Microsoft Word (`.docx`). Maximum file size: 10 MB.
 
-The parsed text is extracted using PyMuPDF (PDF) or python-docx (DOCX, including table content). Resume files are stored in a `resumes/` subdirectory under the data directory.
+The raw text is extracted using PyMuPDF (PDF) or python-docx (DOCX, including table content). Resume files are stored in a `resumes/` subdirectory under the data directory.
+
+The `POST /api/resume/parse` endpoint uses `ResumeParsingAgent` to send the raw extracted text to the configured LLM, which cleans up PDF/DOCX extraction artifacts (broken formatting, garbled characters, merged words) and returns structured JSON with fields like `contact_info`, `work_experience`, `education`, `skills`, `certifications`, `projects`, and more. The structured data is persisted as `resume_parsed.json` and returned by subsequent `GET /api/resume` calls.
 
 **Configuration Object Format:**
 ```json

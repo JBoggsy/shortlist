@@ -1,10 +1,11 @@
 import json
 import logging
+import re
 
 from backend.llm.base import LLMProvider
 from backend.agent.tools import TOOL_DEFINITIONS, AgentTools
 from backend.agent.user_profile import read_profile, set_onboarded
-from backend.resume_parser import get_saved_resume
+from backend.resume_parser import get_saved_resume, save_parsed_resume
 
 logger = logging.getLogger(__name__)
 
@@ -342,3 +343,190 @@ class OnboardingAgent:
             system_prompt = ONBOARDING_SYSTEM_PROMPT.format(user_profile=user_profile)
 
         yield {"event": "done", "data": {"content": full_text}}
+
+
+# ---------------------------------------------------------------------------
+# Resume parsing agent
+# ---------------------------------------------------------------------------
+
+RESUME_PARSING_SYSTEM_PROMPT = """You are a resume parsing specialist. Your job is to take raw text extracted from a PDF or DOCX resume and produce clean, structured JSON.
+
+The raw text often has formatting artifacts from PDF extraction: weird spacing, broken lines, garbled characters, merged words, misplaced headers, duplicated content, etc. You must intelligently clean and restructure this content.
+
+## Output Format
+
+Return ONLY valid JSON (no markdown fences, no explanation) with this structure:
+
+{
+  "contact_info": {
+    "name": "Full Name",
+    "email": "email@example.com",
+    "phone": "+1-555-123-4567",
+    "location": "City, State",
+    "linkedin": "linkedin.com/in/...",
+    "github": "github.com/...",
+    "website": "..."
+  },
+  "summary": "A brief professional summary or objective if present in the resume.",
+  "work_experience": [
+    {
+      "company": "Company Name",
+      "title": "Job Title",
+      "location": "City, State",
+      "start_date": "Jan 2020",
+      "end_date": "Present",
+      "highlights": [
+        "Key accomplishment or responsibility",
+        "Another highlight"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University Name",
+      "degree": "Bachelor of Science in Computer Science",
+      "location": "City, State",
+      "start_date": "2016",
+      "end_date": "2020",
+      "details": ["GPA: 3.8", "Honors: Magna Cum Laude"]
+    }
+  ],
+  "skills": {
+    "languages": ["Python", "JavaScript"],
+    "frameworks": ["React", "Flask"],
+    "tools": ["Docker", "Git"],
+    "other": ["Project Management", "Agile"]
+  },
+  "certifications": [
+    {
+      "name": "AWS Solutions Architect",
+      "issuer": "Amazon Web Services",
+      "date": "2023"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "Brief description",
+      "technologies": ["Tech1", "Tech2"],
+      "url": "..."
+    }
+  ],
+  "publications": [
+    {
+      "title": "Paper Title",
+      "venue": "Conference/Journal",
+      "date": "2023",
+      "url": "..."
+    }
+  ],
+  "awards": [
+    {
+      "name": "Award Name",
+      "issuer": "Organization",
+      "date": "2023"
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "proficiency": "Native"
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "Org Name",
+      "role": "Volunteer Role",
+      "start_date": "2020",
+      "end_date": "2021",
+      "description": "..."
+    }
+  ]
+}
+
+## Rules
+
+1. Only include sections that have data in the resume. Omit empty sections entirely (don't include empty arrays).
+2. For skills, group them logically. If the resume doesn't categorize them, do your best to sort them into languages, frameworks, tools, and other.
+3. Fix obvious OCR/extraction errors: merged words ("PythonDeveloper" → "Python Developer"), garbled characters, broken lines that should be joined.
+4. Normalize dates to a consistent format (e.g., "Jan 2020", "2020", "Jan 2020 - Present").
+5. Preserve all meaningful content — don't drop information, just restructure it.
+6. If something is ambiguous, make your best judgment rather than omitting it.
+7. Return ONLY the JSON object. No preamble, no explanation, no markdown code fences."""
+
+
+RESUME_PARSING_MAX_ITERATIONS = 3
+
+
+class ResumeParsingAgent:
+    """Agent that uses an LLM to clean up and structure raw resume text into JSON."""
+
+    def __init__(self, provider: LLMProvider):
+        self.provider = provider
+
+    def parse(self, raw_text: str) -> dict:
+        """Parse raw resume text into structured JSON.
+
+        Args:
+            raw_text: The raw text extracted from a PDF/DOCX resume.
+
+        Returns:
+            Structured resume data as a dictionary.
+
+        Raises:
+            RuntimeError: If the LLM fails to produce valid JSON.
+        """
+        messages = [
+            {"role": "user", "content": f"Parse the following raw resume text into structured JSON:\n\n{raw_text}"}
+        ]
+
+        logger.info("ResumeParsingAgent: starting parse (%d chars of raw text)", len(raw_text))
+
+        full_text = ""
+        for chunk in self.provider.stream_with_tools(
+            messages, [], RESUME_PARSING_SYSTEM_PROMPT
+        ):
+            if chunk.type == "text":
+                full_text += chunk.content
+            elif chunk.type == "error":
+                logger.error("LLM error during resume parsing: %s", chunk.content)
+                raise RuntimeError(f"LLM error: {chunk.content}")
+
+        logger.info("ResumeParsingAgent: received %d chars of response", len(full_text))
+
+        # Try to extract JSON from the response (LLM may wrap it in markdown fences)
+        parsed = self._extract_json(full_text)
+        if parsed is None:
+            logger.error("ResumeParsingAgent: failed to parse JSON from LLM response")
+            raise RuntimeError("LLM did not return valid JSON. Please try again.")
+
+        # Save the parsed result
+        save_parsed_resume(parsed)
+        logger.info("ResumeParsingAgent: successfully parsed and saved structured resume")
+        return parsed
+
+    @staticmethod
+    def _extract_json(text: str) -> dict | None:
+        """Extract a JSON object from LLM output, handling markdown fences."""
+        text = text.strip()
+
+        # Try to find JSON in markdown code fences
+        fence_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
+        if fence_match:
+            text = fence_match.group(1).strip()
+
+        # Try direct parse
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Try to find the first { ... } block
+        brace_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if brace_match:
+            try:
+                return json.loads(brace_match.group())
+            except json.JSONDecodeError:
+                pass
+
+        return None

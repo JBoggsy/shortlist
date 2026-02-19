@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { fetchProfile, updateProfile, uploadResume, fetchResume, deleteResume } from "../api";
+import { fetchProfile, updateProfile, uploadResume, fetchResume, deleteResume, parseResumeWithLLM } from "../api";
 
 function ProfilePanel({ isOpen, onClose }) {
   const [content, setContent] = useState("");
@@ -15,8 +15,10 @@ function ProfilePanel({ isOpen, onClose }) {
   // Resume state
   const [resumeInfo, setResumeInfo] = useState(null);
   const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeParsing, setResumeParsing] = useState(false);
   const [resumeError, setResumeError] = useState(null);
   const [resumeExpanded, setResumeExpanded] = useState(false);
+  const [resumeView, setResumeView] = useState("structured"); // "structured" or "raw"
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -89,13 +91,30 @@ function ProfilePanel({ isOpen, onClose }) {
         size: data.size,
         text: data.text,
         text_length: data.text_length,
+        parsed: null, // Will be populated after LLM parsing
       });
+      // Auto-trigger LLM parsing after upload
+      triggerResumeParse();
     } catch (err) {
       setResumeError(err.message);
     } finally {
       setResumeUploading(false);
       // Reset the file input so the same file can be re-uploaded
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function triggerResumeParse() {
+    setResumeParsing(true);
+    setResumeError(null);
+    try {
+      const data = await parseResumeWithLLM();
+      setResumeInfo(prev => prev ? { ...prev, parsed: data.parsed } : prev);
+      setResumeExpanded(true);
+    } catch (err) {
+      setResumeError(`AI parsing failed: ${err.message}`);
+    } finally {
+      setResumeParsing(false);
     }
   }
 
@@ -207,18 +226,27 @@ function ProfilePanel({ isOpen, onClose }) {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={resumeUploading}
+                    disabled={resumeUploading || resumeParsing}
                     className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                   >
                     {resumeUploading ? (
                       <span className="flex items-center gap-1">
                         <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Parsing...
+                        Uploading...
                       </span>
                     ) : resumeInfo ? "Replace" : "Upload"}
                   </button>
                 </div>
               </div>
+
+              {/* Parsing status */}
+              {resumeParsing && (
+                <div className="px-4 pb-3 flex items-center gap-2 text-xs text-blue-700">
+                  <span className="inline-block w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                  AI is analyzing your resume...
+                </div>
+              )}
+
               {resumeError && (
                 <div className="px-4 pb-3 text-xs text-red-600">{resumeError}</div>
               )}
@@ -227,11 +255,75 @@ function ProfilePanel({ isOpen, onClose }) {
                   Upload your resume (PDF or DOCX) so the AI assistant can reference it when searching for jobs and evaluating fit.
                 </div>
               )}
-              {resumeExpanded && resumeInfo?.text && (
-                <div className="px-4 pb-3 border-t">
-                  <pre className="mt-2 text-xs text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto bg-white rounded p-3 border">
-                    {resumeInfo.text}
-                  </pre>
+
+              {/* Expanded resume view */}
+              {resumeExpanded && resumeInfo && (
+                <div className="border-t">
+                  {/* View toggle + Re-parse button */}
+                  <div className="px-4 py-2 flex items-center justify-between bg-gray-100">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setResumeView("structured")}
+                        className={`px-2 py-1 text-xs rounded ${resumeView === "structured" ? "bg-white text-blue-700 shadow-sm font-medium" : "text-gray-600 hover:text-gray-800"}`}
+                      >
+                        Structured
+                      </button>
+                      <button
+                        onClick={() => setResumeView("raw")}
+                        className={`px-2 py-1 text-xs rounded ${resumeView === "raw" ? "bg-white text-blue-700 shadow-sm font-medium" : "text-gray-600 hover:text-gray-800"}`}
+                      >
+                        Raw Text
+                      </button>
+                    </div>
+                    {resumeInfo.text && (
+                      <button
+                        onClick={triggerResumeParse}
+                        disabled={resumeParsing}
+                        className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {resumeParsing ? (
+                          <>
+                            <span className="inline-block w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            Parsing...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Re-parse with AI
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {resumeView === "structured" ? (
+                    resumeInfo.parsed ? (
+                      <div className="px-4 py-3">
+                        <StructuredResumeView data={resumeInfo.parsed} />
+                      </div>
+                    ) : (
+                      <div className="px-4 py-4 text-center text-xs text-gray-500">
+                        {resumeParsing ? (
+                          "Parsing in progress..."
+                        ) : (
+                          <>
+                            No structured data yet.{" "}
+                            <button onClick={triggerResumeParse} className="text-blue-600 hover:text-blue-800 underline">
+                              Parse with AI
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    <div className="px-4 pb-3">
+                      <pre className="mt-2 text-xs text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto bg-white rounded p-3 border">
+                        {resumeInfo.text}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -266,6 +358,253 @@ function ProfilePanel({ isOpen, onClose }) {
         )}
       </div>
     </>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// Structured Resume View
+// ---------------------------------------------------------------------------
+
+function StructuredResumeView({ data }) {
+  if (!data) return null;
+
+  return (
+    <div className="space-y-4 text-sm max-h-96 overflow-y-auto">
+      {/* Contact Info */}
+      {data.contact_info && (
+        <ResumeSection title="Contact">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            {data.contact_info.name && <Field label="Name" value={data.contact_info.name} />}
+            {data.contact_info.email && <Field label="Email" value={data.contact_info.email} />}
+            {data.contact_info.phone && <Field label="Phone" value={data.contact_info.phone} />}
+            {data.contact_info.location && <Field label="Location" value={data.contact_info.location} />}
+            {data.contact_info.linkedin && <Field label="LinkedIn" value={data.contact_info.linkedin} link />}
+            {data.contact_info.github && <Field label="GitHub" value={data.contact_info.github} link />}
+            {data.contact_info.website && <Field label="Website" value={data.contact_info.website} link />}
+          </div>
+        </ResumeSection>
+      )}
+
+      {/* Summary */}
+      {data.summary && (
+        <ResumeSection title="Summary">
+          <p className="text-gray-700">{data.summary}</p>
+        </ResumeSection>
+      )}
+
+      {/* Work Experience */}
+      {data.work_experience?.length > 0 && (
+        <ResumeSection title="Experience">
+          <div className="space-y-3">
+            {data.work_experience.map((exp, i) => (
+              <div key={i}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-medium text-gray-900">{exp.title}</span>
+                    {exp.company && <span className="text-gray-600"> at {exp.company}</span>}
+                  </div>
+                  {(exp.start_date || exp.end_date) && (
+                    <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                      {exp.start_date}{exp.end_date ? ` – ${exp.end_date}` : ""}
+                    </span>
+                  )}
+                </div>
+                {exp.location && <div className="text-xs text-gray-500">{exp.location}</div>}
+                {exp.highlights?.length > 0 && (
+                  <ul className="mt-1 space-y-0.5 text-xs text-gray-700">
+                    {exp.highlights.map((h, j) => (
+                      <li key={j} className="flex gap-1.5">
+                        <span className="text-gray-400 mt-0.5 shrink-0">•</span>
+                        <span>{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </ResumeSection>
+      )}
+
+      {/* Education */}
+      {data.education?.length > 0 && (
+        <ResumeSection title="Education">
+          <div className="space-y-2">
+            {data.education.map((edu, i) => (
+              <div key={i}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-medium text-gray-900">{edu.degree || edu.institution}</span>
+                    {edu.degree && edu.institution && <span className="text-gray-600"> – {edu.institution}</span>}
+                  </div>
+                  {(edu.start_date || edu.end_date) && (
+                    <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                      {edu.start_date}{edu.end_date ? ` – ${edu.end_date}` : ""}
+                    </span>
+                  )}
+                </div>
+                {edu.location && <div className="text-xs text-gray-500">{edu.location}</div>}
+                {edu.details?.length > 0 && (
+                  <ul className="mt-1 text-xs text-gray-600">
+                    {edu.details.map((d, j) => <li key={j}>• {d}</li>)}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
+        </ResumeSection>
+      )}
+
+      {/* Skills */}
+      {data.skills && Object.keys(data.skills).length > 0 && (
+        <ResumeSection title="Skills">
+          <div className="space-y-1.5">
+            {Object.entries(data.skills).map(([category, items]) => (
+              items?.length > 0 && (
+                <div key={category}>
+                  <span className="text-xs font-medium text-gray-600 capitalize">{category}: </span>
+                  <span className="text-xs text-gray-700">{Array.isArray(items) ? items.join(", ") : items}</span>
+                </div>
+              )
+            ))}
+          </div>
+        </ResumeSection>
+      )}
+
+      {/* Certifications */}
+      {data.certifications?.length > 0 && (
+        <ResumeSection title="Certifications">
+          <ul className="space-y-1">
+            {data.certifications.map((cert, i) => (
+              <li key={i} className="text-xs text-gray-700">
+                <span className="font-medium">{cert.name}</span>
+                {cert.issuer && <span className="text-gray-500"> – {cert.issuer}</span>}
+                {cert.date && <span className="text-gray-400"> ({cert.date})</span>}
+              </li>
+            ))}
+          </ul>
+        </ResumeSection>
+      )}
+
+      {/* Projects */}
+      {data.projects?.length > 0 && (
+        <ResumeSection title="Projects">
+          <div className="space-y-2">
+            {data.projects.map((proj, i) => (
+              <div key={i}>
+                <span className="font-medium text-gray-900 text-xs">{proj.name}</span>
+                {proj.description && <p className="text-xs text-gray-600">{proj.description}</p>}
+                {proj.technologies?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {proj.technologies.map((t, j) => (
+                      <span key={j} className="px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded text-[10px]">{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </ResumeSection>
+      )}
+
+      {/* Publications */}
+      {data.publications?.length > 0 && (
+        <ResumeSection title="Publications">
+          <ul className="space-y-1">
+            {data.publications.map((pub, i) => (
+              <li key={i} className="text-xs text-gray-700">
+                <span className="font-medium">{pub.title}</span>
+                {pub.venue && <span className="text-gray-500"> – {pub.venue}</span>}
+                {pub.date && <span className="text-gray-400"> ({pub.date})</span>}
+              </li>
+            ))}
+          </ul>
+        </ResumeSection>
+      )}
+
+      {/* Awards */}
+      {data.awards?.length > 0 && (
+        <ResumeSection title="Awards">
+          <ul className="space-y-1">
+            {data.awards.map((a, i) => (
+              <li key={i} className="text-xs text-gray-700">
+                <span className="font-medium">{a.name}</span>
+                {a.issuer && <span className="text-gray-500"> – {a.issuer}</span>}
+                {a.date && <span className="text-gray-400"> ({a.date})</span>}
+              </li>
+            ))}
+          </ul>
+        </ResumeSection>
+      )}
+
+      {/* Languages */}
+      {data.languages?.length > 0 && (
+        <ResumeSection title="Languages">
+          <div className="flex flex-wrap gap-2">
+            {data.languages.map((l, i) => (
+              <span key={i} className="text-xs text-gray-700">
+                {l.language}{l.proficiency && ` (${l.proficiency})`}
+                {i < data.languages.length - 1 ? "," : ""}
+              </span>
+            ))}
+          </div>
+        </ResumeSection>
+      )}
+
+      {/* Volunteer */}
+      {data.volunteer?.length > 0 && (
+        <ResumeSection title="Volunteer">
+          <div className="space-y-2">
+            {data.volunteer.map((v, i) => (
+              <div key={i}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="font-medium text-gray-900 text-xs">{v.role || v.organization}</span>
+                    {v.role && v.organization && <span className="text-xs text-gray-600"> at {v.organization}</span>}
+                  </div>
+                  {(v.start_date || v.end_date) && (
+                    <span className="text-[10px] text-gray-500 whitespace-nowrap ml-2">
+                      {v.start_date}{v.end_date ? ` – ${v.end_date}` : ""}
+                    </span>
+                  )}
+                </div>
+                {v.description && <p className="text-xs text-gray-600">{v.description}</p>}
+              </div>
+            ))}
+          </div>
+        </ResumeSection>
+      )}
+    </div>
+  );
+}
+
+function ResumeSection({ title, children }) {
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 border-b pb-1">{title}</h4>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, value, link }) {
+  return (
+    <div className="text-xs">
+      <span className="text-gray-500">{label}: </span>
+      {link ? (
+        <a
+          href={value.startsWith("http") ? value : `https://${value}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:underline"
+        >
+          {value}
+        </a>
+      ) : (
+        <span className="text-gray-800">{value}</span>
+      )}
+    </div>
   );
 }
 

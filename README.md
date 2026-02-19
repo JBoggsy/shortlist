@@ -14,7 +14,7 @@ Job Application Helper helps you organize your job search. Track applications th
 - **Web Search Integration**: Built-in web search (via Tavily) for finding job postings and company information
 - **Job Board Integration**: Search Adzuna and JSearch job boards directly from the chat
 - **User Profile System**: Personalized onboarding interview to understand your job preferences and goals
-- **Resume Upload**: Upload your resume (PDF or DOCX) so the AI assistant can reference it for job fit evaluation and recommendations
+- **Resume Upload**: Upload your resume (PDF or DOCX) so the AI assistant can reference it for job fit evaluation and recommendations. An AI agent automatically cleans up PDF extraction artifacts and structures your resume into a rich, browsable format.
 - **Rich Job Details**: Track salary ranges, location, remote type, requirements, contact info, and more
 - **Job Fit Ratings**: Rate how well each job matches your profile (0-5 stars)
 - **Guided Setup Wizard**: First-time setup walks you through choosing a provider and entering your API key, with inline step-by-step instructions for each key

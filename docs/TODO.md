@@ -26,6 +26,7 @@
   - Agent tools to generate and manage prep content
 
 - [x] **Resume uploading and parsing** — PDF/DOCX upload via Profile panel, parsed text available to AI agent via `read_resume` tool
+- [x] **AI resume parsing agent** — LLM cleans up raw PDF/DOCX text artifacts and structures into JSON; auto-triggers on upload with structured preview in Profile panel
 
 ## Desktop App (Phase 2 Remaining)
 

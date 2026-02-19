@@ -266,3 +266,13 @@ export async function deleteResume() {
   if (!res.ok) throw new Error("Failed to delete resume");
   return res.json();
 }
+
+export async function parseResumeWithLLM() {
+  const res = await fetch(`${RESUME_BASE}/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to parse resume");
+  return data;
+}
