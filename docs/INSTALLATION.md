@@ -68,8 +68,8 @@ chmod +x job-app-helper_*.AppImage
 ### Step 3: Launch
 
 1. Open the app from your Applications menu, Start menu, or desktop
-2. On first launch, the **Settings** panel will open automatically — this is where you'll enter your API key
-3. Continue to [Getting Your API Keys](#getting-your-api-keys) below
+2. On first launch, a **Setup Wizard** will open automatically to guide you through entering your API key — it includes step-by-step instructions for each provider, so you don't need to hunt for them separately
+3. Continue to [First-Time Setup](#first-time-setup) below
 
 ---
 
@@ -168,51 +168,39 @@ For enhanced job searching, you can set up one of these:
 
 ## First-Time Setup
 
-When you open the app for the first time, a **Settings** panel will automatically open on the right side of the screen. This is where you'll enter your API keys.
+When you open the app for the first time, a **Setup Wizard** will appear automatically. It walks you through four steps:
 
-### Entering Your Settings
+### Step 1 — Welcome
 
-The Settings panel has two main sections:
+A brief introduction to the app. Click **"Continue →"** to proceed.
 
-#### AI Assistant (LLM) - **Required**
+### Step 2 — Choose a Provider
 
-This section configures the AI that powers the assistant.
+Pick which AI service to use. You only need one:
 
-1. **Provider**: Select your AI provider from the dropdown:
-   - Anthropic Claude (Recommended)
-   - OpenAI GPT
-   - Google Gemini
-   - Ollama (local, no API key needed)
+- **Anthropic Claude** *(Recommended)* — High quality, great for complex tasks
+- **OpenAI GPT** — Popular and widely used
+- **Google Gemini** — Good free tier available
+- **Ollama** *(Free)* — Runs locally on your machine; no API key needed, but requires a powerful computer (16GB+ RAM)
 
-2. **API Key**: Paste your API key here (the one you saved earlier)
-   - This field won't show if you selected Ollama
-   - Your key will be masked with asterisks for security
+### Step 3 — Enter Your API Key
 
-3. **Model Override** (optional): Leave this empty to use the default model
-   - The default model for your selected provider is shown below the dropdown
-   - Only change this if you want to use a specific model version
+The wizard shows step-by-step instructions for getting a key from the provider you chose, with a direct link to the right page. You don't need to look anything up separately.
 
-4. **Test Connection**: Click this button to verify your API key works
-   - You'll see a success message if everything is configured correctly
-   - If there's an error, double-check your API key
+1. Follow the instructions shown in the wizard to get your API key
+2. Paste the key into the input field
+3. Click **"Test Connection"** to verify it works — you'll see a green success message
+4. Click **"Continue →"** (only enabled after a successful test)
 
-#### Integrations
+> **Ollama users**: No key needed. Just make sure Ollama is running (`ollama serve`) with a model pulled (`ollama pull llama3.2`), then click "Test Connection".
 
-This section adds extra capabilities to the AI assistant.
+### Step 4 — Done
 
-- **Tavily Search API Key** *(Recommended)*: Required for the AI to search the web. Without this, the assistant can only read URLs you paste directly. Free tier includes 1,000 searches/month.
-- **JSearch API Key**: Enables the AI to search job boards like Indeed and LinkedIn for listings. Optional, but useful if you want the AI to find jobs for you.
-- **Adzuna App ID & Key**: Alternative job board search (use either JSearch or Adzuna, not both)
-
-### Saving Your Settings
-
-1. Once you've entered at least your **Provider** and **API Key**, click **"Save Settings"** at the bottom
-2. You'll see a "Settings saved successfully!" message
-3. The app will automatically close the Settings panel and start the onboarding interview
+Click **"Meet Your AI Assistant →"** to go straight into the onboarding interview. Or click "Skip for now" if you want to explore the app first and do the interview later.
 
 ### Onboarding Interview
 
-After saving your settings, the AI Assistant chat panel will automatically open and interview you about your job search preferences.
+After completing the wizard, the AI Assistant chat panel will open and interview you about your job search preferences.
 
 **What to Expect:**
 
@@ -241,7 +229,7 @@ The AI will ask questions like:
 
 **To change your API keys or provider:**
 1. Click the "Settings" button (gear icon) in the top navigation
-2. Update any fields you want to change
+2. Update any fields you want to change — each key field has a collapsible **"How do I get this key?"** guide built in
 3. Click "Save Settings"
 
 **To view or edit your job search profile:**
@@ -443,7 +431,7 @@ cd path/to/job_app_helper
 ./start.sh
 ```
 
-After starting, continue to [Getting Your API Keys](#getting-your-api-keys) (first time) or [First-Time Setup](#first-time-setup) to configure the app.
+After starting, continue to [First-Time Setup](#first-time-setup) to configure the app via the setup wizard.
 
 ---
 
@@ -574,12 +562,12 @@ chmod +x job-app-helper_*.AppImage
 - If using Ollama, make sure you have enough RAM and a good CPU/GPU
 - Check your internet connection
 
-#### Settings panel doesn't open automatically
+#### Setup wizard doesn't open automatically
 
-**Problem:** The Settings panel doesn't open when you first launch the app.
+**Problem:** The setup wizard doesn't appear when you first launch the app.
 
 **Solution:**
-- Click the "Settings" button (gear icon) in the top navigation bar to open it manually
+- Click the "Settings" button (gear icon) in the top navigation bar to configure the app manually
 - Try refreshing the browser page (if running from source)
 - Check the browser console for errors (press F12, click "Console" tab)
 

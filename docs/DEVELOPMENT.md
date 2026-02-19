@@ -105,8 +105,10 @@ job_app_helper/
 │           ├── JobForm.jsx        # Create/edit job form
 │           ├── ChatPanel.jsx      # AI assistant slide-out panel
 │           ├── ProfilePanel.jsx   # User profile slide-out panel
-│           ├── SettingsPanel.jsx  # Settings configuration panel
-│           └── HelpPanel.jsx     # Help panel with guides and tips
+│           ├── SettingsPanel.jsx  # Settings configuration panel (includes ApiKeyGuide sub-component)
+│           ├── SetupWizard.jsx    # First-time setup wizard (4-step modal)
+│           ├── HelpPanel.jsx      # Help panel with guides and tips
+│           └── UpdateBanner.jsx   # Auto-update notification banner (Tauri desktop only)
 ├── src-tauri/                     # Tauri desktop wrapper
 │   ├── tauri.conf.json            # Tauri configuration
 │   ├── Cargo.toml                 # Rust dependencies
@@ -183,7 +185,7 @@ job_app_helper/
 
 **`frontend/src/main.jsx`**: React entry point that mounts `App`.
 
-**`frontend/src/App.jsx`**: App shell with header navigation, layout, and onboarding auto-start logic. Manages global state like `jobsVersion` for triggering list refreshes.
+**`frontend/src/App.jsx`**: App shell with header navigation, layout, onboarding auto-start logic, and setup wizard management. Manages global state like `jobsVersion` for triggering list refreshes. On first launch, opens `SetupWizard` instead of Settings if the LLM is unconfigured and the user hasn't been onboarded.
 
 **`frontend/src/api.js`**: Centralized API client with helper functions for all backend endpoints. All fetch calls go through this module. Includes `getApiBase()` which detects Tauri (via `window.__TAURI_INTERNALS__`) and returns absolute URLs to reach Flask directly, bypassing the Vite proxy.
 
@@ -195,7 +197,9 @@ job_app_helper/
 
 **`frontend/src/components/ProfilePanel.jsx`**: Slide-out user profile viewer/editor panel. Users can manually update their profile markdown.
 
-**`frontend/src/components/SettingsPanel.jsx`**: Slide-out settings panel for configuring LLM provider, API keys, and integrations. Includes "Test Connection" functionality and saves to config.json.
+**`frontend/src/components/SettingsPanel.jsx`**: Slide-out settings panel for configuring LLM provider, API keys, and integrations. Includes "Test Connection" functionality and saves to config.json. Contains `ApiKeyGuide` sub-component that renders expandable step-by-step instructions and a direct link for each key field (Anthropic, OpenAI, Gemini, Tavily, JSearch, Adzuna); renders nothing for Ollama (no key required).
+
+**`frontend/src/components/SetupWizard.jsx`**: Centered modal wizard for first-time setup. Four steps: welcome, provider selection (2×2 card grid), API key entry with always-visible inline how-to guide and test connection, and a done screen that launches onboarding. Requires a successful connection test before allowing the user to continue (Ollama skips the key requirement). Calls `onComplete()` to open onboarding chat or `onClose()` to dismiss.
 
 ## Development Setup
 
@@ -928,7 +932,7 @@ The project uses GitHub Actions for continuous integration and automated release
 
 ### Release Workflow (`.github/workflows/release.yml`)
 
-- **Triggers:** Push of `v*` tags (e.g., `v0.4.2`) or manual `workflow_dispatch`
+- **Triggers:** Push of `v*` tags (e.g., `v0.6.0`) or manual `workflow_dispatch`
 - **Matrix:** Linux x86_64, macOS ARM64, Windows x86_64
 - **Artifacts produced:**
   - **Linux:** `.deb`, `.rpm`, `.AppImage`
@@ -936,9 +940,18 @@ The project uses GitHub Actions for continuous integration and automated release
   - **Windows:** `.exe` (NSIS installer), `.msi`
 - **What it does:**
   1. Checks out code and installs all dependencies
-  2. Builds the Flask sidecar binary via PyInstaller (`build_sidecar.sh` or `build_sidecar.ps1`)
-  3. Runs `tauri build` to produce platform-specific installers
-  4. Creates a **draft** GitHub Release and uploads all artifacts
+  2. Restores cached sidecar binary (keyed on Python source hash + `uv.lock`); skips steps 3–4 on cache hit
+  3. Installs Python dependencies via `uv sync --dev` (skipped on sidecar cache hit)
+  4. Builds the Flask sidecar binary via PyInstaller (`build_sidecar.sh` or `build_sidecar.ps1`) (skipped on sidecar cache hit)
+  5. Runs `tauri build` to produce platform-specific installers
+  6. Creates a **draft** GitHub Release and uploads all artifacts
+
+### Build Caching
+
+Both workflows cache two things to speed up builds:
+
+- **uv package cache** (`enable-cache: true` on `astral-sh/setup-uv`): Persists downloaded Python packages between runs so `uv sync` only fetches what changed.
+- **Sidecar binary cache** (keyed on `sidecar-<target>-<hash of all .py files + uv.lock>`): If no Python source or dependency files have changed since the last build, the entire Python install + PyInstaller step is skipped. This is the biggest win for frontend-only releases, saving 5–10+ minutes per platform.
 
 ### Creating a Release
 
