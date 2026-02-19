@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-02-18
 
 ### Added
 - **First-time setup wizard** — New centered modal wizard (4 steps: welcome → provider selection → API key entry with inline how-to guide + test connection → done) replaces the auto-open Settings panel for new users; closes itself and launches onboarding chat on completion
