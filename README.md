@@ -92,9 +92,11 @@ The easiest way to configure the AI assistant is through the Settings panel:
 6. **Click "Save Settings"** to persist your configuration
 
 **Optional integrations** (enables additional features):
-- **Tavily Search API**: Enables web search tool
+- **Tavily Search API (Recommended)**: Enables web search tool
 - **JSearch API** (RapidAPI): Enables job board search (recommended)
 - **Adzuna API**: Alternative job board search
+
+> See the [Installation Guide](docs/INSTALLATION.md) for instructions on obtaining API keys.
 
 All settings are saved to a local `config.json` file and persist across restarts.
 
