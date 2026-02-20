@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import useResizablePanel from "../hooks/useResizablePanel";
 import {
   fetchConversations,
   createConversation,
@@ -25,6 +26,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const { width, isDragging, handleMouseDown } = useResizablePanel("chatPanelWidth", 512);
 
   // Auto-resize textarea to fit content (up to ~8 lines)
   const autoResize = (el) => {
@@ -326,7 +328,15 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl z-50 flex flex-col">
+      <div
+        className={`fixed right-0 top-0 h-full bg-white shadow-xl z-50 flex flex-col${isDragging ? " select-none" : ""}`}
+        style={{ width }}
+      >
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-10 transition-colors"
+        />
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
           <h2 className="font-semibold text-gray-900">

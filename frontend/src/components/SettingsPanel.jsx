@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchConfig, updateConfig, testConnection, fetchProviders } from '../api';
 import ModelCombobox from './ModelCombobox';
+import useResizablePanel from '../hooks/useResizablePanel';
 
 const API_KEY_GUIDES = {
   anthropic: {
@@ -82,6 +83,7 @@ function ApiKeyGuide({ guideKey }) {
 }
 
 export default function SettingsPanel({ isOpen, onClose, onSaved }) {
+  const { width, isDragging, handleMouseDown } = useResizablePanel('settingsPanelWidth', 672);
   const [config, setConfig] = useState(null);
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -225,7 +227,15 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
       />
 
       {/* Panel */}
-      <div className="relative ml-auto w-full max-w-2xl bg-white shadow-2xl flex flex-col">
+      <div
+        className={`relative ml-auto bg-white shadow-2xl flex flex-col${isDragging ? " select-none" : ""}`}
+        style={{ width }}
+      >
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-10 transition-colors"
+        />
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-2xl font-bold text-gray-900">Settings</h2>

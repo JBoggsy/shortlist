@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import useResizablePanel from "../hooks/useResizablePanel";
 import { fetchProfile, updateProfile, uploadResume, fetchResume, deleteResume, parseResumeWithLLM } from "../api";
 
 function ProfilePanel({ isOpen, onClose }) {
@@ -11,6 +12,7 @@ function ProfilePanel({ isOpen, onClose }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const textareaRef = useRef(null);
+  const { width, isDragging, handleMouseDown } = useResizablePanel("profilePanelWidth", 672);
 
   // Resume state
   const [resumeInfo, setResumeInfo] = useState(null);
@@ -142,7 +144,15 @@ function ProfilePanel({ isOpen, onClose }) {
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-xl z-50 flex flex-col">
+      <div
+        className={`fixed right-0 top-0 h-full bg-white shadow-xl z-50 flex flex-col${isDragging ? " select-none" : ""}`}
+        style={{ width }}
+      >
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-10 transition-colors"
+        />
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
           <h2 className="font-semibold text-gray-900">User Profile</h2>
