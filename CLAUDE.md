@@ -81,9 +81,9 @@ The start scripts handle everything automatically. Use the manual commands below
 - `frontend/vite.config.js` — Vite config (React plugin, Tailwind CSS plugin, API proxy, Tauri-compatible settings)
 - `frontend/src/main.jsx` — React entry point
 - `frontend/src/index.css` — Tailwind CSS base import
-- `frontend/src/App.jsx` — App shell with header, layout, settings auto-open, onboarding auto-start, and Tauri external link interceptor (opens http/https/mailto links in system browser)
+- `frontend/src/App.jsx` — App shell with sticky header (always visible at top), "+Add Job" button in header bar, layout, settings auto-open, onboarding auto-start, and Tauri external link interceptor (opens http/https/mailto links in system browser)
 - `frontend/src/api.js` — API helper with `getApiBase()` for Tauri URL resolution (`fetchJobs`, `createJob`, `updateJob`, `deleteJob`, chat functions, `streamMessage`, `fetchProfile`, `updateProfile`, config functions, onboarding functions, resume functions)
-- `frontend/src/pages/JobList.jsx` — Main dashboard: job table with status badges, add/edit/delete
+- `frontend/src/pages/JobList.jsx` — Main dashboard: job table with status badges, edit/delete; add form triggered via `showForm`/`onFormClose` props from App
 - `frontend/src/components/JobForm.jsx` — Reusable form for creating and editing jobs
 - `frontend/src/components/ChatPanel.jsx` — Slide-out AI assistant chat panel with SSE streaming
 - `frontend/src/components/ProfilePanel.jsx` — Slide-out user profile viewer/editor panel with resume upload section (PDF/DOCX)

@@ -49,10 +49,9 @@ function compareJobs(a, b, column, direction) {
   return 0;
 }
 
-export default function JobList({ refreshVersion }) {
+export default function JobList({ refreshVersion, showForm, onFormClose }) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [sortColumn, setSortColumn] = useState("created_at");
@@ -73,7 +72,7 @@ export default function JobList({ refreshVersion }) {
 
   async function handleCreate(data) {
     await createJob(data);
-    setShowForm(false);
+    onFormClose();
     loadJobs();
   }
 
@@ -110,19 +109,11 @@ export default function JobList({ refreshVersion }) {
         <h2 className="text-xl font-semibold text-gray-800">
           Applications ({jobs.length})
         </h2>
-        {!showForm && !editingJob && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-          >
-            + Add Job
-          </button>
-        )}
       </div>
 
       {showForm && (
         <div className="mb-6">
-          <JobForm onSubmit={handleCreate} onCancel={() => setShowForm(false)} />
+          <JobForm onSubmit={handleCreate} onCancel={onFormClose} />
         </div>
       )}
 
