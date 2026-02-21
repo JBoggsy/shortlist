@@ -22,13 +22,15 @@ Shortlist helps you organize your job search. Track applications through the hir
 
 ## Download
 
-Download the latest desktop app from [GitHub Releases](https://github.com/JBoggsy/shortlist/releases):
+Download the latest desktop app:
 
-| Platform | Download |
-|----------|----------|
-| **Windows** | `.exe` or `.msi` installer |
-| **macOS** | `.dmg` installer |
-| **Linux** | `.deb`, `.rpm`, or `.AppImage` |
+| Platform | Download | Alternative |
+|----------|----------|-------------|
+| **Windows** | [Shortlist_0.8.0_x64-setup.exe](https://github.com/JBoggsy/shortlist/releases/download/v0.8.0/Shortlist_0.8.0_x64-setup.exe) | [.msi installer](https://github.com/JBoggsy/shortlist/releases/download/v0.8.0/Shortlist_0.8.0_x64_en-US.msi) |
+| **macOS (Apple Silicon)** | [Shortlist_0.8.0_aarch64.dmg](https://github.com/JBoggsy/shortlist/releases/download/v0.8.0/Shortlist_0.8.0_aarch64.dmg) | |
+| **Linux** | [Shortlist_0.8.0_amd64.deb](https://github.com/JBoggsy/shortlist/releases/download/v0.8.0/Shortlist_0.8.0_amd64.deb) | [.AppImage](https://github.com/JBoggsy/shortlist/releases/download/v0.8.0/Shortlist_0.8.0_amd64.AppImage) \| [.rpm](https://github.com/JBoggsy/shortlist/releases/download/v0.8.0/Shortlist-0.8.0-1.x86_64.rpm) |
+
+> See [all releases](https://github.com/JBoggsy/shortlist/releases) for older versions.
 
 Install it, launch it, and a setup wizard will guide you through choosing an AI provider and entering your API key — with inline instructions for every key. See the [Installation Guide](docs/INSTALLATION.md) for detailed step-by-step instructions.
 
