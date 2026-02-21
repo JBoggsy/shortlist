@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Routes wired to LangChain** — `backend/routes/chat.py`, `backend/routes/config.py`, and `backend/routes/resume.py` now use LangChain models and agents instead of the old custom provider/agent code; SSE events and API contracts unchanged
+- **Model listing extracted** — New `backend/llm/model_listing.py` with standalone `list_models()` functions for each provider (uses raw SDKs); `backend/llm/factory.py` slimmed to a re-export layer
+
+### Removed
+- **Old custom LLM providers** — Deleted `backend/llm/base.py` (`LLMProvider` ABC, `StreamChunk`, `ToolCall`), `anthropic_provider.py`, `openai_provider.py`, `gemini_provider.py`, `ollama_provider.py`
+- **Old agent classes** — Deleted `backend/agent/agent.py` (`Agent`, `OnboardingAgent`, `ResumeParsingAgent`) — replaced by LangChain equivalents in `langchain_agent.py`
 
 ## [0.7.3] - 2026-02-21
 

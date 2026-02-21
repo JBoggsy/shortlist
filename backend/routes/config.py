@@ -13,8 +13,8 @@ from backend.config_manager import (
     get_llm_config,
     get_integration_config
 )
-from backend.llm.factory import PROVIDERS
 from backend.llm.langchain_factory import create_langchain_model
+from backend.llm.model_listing import list_models as _list_models, MODEL_LISTERS
 from langchain_core.messages import HumanMessage, SystemMessage
 import logging
 
@@ -199,12 +199,11 @@ def list_models():
         if not provider_name:
             return jsonify({"models": [], "error": "No provider specified"}), 200
 
-        provider_cls = PROVIDERS.get(provider_name)
-        if not provider_cls:
+        if provider_name not in MODEL_LISTERS:
             return jsonify({"models": [], "error": f"Unknown provider: {provider_name}"}), 200
 
         try:
-            models = provider_cls.list_models(api_key=api_key)
+            models = _list_models(provider_name, api_key=api_key)
             return jsonify({"models": models}), 200
         except Exception as e:
             logger.warning("Failed to list models for %s: %s", provider_name, e)

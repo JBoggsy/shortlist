@@ -10,8 +10,8 @@ Available as a downloadable desktop app (via Tauri — the primary distribution 
 
 ## Tech Stack
 
-- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite
-- **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars)
+- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite, LangChain
+- **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars) — unified via LangChain `BaseChatModel`
 - **Agent tools:** Tavily search API, cloudscraper + BeautifulSoup web scraping (with Tavily Extract fallback), JSearch/Adzuna job search
 - **Frontend:** React 19, Vite, Tailwind CSS 4
 - **Desktop wrapper:** Tauri v2 (sidecar approach — Flask as child process, React in native webview)
@@ -67,14 +67,12 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/routes/resume.py` — Resume upload blueprint (`resume_bp` at `/api/resume`) — upload, fetch, delete resume files; LLM-powered resume parsing endpoint
 - `backend/resume_parser.py` — Resume parsing utilities (PDF via PyMuPDF, DOCX via python-docx); file save/load/delete helpers; parsed resume JSON storage (`save_parsed_resume`, `get_parsed_resume`, `delete_parsed_resume`)
 - `backend/models/chat.py` — `Conversation` and `Message` models for chat persistence
-- `backend/llm/base.py` — `LLMProvider` ABC, `StreamChunk`, `ToolCall` dataclasses
-- `backend/llm/anthropic_provider.py` — Anthropic Claude provider
-- `backend/llm/openai_provider.py` — OpenAI GPT provider
-- `backend/llm/gemini_provider.py` — Google Gemini provider
-- `backend/llm/ollama_provider.py` — Ollama local model provider
-- `backend/llm/factory.py` — `create_provider()` factory function
+- `backend/llm/langchain_factory.py` — `create_langchain_model()` factory that returns a LangChain `BaseChatModel` for any supported provider
+- `backend/llm/model_listing.py` — `list_models()` functions for each provider (uses raw SDKs to query available models); `MODEL_LISTERS` registry
+- `backend/llm/factory.py` — thin re-export layer (`create_langchain_model`, `list_models`, `MODEL_LISTERS`)
 - `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume)
-- `backend/agent/agent.py` — `Agent` class with iterative tool-calling loop; `OnboardingAgent` for user profile interview; `ResumeParsingAgent` for LLM-powered resume cleanup and JSON structuring; injects user profile and resume status into system prompt
+- `backend/agent/langchain_tools.py` — Pydantic input models + `create_langchain_tools()` factory that wraps `AgentTools` methods as LangChain `StructuredTool` instances
+- `backend/agent/langchain_agent.py` — `LangChainAgent` (streaming tool-calling loop), `LangChainOnboardingAgent` (profile interview), `LangChainResumeParser` (non-streaming JSON extraction); system prompts; helper utilities for tool-call chunk accumulation, message conversion, and JSON extraction
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
 
 ### Frontend
