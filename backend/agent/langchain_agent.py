@@ -21,7 +21,6 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
-from backend.agent.langchain_tools import create_langchain_tools
 from backend.agent.tools import AgentTools
 from backend.agent.user_profile import read_profile, set_onboarded
 from backend.resume_parser import get_saved_resume, save_parsed_resume
@@ -405,7 +404,7 @@ class LangChainAgent:
             adzuna_country=adzuna_country,
             jsearch_api_key=jsearch_api_key,
         )
-        self.lc_tools = create_langchain_tools(self.agent_tools)
+        self.lc_tools = self.agent_tools.to_langchain_tools()
         self.model_with_tools = model.bind_tools(self.lc_tools)
 
     def run(self, messages):
@@ -561,7 +560,7 @@ class LangChainOnboardingAgent:
 
     def __init__(self, model: BaseChatModel):
         self.agent_tools = AgentTools(search_api_key="")
-        lc_tools = create_langchain_tools(self.agent_tools)
+        lc_tools = self.agent_tools.to_langchain_tools()
         # Filter to onboarding-only tools
         self.lc_tools = [t for t in lc_tools if t.name in ONBOARDING_TOOL_NAMES]
         self.model_with_tools = model.bind_tools(self.lc_tools)

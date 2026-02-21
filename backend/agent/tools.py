@@ -1,11 +1,22 @@
+"""Agent tools with integrated LangChain StructuredTool generation.
+
+Each tool is defined once: a decorated method on AgentTools with an
+optional Pydantic input schema. The ``@agent_tool`` decorator captures
+the tool name, LLM-facing description, and schema.  Call
+``agent_tools.to_langchain_tools()`` to auto-generate LangChain
+``StructuredTool`` instances — no separate wrapper file needed.
+"""
+
 import json
 import logging
 import random
 import time
+from typing import Optional
 
 import cloudscraper
 import requests
 from bs4 import BeautifulSoup
+from pydantic import BaseModel, Field
 
 from backend.database import db
 from backend.models.job import Job
@@ -13,6 +24,152 @@ from backend.agent.user_profile import read_profile, write_profile
 from backend.resume_parser import get_resume_text
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Tool registration decorator
+# ---------------------------------------------------------------------------
+
+# Module-level list preserving definition order
+_TOOL_REGISTRY: list[str] = []
+
+
+def agent_tool(description: str, args_schema=None):
+    """Mark a method as an agent tool with an LLM-facing description.
+
+    Args:
+        description: The tool description shown to the LLM.
+        args_schema: Optional Pydantic BaseModel class for the input schema.
+    """
+
+    def decorator(method):
+        method._tool_description = description
+        method._tool_args_schema = args_schema
+        _TOOL_REGISTRY.append(method.__name__)
+        return method
+
+    return decorator
+
+
+# ---------------------------------------------------------------------------
+# Pydantic input schemas
+# ---------------------------------------------------------------------------
+
+
+class WebSearchInput(BaseModel):
+    """Input for web_search tool."""
+
+    query: str = Field(description="Search query")
+    num_results: int = Field(
+        default=5, description="Number of results to return (default 5, max 10)"
+    )
+
+
+class JobSearchInput(BaseModel):
+    """Input for job_search tool."""
+
+    query: str = Field(
+        description="Job search keywords (e.g., 'python developer', 'data scientist')"
+    )
+    location: Optional[str] = Field(
+        default=None, description="Location filter (e.g., 'New York', 'London')"
+    )
+    remote_only: Optional[bool] = Field(
+        default=None, description="Filter for remote jobs only"
+    )
+    salary_min: Optional[int] = Field(
+        default=None, description="Minimum salary filter"
+    )
+    salary_max: Optional[int] = Field(
+        default=None, description="Maximum salary filter"
+    )
+    num_results: int = Field(
+        default=10, description="Number of results to return (default 10, max 20)"
+    )
+    provider: Optional[str] = Field(
+        default=None,
+        description="Force a specific job search provider; defaults to whichever is configured (prefers JSearch if both available)",
+    )
+
+
+class ScrapeUrlInput(BaseModel):
+    """Input for scrape_url tool."""
+
+    url: str = Field(description="The URL to scrape")
+
+
+class CreateJobInput(BaseModel):
+    """Input for create_job tool."""
+
+    company: str = Field(description="Company name")
+    title: str = Field(description="Job title")
+    url: Optional[str] = Field(default=None, description="Job posting URL")
+    status: Optional[str] = Field(
+        default=None,
+        description="Application status (default: saved)",
+    )
+    notes: Optional[str] = Field(default=None, description="Notes about the job")
+    salary_min: Optional[int] = Field(default=None, description="Minimum salary")
+    salary_max: Optional[int] = Field(default=None, description="Maximum salary")
+    location: Optional[str] = Field(default=None, description="Job location")
+    remote_type: Optional[str] = Field(
+        default=None,
+        description="Remote work type",
+    )
+    tags: Optional[str] = Field(default=None, description="Comma-separated tags")
+    contact_name: Optional[str] = Field(
+        default=None, description="Contact person name"
+    )
+    contact_email: Optional[str] = Field(default=None, description="Contact email")
+    source: Optional[str] = Field(
+        default=None, description="Where the job was found"
+    )
+    requirements: Optional[str] = Field(
+        default=None,
+        description="Job requirements or qualifications, as a newline-separated list",
+    )
+    nice_to_haves: Optional[str] = Field(
+        default=None,
+        description="Nice-to-have qualifications, as a newline-separated list",
+    )
+    job_fit: Optional[int] = Field(
+        default=None,
+        description="Job fit rating from 0-5 stars based on how well this job matches the user's profile (0 = poor fit, 5 = excellent fit). Always set this when creating a job and a user profile exists.",
+    )
+
+
+class ListJobsInput(BaseModel):
+    """Input for list_jobs tool."""
+
+    status: Optional[str] = Field(
+        default=None,
+        description="Filter by application status",
+    )
+    company: Optional[str] = Field(
+        default=None,
+        description="Filter by company name (case-insensitive partial match)",
+    )
+    title: Optional[str] = Field(
+        default=None,
+        description="Filter by job title (case-insensitive partial match)",
+    )
+    url: Optional[str] = Field(
+        default=None,
+        description="Filter by job posting URL (exact or partial match)",
+    )
+    limit: int = Field(default=20, description="Max number of jobs to return (default 20)")
+
+
+class UpdateUserProfileInput(BaseModel):
+    """Input for update_user_profile tool."""
+
+    content: str = Field(
+        description="The full updated markdown content for the user profile. Must include ALL existing information plus any new details."
+    )
+
+
+# ---------------------------------------------------------------------------
+# AgentTools
+# ---------------------------------------------------------------------------
 
 
 class AgentTools:
@@ -24,29 +181,81 @@ class AgentTools:
         self.adzuna_country = adzuna_country
         self.jsearch_api_key = jsearch_api_key
 
+    # -- Tool dispatch (used by agent loop for tool-call execution) -----
+
     def execute(self, tool_name, arguments):
-        methods = {
-            "web_search": self._web_search,
-            "job_search": self._job_search,
-            "scrape_url": self._scrape_url,
-            "create_job": self._create_job,
-            "list_jobs": self._list_jobs,
-            "read_user_profile": self._read_user_profile,
-            "update_user_profile": self._update_user_profile,
-            "read_resume": self._read_resume,
-        }
-        fn = methods.get(tool_name)
-        if not fn:
+        """Execute a tool by name with error handling."""
+        method = getattr(self, tool_name, None)
+        if method is None or not hasattr(method, "_tool_description"):
             logger.warning("Unknown tool requested: %s", tool_name)
             return {"error": f"Unknown tool: {tool_name}"}
         try:
-            result = fn(**arguments)
-            return result
+            return method(**arguments)
         except Exception as e:
             logger.exception("Tool %s raised an exception", tool_name)
             return {"error": str(e)}
 
-    def _web_search(self, query, num_results=5):
+    # -- LangChain integration -----------------------------------------
+
+    def to_langchain_tools(self):
+        """Build LangChain StructuredTool list from ``@agent_tool`` methods.
+
+        Returns:
+            List of ``StructuredTool`` ready for ``model.bind_tools()``.
+        """
+        from langchain_core.tools import StructuredTool
+
+        tools = []
+        for name in _TOOL_REGISTRY:
+            method = getattr(self, name)
+            has_schema = getattr(method, "_tool_args_schema", None) is not None
+
+            # Capture method in closure correctly
+            if has_schema:
+                def _make_wrapper(m):
+                    def wrapper(**kwargs):
+                        # Strip None values so method sees defaults
+                        args = {k: v for k, v in kwargs.items() if v is not None}
+                        try:
+                            result = m(**args)
+                        except Exception as e:
+                            logger.exception("Tool %s raised an exception", m.__name__)
+                            result = {"error": str(e)}
+                        return json.dumps(result)
+                    return wrapper
+            else:
+                def _make_wrapper(m):
+                    def wrapper():
+                        try:
+                            result = m()
+                        except Exception as e:
+                            logger.exception("Tool %s raised an exception", m.__name__)
+                            result = {"error": str(e)}
+                        return json.dumps(result)
+                    return wrapper
+
+            tools.append(
+                StructuredTool.from_function(
+                    func=_make_wrapper(method),
+                    name=name,
+                    description=method._tool_description,
+                    args_schema=getattr(method, "_tool_args_schema", None),
+                )
+            )
+
+        return tools
+
+    # -- Tool implementations ------------------------------------------
+
+    @agent_tool(
+        description=(
+            "Search the web using Tavily. This is a general-purpose web search, "
+            "not specific to job listings. Use this for researching companies, "
+            "reading articles, or finding information that isn't a job listing."
+        ),
+        args_schema=WebSearchInput,
+    )
+    def web_search(self, query, num_results=5):
         if not self.search_api_key:
             return {"error": "SEARCH_API_KEY not configured"}
         num_results = min(num_results, 10)
@@ -77,9 +286,17 @@ class AgentTools:
     # Job search via Adzuna / JSearch
     # ------------------------------------------------------------------
 
-    def _job_search(self, query, location=None, remote_only=False,
-                    salary_min=None, salary_max=None, num_results=10,
-                    provider=None):
+    @agent_tool(
+        description=(
+            "Search dedicated job board APIs (Adzuna, JSearch) for real job listings. "
+            "Use this when the user wants to find job openings. Returns structured "
+            "job data including title, company, location, salary, and application URL."
+        ),
+        args_schema=JobSearchInput,
+    )
+    def job_search(self, query, location=None, remote_only=False,
+                   salary_min=None, salary_max=None, num_results=10,
+                   provider=None):
         num_results = max(1, min(num_results, 20))
         logger.info("job_search: query=%r location=%r remote_only=%s provider=%s",
                     query, location, remote_only, provider)
@@ -225,7 +442,14 @@ class AgentTools:
             headers["Sec-CH-UA-Platform"] = '"Windows"' if "Windows" in ua else '"macOS"' if "Mac" in ua else '"Linux"'
         return headers
 
-    def _scrape_url(self, url):
+    @agent_tool(
+        description=(
+            "Scrape a web page and return its text content. "
+            "Use this to read job posting details from a URL."
+        ),
+        args_schema=ScrapeUrlInput,
+    )
+    def scrape_url(self, url):
         logger.info("scrape_url: %s", url)
 
         # Strategy 1: cloudscraper session (handles Cloudflare challenges)
@@ -294,7 +518,14 @@ class AgentTools:
             tag.decompose()
         return soup.get_text(separator="\n", strip=True)
 
-    def _create_job(self, **kwargs):
+    @agent_tool(
+        description=(
+            "Add a new job application to the tracker. "
+            "Use this after researching a job posting to save it."
+        ),
+        args_schema=CreateJobInput,
+    )
+    def create_job(self, **kwargs):
         logger.info("create_job: company=%r title=%r", kwargs.get("company"), kwargs.get("title"))
         job = Job(
             company=kwargs["company"],
@@ -319,7 +550,15 @@ class AgentTools:
         logger.info("create_job: created job id=%d", job.id)
         return job.to_dict()
 
-    def _list_jobs(self, limit=20, status=None, company=None, title=None, url=None):
+    @agent_tool(
+        description=(
+            "List and search jobs currently tracked in the application database. "
+            "Use this to check what jobs are already saved, filter by status, or "
+            "look up a specific company/title/URL before adding duplicates."
+        ),
+        args_schema=ListJobsInput,
+    )
+    def list_jobs(self, limit=20, status=None, company=None, title=None, url=None):
         logger.info("list_jobs: status=%s company=%s title=%s limit=%d", status, company, title, limit)
         query = Job.query
         if status:
@@ -334,16 +573,43 @@ class AgentTools:
         logger.info("list_jobs: found %d jobs", len(jobs))
         return {"jobs": [j.to_dict() for j in jobs], "total": len(jobs)}
 
-    def _read_user_profile(self):
+    @agent_tool(
+        description=(
+            "Read the user's profile document. This markdown document contains "
+            "information about the user including their education, work experience, "
+            "skills, interests, salary preferences, location preferences, and job "
+            "search goals. Reference this when evaluating job fit."
+        ),
+    )
+    def read_user_profile(self):
         content = read_profile()
         return {"content": content}
 
-    def _update_user_profile(self, content):
+    @agent_tool(
+        description=(
+            "Update the user's profile document. Use this when the user shares "
+            "information about themselves that is relevant to their job search — "
+            "education, work experience, skills, interests, salary preferences, "
+            "location preferences, career goals, etc. Always read the current "
+            "profile first, then merge new information into the existing content. "
+            "Preserve all existing information unless the user explicitly corrects it."
+        ),
+        args_schema=UpdateUserProfileInput,
+    )
+    def update_user_profile(self, content):
         logger.info("update_user_profile: writing %d chars", len(content))
         write_profile(content)
         return {"status": "updated", "content": content}
 
-    def _read_resume(self):
+    @agent_tool(
+        description=(
+            "Read the user's uploaded resume. Returns the full parsed text of the "
+            "resume file (PDF or DOCX). Use this to understand the user's detailed "
+            "work history, skills, and qualifications when evaluating job fit or "
+            "tailoring applications. Returns null if no resume is uploaded."
+        ),
+    )
+    def read_resume(self):
         text = get_resume_text()
         if text is None:
             return {"content": None, "message": "No resume uploaded. The user can upload a resume via the Profile panel."}

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **LangChain dependencies** — Added `langchain-core`, `langchain`, `langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama` to prepare for LLM provider migration
 - **LangChain model factory** — New `backend/llm/langchain_factory.py` with `create_langchain_model()` that returns a `BaseChatModel` instance for any supported provider
-- **LangChain tool wrappers** — New `backend/agent/langchain_tools.py` with Pydantic input models and `create_langchain_tools()` factory that wraps all 8 `AgentTools` methods as LangChain `StructuredTool` instances
+- **LangChain tool wrappers** — Pydantic input models and `@agent_tool` decorator in `backend/agent/tools.py` with `to_langchain_tools()` method for auto-generating LangChain `StructuredTool` instances (each tool defined in one place)
 - **LangChain agent classes** — New `backend/agent/langchain_agent.py` with `LangChainAgent`, `LangChainOnboardingAgent`, and `LangChainResumeParser` that use LangChain `BaseChatModel.stream()` / `.invoke()` while yielding identical SSE event dicts as the old agents
 
 ### Changed
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Old custom LLM providers** — Deleted `backend/llm/base.py` (`LLMProvider` ABC, `StreamChunk`, `ToolCall`), `anthropic_provider.py`, `openai_provider.py`, `gemini_provider.py`, `ollama_provider.py`
 - **Old agent classes** — Deleted `backend/agent/agent.py` (`Agent`, `OnboardingAgent`, `ResumeParsingAgent`) — replaced by LangChain equivalents in `langchain_agent.py`
 - **Dead re-export layer** — Deleted `backend/llm/factory.py` (nothing imported from it)
-- **Dead tool definitions** — Removed `TOOL_DEFINITIONS` dict from `backend/agent/tools.py` (replaced by Pydantic models in `langchain_tools.py`)
+- **Dead tool definitions** — Removed `TOOL_DEFINITIONS` dict and separate `langchain_tools.py` wrapper file — consolidated into `@agent_tool` decorator on `AgentTools` methods
 - **Unused imports** — Cleaned up unused imports across `langchain_agent.py`, `routes/config.py`, `tools.py`, `resume_parser.py`
 
 ## [0.7.3] - 2026-02-21
