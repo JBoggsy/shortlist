@@ -63,6 +63,41 @@ const PROVIDERS = [
   },
 ];
 
+const INTEGRATION_KEYS = [
+  {
+    id: "tavily",
+    label: "Tavily Search API Key",
+    badge: "Recommended",
+    badgeColor: "bg-amber-100 text-amber-700",
+    placeholder: "tvly-...",
+    description: "Enables web search — the assistant's most useful feature. Without this, the assistant can only read URLs you paste directly.",
+    freeNote: "Free tier: 1,000 searches/month",
+    url: "https://app.tavily.com/",
+    steps: [
+      "Go to app.tavily.com and sign up for a free account",
+      "After sign-in, your API key is shown on the dashboard",
+      "Copy the key and paste it here",
+    ],
+  },
+  {
+    id: "jsearch",
+    label: "JSearch API Key (RapidAPI)",
+    badge: null,
+    placeholder: "Your RapidAPI key",
+    description: "Enables searching job boards (Indeed, LinkedIn, etc.) directly from the AI assistant.",
+    freeNote: "Free tier available on RapidAPI",
+    url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch",
+    steps: [
+      "Go to rapidapi.com and sign up for a free account",
+      "Open the JSearch API page (link below)",
+      "Click 'Subscribe to Test' and choose the free tier",
+      "Copy your 'X-RapidAPI-Key' from the code examples panel",
+    ],
+  },
+];
+
+const TOTAL_STEPS = 5;
+
 export default function SetupWizard({ isOpen, onClose, onComplete }) {
   const [step, setStep] = useState(1);
   const [selectedProvider, setSelectedProvider] = useState("anthropic");
@@ -71,6 +106,8 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
   const [testStatus, setTestStatus] = useState(null); // null | "testing" | "success" | "error"
   const [testMessage, setTestMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tavilyKey, setTavilyKey] = useState("");
+  const [jsearchKey, setJsearchKey] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -81,6 +118,8 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
       setTestStatus(null);
       setTestMessage("");
       setSaving(false);
+      setTavilyKey("");
+      setJsearchKey("");
     }
   }, [isOpen]);
 
@@ -105,24 +144,32 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
   }
 
   async function handleContinue() {
-    if (step !== 3) {
-      setStep((s) => s + 1);
+    if (step === 4) {
+      // Save all config (LLM + integrations) when leaving the integrations step
+      setSaving(true);
+      try {
+        const configPayload = {
+          llm: { provider: selectedProvider, api_key: apiKey, model },
+          integrations: {
+            search_api_key: tavilyKey,
+            jsearch_api_key: jsearchKey,
+          },
+        };
+        await updateConfig(configPayload);
+        setStep(5);
+      } catch (e) {
+        setTestStatus("error");
+        setTestMessage("Failed to save: " + (e.message || "Unknown error"));
+      } finally {
+        setSaving(false);
+      }
       return;
     }
-    setSaving(true);
-    try {
-      await updateConfig({ llm: { provider: selectedProvider, api_key: apiKey, model } });
-      setStep(4);
-    } catch (e) {
-      setTestStatus("error");
-      setTestMessage("Failed to save: " + (e.message || "Unknown error"));
-    } finally {
-      setSaving(false);
-    }
+    setStep((s) => s + 1);
   }
 
   function canContinue() {
-    if (step === 1 || step === 2) return true;
+    if (step === 1 || step === 2 || step === 4) return true;
     if (step !== 3) return false;
     const p = PROVIDERS.find((p) => p.id === selectedProvider);
     if (!p.requiresKey) return true;
@@ -150,7 +197,7 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
 
         {/* Progress dots */}
         <div className="flex justify-center gap-2 pt-6 pb-2">
-          {[1, 2, 3, 4].map((dot) => (
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((dot) => (
             <div
               key={dot}
               className={`rounded-full transition-colors ${
@@ -186,12 +233,20 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
             />
           )}
           {step === 4 && (
+            <StepIntegrations
+              tavilyKey={tavilyKey}
+              setTavilyKey={setTavilyKey}
+              jsearchKey={jsearchKey}
+              setJsearchKey={setJsearchKey}
+            />
+          )}
+          {step === 5 && (
             <StepDone onComplete={onComplete} onClose={onClose} />
           )}
         </div>
 
-        {/* Nav footer (hidden on step 4) */}
-        {step !== 4 && (
+        {/* Nav footer (hidden on final step) */}
+        {step !== TOTAL_STEPS && (
           <div className="flex items-center justify-between px-8 pb-6 pt-2">
             <button
               onClick={() => setStep((s) => Math.max(1, s - 1))}
@@ -206,7 +261,7 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
               disabled={!canContinue() || saving}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed font-medium"
             >
-              {saving ? "Saving..." : step === 3 ? "Continue →" : "Continue →"}
+              {saving ? "Saving..." : step === 4 ? "Save & Continue →" : "Continue →"}
             </button>
           </div>
         )}
@@ -363,6 +418,67 @@ function StepEnterKey({ provider, apiKey, setApiKey, model, setModel, testStatus
       {provider.requiresKey && testStatus !== "success" && (
         <p className="text-xs text-gray-400">Test the connection to continue.</p>
       )}
+    </div>
+  );
+}
+
+function StepIntegrations({ tavilyKey, setTavilyKey, jsearchKey, setJsearchKey }) {
+  const setters = { tavily: setTavilyKey, jsearch: setJsearchKey };
+  const values = { tavily: tavilyKey, jsearch: jsearchKey };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-xl font-bold text-gray-900">Add search integrations</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          These free API keys unlock the assistant's best features. You can skip this and add them later in Settings.
+        </p>
+      </div>
+
+      <div className="space-y-4 overflow-y-auto" style={{ maxHeight: "320px" }}>
+        {INTEGRATION_KEYS.map((integration) => (
+          <div key={integration.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-gray-900">{integration.label}</span>
+              {integration.badge && (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${integration.badgeColor}`}>
+                  {integration.badge}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-600">{integration.description}</p>
+
+            {/* How-to guide (always visible) */}
+            <div className="bg-blue-50 rounded-lg p-3 text-xs text-gray-700 space-y-2">
+              <p className="font-medium text-gray-800">How to get this key:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                {integration.steps.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+              <a
+                href={integration.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:underline font-medium"
+              >
+                Open {integration.label.split(" (")[0]} →
+              </a>
+              {integration.freeNote && (
+                <p className="text-gray-500">{integration.freeNote}</p>
+              )}
+            </div>
+
+            <input
+              type="password"
+              value={values[integration.id]}
+              onChange={(e) => setters[integration.id](e.target.value)}
+              placeholder={integration.placeholder}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
