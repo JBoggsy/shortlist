@@ -13,7 +13,9 @@ from backend.config_manager import (
     get_llm_config,
     get_integration_config
 )
-from backend.llm.factory import create_provider, PROVIDERS
+from backend.llm.factory import PROVIDERS
+from backend.llm.langchain_factory import create_langchain_model
+from langchain_core.messages import HumanMessage, SystemMessage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -122,21 +124,16 @@ def test_connection():
         if not api_key and provider != 'ollama':
             return jsonify({"success": False, "error": "No API key provided"}), 400
 
-        # Try to create provider and make a test request
+        # Try to create LangChain model and make a test request
         try:
-            llm_provider = create_provider(provider, api_key, model)
+            model = create_langchain_model(provider, api_key, model)
 
-            # Make a simple test request
-            test_messages = [{"role": "user", "content": "Hello"}]
-            test_response = ""
-
-            for chunk in llm_provider.stream_with_tools(
-                system_prompt="You are a helpful assistant. Respond with just 'OK'.",
-                messages=test_messages,
-                tools=[]
-            ):
-                if chunk.content:
-                    test_response += chunk.content
+            # Make a simple test request (non-streaming)
+            response = model.invoke([
+                SystemMessage(content="You are a helpful assistant. Respond with just 'OK'."),
+                HumanMessage(content="Hello"),
+            ])
+            test_response = response.content if isinstance(response.content, str) else str(response.content)
 
             if test_response:
                 logger.info(f"LLM connection test successful for provider: {provider}")

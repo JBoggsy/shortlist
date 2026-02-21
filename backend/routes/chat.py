@@ -3,11 +3,11 @@ import logging
 
 from flask import Blueprint, Response, current_app, request, stream_with_context
 
-from backend.agent.agent import Agent, OnboardingAgent
+from backend.agent.langchain_agent import LangChainAgent, LangChainOnboardingAgent
 from backend.agent.user_profile import is_onboarding_in_progress, set_onboarding_in_progress
 from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_integration_config
 from backend.database import db
-from backend.llm.factory import create_provider
+from backend.llm.langchain_factory import create_langchain_model
 from backend.models.chat import Conversation, Message
 
 logger = logging.getLogger(__name__)
@@ -100,15 +100,15 @@ def send_message(convo_id):
             },
         )
 
-    # Create provider and agent
+    # Create LangChain model and agent
     try:
-        provider = create_provider(
+        model = create_langchain_model(
             llm_config["provider"],
             llm_config["api_key"],
             llm_config["model"],
         )
     except Exception as e:
-        logger.error(f"Failed to create LLM provider: {e}")
+        logger.error(f"Failed to create LLM model: {e}")
         error_message = f"Failed to initialize LLM provider: {str(e)}"
         def error_stream():
             error_msg = {
@@ -127,8 +127,8 @@ def send_message(convo_id):
                 "X-Accel-Buffering": "no",
             },
         )
-    agent = Agent(
-        provider,
+    agent = LangChainAgent(
+        model,
         search_api_key=integration_config["search_api_key"],
         adzuna_app_id=integration_config["adzuna_app_id"],
         adzuna_app_key=integration_config["adzuna_app_key"],
@@ -173,8 +173,8 @@ def send_message(convo_id):
     )
 
 
-def _get_onboarding_provider():
-    """Build the LLM provider for onboarding, falling back to the main config.
+def _get_onboarding_model():
+    """Build the LangChain model for onboarding, falling back to the main config.
 
     Raises ValueError if LLM is not configured.
     """
@@ -187,7 +187,7 @@ def _get_onboarding_provider():
     if not api_key and provider_name != "ollama":
         raise ValueError("LLM is not configured. Please configure your API key in Settings.")
 
-    return create_provider(provider_name, api_key, model)
+    return create_langchain_model(provider_name, api_key, model)
 
 
 @chat_bp.route("/onboarding/conversations", methods=["POST"])
@@ -219,10 +219,10 @@ def send_onboarding_message(convo_id):
         llm_messages.append({"role": msg.role, "content": msg.content})
 
     try:
-        provider = _get_onboarding_provider()
-        agent = OnboardingAgent(provider)
+        model = _get_onboarding_model()
+        agent = LangChainOnboardingAgent(model)
     except Exception as e:
-        logger.error(f"Failed to create onboarding provider: {e}")
+        logger.error(f"Failed to create onboarding model: {e}")
         error_message = f"Failed to initialize LLM: {str(e)}"
         def error_stream():
             error_msg = {
@@ -317,10 +317,10 @@ def kick_onboarding():
     llm_messages = [{"role": "user", "content": kick_text}]
 
     try:
-        provider = _get_onboarding_provider()
-        agent = OnboardingAgent(provider)
+        model = _get_onboarding_model()
+        agent = LangChainOnboardingAgent(model)
     except Exception as e:
-        logger.error(f"Failed to create onboarding provider: {e}")
+        logger.error(f"Failed to create onboarding model: {e}")
         error_message = f"Failed to initialize LLM: {str(e)}"
         def error_stream():
             error_msg = {

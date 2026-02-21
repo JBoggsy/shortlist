@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **LangChain tool wrappers** — New `backend/agent/langchain_tools.py` with Pydantic input models and `create_langchain_tools()` factory that wraps all 8 `AgentTools` methods as LangChain `StructuredTool` instances
 - **LangChain agent classes** — New `backend/agent/langchain_agent.py` with `LangChainAgent`, `LangChainOnboardingAgent`, and `LangChainResumeParser` that use LangChain `BaseChatModel.stream()` / `.invoke()` while yielding identical SSE event dicts as the old agents
 
+### Changed
+- **Routes wired to LangChain** — `backend/routes/chat.py`, `backend/routes/config.py`, and `backend/routes/resume.py` now use LangChain models and agents instead of the old custom provider/agent code; SSE events and API contracts unchanged
+
 ## [0.7.3] - 2026-02-21
 
 ### Added
