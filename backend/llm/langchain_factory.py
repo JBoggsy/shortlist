@@ -1,8 +1,7 @@
 """LangChain ChatModel factory.
 
 Creates a LangChain BaseChatModel instance for a given provider name,
-API key, and optional model override. This replaces the old
-create_provider() factory that returned custom LLMProvider instances.
+API key, and optional model override.
 """
 
 import logging

@@ -16,7 +16,7 @@ from backend.agent.tools import AgentTools
 
 
 # ---------------------------------------------------------------------------
-# Pydantic input schemas (one per tool, matching TOOL_DEFINITIONS)
+# Pydantic input schemas (one per tool, matching AgentTools methods)
 # ---------------------------------------------------------------------------
 
 

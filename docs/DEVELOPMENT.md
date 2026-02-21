@@ -34,6 +34,7 @@ The Shortlist is built as a full-stack web application with a clear separation b
 - **Flask**: Web framework with blueprints for route organization
 - **Flask-SQLAlchemy**: ORM for database interactions
 - **SQLite**: Development database (easily swappable for PostgreSQL/MySQL in production)
+- **LangChain**: Unified LLM interface via `BaseChatModel` (with provider packages: `langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama`)
 - **uv**: Fast Python package manager
 
 ### LLM Providers
@@ -84,15 +85,12 @@ shortlist/
 │   │   ├── resume.py              # Resume upload, fetch, delete, LLM parse endpoints
 │   │   └── config.py              # Config and health check endpoints
 │   ├── llm/
-│   │   ├── base.py                # LLMProvider ABC, StreamChunk, ToolCall dataclasses
-│   │   ├── factory.py             # create_provider() factory function
-│   │   ├── anthropic_provider.py  # Anthropic Claude implementation
-│   │   ├── openai_provider.py     # OpenAI GPT implementation
-│   │   ├── gemini_provider.py     # Google Gemini implementation
-│   │   └── ollama_provider.py     # Ollama local model implementation
+│   │   ├── langchain_factory.py   # create_langchain_model() — returns LangChain BaseChatModel
+│   │   └── model_listing.py       # list_models() per provider, MODEL_LISTERS registry
 │   └── agent/
-│       ├── tools.py               # AgentTools class + TOOL_DEFINITIONS
-│       ├── agent.py               # Agent and OnboardingAgent classes
+│       ├── tools.py               # AgentTools class with tool execution methods
+│       ├── langchain_tools.py     # Pydantic input models + create_langchain_tools() factory
+│       ├── langchain_agent.py     # LangChainAgent, LangChainOnboardingAgent, LangChainResumeParser
 │       └── user_profile.py        # User profile file management
 ├── frontend/
 │   ├── vite.config.js             # Vite config (React, Tailwind CSS plugin, proxy)
@@ -184,19 +182,19 @@ shortlist/
 
 **`backend/routes/config.py`**: Configuration blueprint for settings management. Provides endpoints for getting/updating config, testing LLM connections, listing providers, and health checks. Mounted at `/api/config`.
 
-**`backend/routes/resume.py`**: Resume upload blueprint. Handles file upload (multipart/form-data), parsing, storage, retrieval, and deletion. Supports PDF and DOCX files up to 10 MB. Also provides an LLM-powered parsing endpoint (`POST /api/resume/parse`) that uses `ResumeParsingAgent` to clean up raw extracted text and structure it into JSON. Mounted at `/api/resume`.
+**`backend/routes/resume.py`**: Resume upload blueprint. Handles file upload (multipart/form-data), parsing, storage, retrieval, and deletion. Supports PDF and DOCX files up to 10 MB. Also provides an LLM-powered parsing endpoint (`POST /api/resume/parse`) that uses `LangChainResumeParser` to clean up raw extracted text and structure it into JSON. Mounted at `/api/resume`.
 
 **`backend/resume_parser.py`**: Resume parsing utilities. Extracts plain text from PDF files (via PyMuPDF) and DOCX files (via python-docx, including table content). Provides file save/load/delete helpers with resume files stored in a `resumes/` subdirectory under the data dir. Also stores LLM-parsed structured JSON (`save_parsed_resume`, `get_parsed_resume`, `delete_parsed_resume`).
 
-**`backend/llm/base.py`**: Abstract base class defining the interface all LLM providers must implement (`stream_with_tools`). Also defines `StreamChunk` and `ToolCall` dataclasses.
+**`backend/llm/langchain_factory.py`**: `create_langchain_model(provider_name, api_key, model)` factory function that returns a LangChain `BaseChatModel` for any supported provider (Anthropic, OpenAI, Gemini, Ollama).
 
-**`backend/llm/factory.py`**: `create_provider(provider_name, api_key, model)` factory function that instantiates the appropriate provider.
+**`backend/llm/model_listing.py`**: `list_models(provider_name, api_key)` functions for each provider (uses raw SDKs to query available models). Includes `MODEL_LISTERS` registry mapping provider names to their listing functions.
 
-**`backend/llm/*_provider.py`**: Provider implementations. Each translates the generic tool format to the provider's native format and handles streaming responses.
+**`backend/agent/tools.py`**: Defines the `AgentTools` class with execution methods for all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`).
 
-**`backend/agent/tools.py`**: Defines all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`) with their schemas and execution logic. Tools are exposed via the `AgentTools` class.
+**`backend/agent/langchain_tools.py`**: Pydantic input models for each tool and `create_langchain_tools()` factory that wraps `AgentTools` methods as LangChain `StructuredTool` instances.
 
-**`backend/agent/agent.py`**: Main `Agent` class that runs the tool-calling loop. Takes a user message, calls the LLM, executes tools, and iterates until completion. Also includes `OnboardingAgent` subclass for the onboarding interview flow and `ResumeParsingAgent` for LLM-powered resume cleanup and JSON structuring. Injects resume availability status into the system prompt.
+**`backend/agent/langchain_agent.py`**: `LangChainAgent` class that runs the streaming tool-calling loop via LangChain `BaseChatModel.stream()`. Also includes `LangChainOnboardingAgent` (profile interview flow) and `LangChainResumeParser` (non-streaming JSON extraction). Injects resume availability status into the system prompt.
 
 **`backend/agent/user_profile.py`**: User profile file management with YAML frontmatter parsing. Handles reading, writing, and onboarding status checking.
 
@@ -506,7 +504,7 @@ Auto-generated:
 
 The raw text is extracted using PyMuPDF (PDF) or python-docx (DOCX, including table content). Resume files are stored in a `resumes/` subdirectory under the data directory.
 
-The `POST /api/resume/parse` endpoint uses `ResumeParsingAgent` to send the raw extracted text to the configured LLM, which cleans up PDF/DOCX extraction artifacts (broken formatting, garbled characters, merged words) and returns structured JSON with fields like `contact_info`, `work_experience`, `education`, `skills`, `certifications`, `projects`, and more. The structured data is persisted as `resume_parsed.json` and returned by subsequent `GET /api/resume` calls.
+The `POST /api/resume/parse` endpoint uses `LangChainResumeParser` to send the raw extracted text to the configured LLM, which cleans up PDF/DOCX extraction artifacts (broken formatting, garbled characters, merged words) and returns structured JSON with fields like `contact_info`, `work_experience`, `education`, `skills`, `certifications`, `projects`, and more. The structured data is persisted as `resume_parsed.json` and returned by subsequent `GET /api/resume` calls.
 
 **Configuration Object Format:**
 ```json
@@ -598,13 +596,13 @@ class Message(db.Model):
 
 ## LLM Provider System
 
-The LLM provider system uses an abstract factory pattern to support multiple AI providers with a unified interface.
+The LLM system uses LangChain to provide a unified interface across multiple AI providers. All providers are accessed through `BaseChatModel` instances created by a single factory function.
 
 ### Architecture
 
-1. **Abstract Base Class** (`backend/llm/base.py`): Defines `LLMProvider` ABC with `stream_with_tools()` method and optional `list_models()` static method
-2. **Factory** (`backend/llm/factory.py`): `create_provider(provider, api_key, model)` instantiates the correct provider
-3. **Provider Implementations**: Each provider translates generic tool schemas to its native format and handles streaming
+1. **Factory** (`backend/llm/langchain_factory.py`): `create_langchain_model(provider_name, api_key, model)` returns a LangChain `BaseChatModel` for the requested provider
+2. **Model Listing** (`backend/llm/model_listing.py`): `list_models(provider_name, api_key)` queries available models via each provider's raw SDK; `MODEL_LISTERS` maps provider names to listing functions
+3. **LangChain Packages**: Provider-specific packages (`langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama`) handle API communication and streaming
 
 ### Supported Providers
 
@@ -652,36 +650,18 @@ Configuration is managed by `backend/config_manager.py` which reads from `config
 
 ### Adding a New Provider
 
-1. Create `backend/llm/your_provider.py` extending `LLMProvider`
-2. Implement `stream_with_tools(messages, tools, system_prompt="")`
-3. Handle tool calling in the provider's native format
-4. Yield `StreamChunk` objects with `delta` and/or `tool_calls`
-5. Register in `factory.py`'s `create_provider()`
+1. Install the LangChain package for the provider: `uv add langchain-yourprovider`
+2. Add a new case in `create_langchain_model()` in `backend/llm/langchain_factory.py`
+3. Add a default model in the `DEFAULT_MODELS` dict
+4. Add a model listing function in `backend/llm/model_listing.py` and register it in `MODEL_LISTERS`
 
-Example skeleton:
+Example (adding to `langchain_factory.py`):
 
 ```python
-from backend.llm.base import LLMProvider, StreamChunk, ToolCall
-
-class YourProvider(LLMProvider):
-    def __init__(self, api_key: str, model: str = 'default-model'):
-        self.api_key = api_key
-        self.model = model
-
-    def stream_with_tools(self, messages: list, tools: list, system_prompt: str = ""):
-        # Convert tools to provider's format
-        native_tools = self._convert_tools(tools)
-
-        # Make streaming API call
-        for chunk in self._stream_api_call(messages, native_tools, system_prompt):
-            # Parse chunk and yield StreamChunk
-            if chunk.has_text:
-                yield StreamChunk(type="text", content=chunk.text)
-            if chunk.has_tool_calls:
-                yield StreamChunk(type="tool_calls", tool_calls=[
-                    ToolCall(id=tc.id, name=tc.name, arguments=tc.arguments)
-                    for tc in chunk.tool_calls
-                ])
+# In create_langchain_model():
+elif provider_name == "yourprovider":
+    from langchain_yourprovider import ChatYourProvider
+    return ChatYourProvider(api_key=api_key, model=resolved_model)
 ```
 
 ## Agent System
@@ -690,14 +670,14 @@ The agent system provides an iterative tool-calling loop that enables the AI to 
 
 ### Architecture
 
-**Agent Loop** (`backend/agent/agent.py`):
+**Agent Loop** (`backend/agent/langchain_agent.py`):
 1. User sends message
-2. Agent calls LLM with system prompt + conversation history + tool definitions
-3. LLM responds with text and/or tool calls
+2. Agent calls LangChain `BaseChatModel.stream()` with system prompt + conversation history + bound tools
+3. LLM responds with text deltas and/or tool call chunks (accumulated)
 4. Agent executes tool calls via `AgentTools`
-5. Tool results are added to conversation history
+5. Tool results are added to conversation history as `ToolMessage`s
 6. If LLM made tool calls, return to step 2
-7. Stream final response to user
+7. Stream final response to user via SSE events
 
 ### Available Tools
 
@@ -716,23 +696,20 @@ Defined in `backend/agent/tools.py`:
 
 ### Tool Definitions
 
-Tools are defined in `TOOL_DEFINITIONS` list with JSON Schema:
+Tools are defined as Pydantic input models in `backend/agent/langchain_tools.py` and wrapped as LangChain `StructuredTool` instances via `create_langchain_tools()`:
 
 ```python
-TOOL_DEFINITIONS = [
-    {
-        "name": "web_search",
-        "description": "Search the web for information",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query"}
-            },
-            "required": ["query"]
-        }
-    },
-    # ...
-]
+class WebSearchInput(BaseModel):
+    query: str = Field(description="Search query")
+    num_results: int = Field(default=5, description="Number of results to return (max 10)")
+
+# In create_langchain_tools():
+StructuredTool.from_function(
+    func=agent_tools.web_search,
+    name="web_search",
+    description="Search the web using Tavily.",
+    args_schema=WebSearchInput,
+)
 ```
 
 ### User Profile Integration
@@ -743,7 +720,7 @@ The agent also proactively extracts job-search-relevant information from user me
 
 ### Onboarding Agent
 
-`OnboardingAgent` is a subclass of `Agent` with a specialized system prompt that conducts an interview to build the user's profile. It asks about:
+`LangChainOnboardingAgent` is a specialized agent class with a dedicated system prompt that conducts an interview to build the user's profile. It asks about:
 - Job search status and goals
 - Preferred job titles and roles
 - Skills and experience
@@ -754,34 +731,34 @@ Once complete, it sets the `onboarded: true` flag in the user profile frontmatte
 
 ### Adding a New Tool
 
-1. Define the tool in `TOOL_DEFINITIONS` with name, description, and JSON schema
-2. Implement the tool method in `AgentTools` class
-3. If the tool mutates jobs, add its name to `JOB_MUTATING_TOOLS` in `frontend/src/components/ChatPanel.jsx` to trigger live list refresh
+1. Add the tool method to the `AgentTools` class in `backend/agent/tools.py`
+2. Create a Pydantic input model in `backend/agent/langchain_tools.py`
+3. Add the `StructuredTool.from_function()` call in `create_langchain_tools()`
+4. If the tool mutates jobs, add its name to `JOB_MUTATING_TOOLS` in `frontend/src/components/ChatPanel.jsx` to trigger live list refresh
 
 Example:
 
 ```python
-# In TOOL_DEFINITIONS
-{
-    "name": "update_job",
-    "description": "Update an existing job",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "job_id": {"type": "integer"},
-            "field": {"type": "string"},
-            "value": {"type": "string"}
-        },
-        "required": ["job_id", "field", "value"]
-    }
-}
-
-# In AgentTools class
+# In backend/agent/tools.py — AgentTools class
 def update_job(self, job_id: int, field: str, value: str) -> dict:
     job = Job.query.get_or_404(job_id)
     setattr(job, field, value)
     db.session.commit()
     return job.to_dict()
+
+# In backend/agent/langchain_tools.py
+class UpdateJobInput(BaseModel):
+    job_id: int = Field(description="ID of the job to update")
+    field: str = Field(description="Field name to update")
+    value: str = Field(description="New value for the field")
+
+# In create_langchain_tools():
+StructuredTool.from_function(
+    func=agent_tools.update_job,
+    name="update_job",
+    description="Update an existing job in the tracker",
+    args_schema=UpdateJobInput,
+)
 ```
 
 Then in `frontend/src/components/ChatPanel.jsx`:

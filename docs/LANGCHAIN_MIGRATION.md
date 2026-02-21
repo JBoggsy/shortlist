@@ -1,5 +1,7 @@
 # LangChain Migration Plan
 
+> **Status: COMPLETED** — All 5 phases were implemented and merged. This document is kept for historical reference.
+
 ## Context
 
 The Shortlist app currently has ~84KB of hand-rolled LLM/agent code: 4 custom provider implementations (Anthropic, OpenAI, Gemini, Ollama) each with different streaming patterns, message format translation, and tool schema normalization, plus a custom agent loop with iterative tool calling. ~30% of the provider code is duplicated message format translation. LangChain provides battle-tested abstractions that unify all 4 providers behind a single interface, eliminating this boilerplate while preserving full control over the agent loop and SSE streaming.

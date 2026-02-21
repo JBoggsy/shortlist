@@ -22,7 +22,7 @@ from langchain_core.messages import (
 )
 
 from backend.agent.langchain_tools import create_langchain_tools
-from backend.agent.tools import AgentTools, TOOL_DEFINITIONS
+from backend.agent.tools import AgentTools
 from backend.agent.user_profile import read_profile, set_onboarded
 from backend.resume_parser import get_saved_resume, save_parsed_resume
 

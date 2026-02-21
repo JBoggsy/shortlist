@@ -69,8 +69,7 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/models/chat.py` — `Conversation` and `Message` models for chat persistence
 - `backend/llm/langchain_factory.py` — `create_langchain_model()` factory that returns a LangChain `BaseChatModel` for any supported provider
 - `backend/llm/model_listing.py` — `list_models()` functions for each provider (uses raw SDKs to query available models); `MODEL_LISTERS` registry
-- `backend/llm/factory.py` — thin re-export layer (`create_langchain_model`, `list_models`, `MODEL_LISTERS`)
-- `backend/agent/tools.py` — `AgentTools` class + `TOOL_DEFINITIONS` (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume)
+- `backend/agent/tools.py` — `AgentTools` class with tool execution methods (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume)
 - `backend/agent/langchain_tools.py` — Pydantic input models + `create_langchain_tools()` factory that wraps `AgentTools` methods as LangChain `StructuredTool` instances
 - `backend/agent/langchain_agent.py` — `LangChainAgent` (streaming tool-calling loop), `LangChainOnboardingAgent` (profile interview), `LangChainResumeParser` (non-streaming JSON extraction); system prompts; helper utilities for tool-call chunk accumulation, message conversion, and JSON extraction
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers

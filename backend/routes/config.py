@@ -9,7 +9,6 @@ from backend.config_manager import (
     load_config,
     save_config,
     config_to_dict,
-    update_config_value,
     get_llm_config,
     get_integration_config
 )
