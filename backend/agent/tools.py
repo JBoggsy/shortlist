@@ -197,6 +197,14 @@ class UpdateUserProfileInput(BaseModel):
     )
 
 
+class ExtractApplicationTodosInput(BaseModel):
+    """Input for extract_application_todos tool."""
+
+    job_id: int = Field(
+        description="The ID of the job to extract application todos for. The job must have a URL."
+    )
+
+
 # ---------------------------------------------------------------------------
 # AgentTools
 # ---------------------------------------------------------------------------
@@ -591,12 +599,27 @@ class AgentTools:
             nice_to_haves=enriched.get("nice_to_haves"),
         )
         db.session.add(job)
+        db.session.flush()
+
+        # Save any extracted application todos from enrichment
+        from backend.models.application_todo import ApplicationTodo
+        app_todos = enriched.get("_application_todos", [])
+        for i, item in enumerate(app_todos):
+            todo = ApplicationTodo(
+                job_id=job.id,
+                category=item.get("category", "other"),
+                title=item["title"],
+                description=item.get("description", ""),
+                sort_order=i,
+            )
+            db.session.add(todo)
+
         db.session.commit()
 
         enrichment_status = enriched.get("_enrichment_status", "skipped")
         fields_enriched = enriched.get("_fields_enriched", [])
-        logger.info("create_job: created job id=%d enrichment=%s fields=%s",
-                    job.id, enrichment_status, fields_enriched)
+        logger.info("create_job: created job id=%d enrichment=%s fields=%s todos=%d",
+                    job.id, enrichment_status, fields_enriched, len(app_todos))
 
         result = job.to_dict()
         if fields_enriched:
@@ -730,6 +753,73 @@ class AgentTools:
             salary_max=salary_max,
         )
         return summary
+
+    @agent_tool(
+        description=(
+            "Extract application steps/todos from a job posting by scraping its URL. "
+            "Returns a checklist of concrete things the applicant needs to do — documents "
+            "to submit (resume, cover letter), short-answer questions to answer, assessments "
+            "to complete, etc. Only extracts items explicitly mentioned in the posting. "
+            "Use this when the user wants to know what an application requires or wants "
+            "to prepare their application materials."
+        ),
+        args_schema=ExtractApplicationTodosInput,
+    )
+    def extract_application_todos(self, job_id):
+        job = db.session.get(Job, job_id)
+        if not job:
+            return {"error": f"Job with id {job_id} not found"}
+        if not job.url:
+            return {"error": "Job has no URL to scrape"}
+
+        from backend.config_manager import get_search_llm_config, get_integration_config
+        from backend.job_enrichment import scrape_url
+        from backend.llm.langchain_factory import create_langchain_model
+        from backend.todo_extractor import extract_application_todos
+        from backend.models.application_todo import ApplicationTodo
+
+        # Use enrichment model if available, otherwise get search config
+        llm_model = self.enrichment_model
+        if llm_model is None:
+            search_config = get_search_llm_config()
+            if search_config.get("api_key") or search_config.get("provider") == "ollama":
+                llm_model = create_langchain_model(
+                    search_config["provider"],
+                    search_config.get("api_key", ""),
+                    search_config.get("model", ""),
+                )
+
+        if not llm_model:
+            return {"error": "No LLM configured for extraction"}
+
+        integration_config = get_integration_config()
+        scraped_text = scrape_url(job.url, integration_config.get("search_api_key", ""))
+        if not scraped_text:
+            return {"error": f"Failed to scrape {job.url}"}
+
+        extracted = extract_application_todos(scraped_text, llm_model)
+        if not extracted:
+            return {"todos": [], "message": "No specific application steps found in the posting"}
+
+        # Save to database
+        max_order = db.session.query(db.func.max(ApplicationTodo.sort_order)).filter_by(job_id=job_id).scalar()
+        base_order = (max_order or 0) + 1
+
+        saved = []
+        for i, item in enumerate(extracted):
+            todo = ApplicationTodo(
+                job_id=job_id,
+                category=item["category"],
+                title=item["title"],
+                description=item.get("description", ""),
+                sort_order=base_order + i,
+            )
+            db.session.add(todo)
+            saved.append(todo)
+
+        db.session.commit()
+        logger.info("extract_application_todos: extracted %d todos for job %d", len(saved), job_id)
+        return {"todos": [t.to_dict() for t in saved], "job_id": job_id}
 
     @agent_tool(
         description=(

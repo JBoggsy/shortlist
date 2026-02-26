@@ -43,6 +43,46 @@ export async function deleteJob(id) {
   if (!res.ok) throw new Error("Failed to delete job");
 }
 
+// Application Todos API
+
+export async function fetchJobTodos(jobId) {
+  const res = await fetch(`${BASE}/${jobId}/todos`);
+  if (!res.ok) throw new Error("Failed to fetch todos");
+  return res.json();
+}
+
+export async function createJobTodo(jobId, data) {
+  const res = await fetch(`${BASE}/${jobId}/todos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create todo");
+  return res.json();
+}
+
+export async function updateJobTodo(jobId, todoId, data) {
+  const res = await fetch(`${BASE}/${jobId}/todos/${todoId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to update todo");
+  return res.json();
+}
+
+export async function deleteJobTodo(jobId, todoId) {
+  const res = await fetch(`${BASE}/${jobId}/todos/${todoId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete todo");
+}
+
+export async function extractJobTodos(jobId) {
+  const res = await fetch(`${BASE}/${jobId}/todos/extract`, { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to extract todos");
+  return data;
+}
+
 // Chat API
 
 export async function fetchConversations() {

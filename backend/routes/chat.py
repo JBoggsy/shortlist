@@ -253,6 +253,19 @@ def add_search_result_to_tracker(convo_id, result_id):
     db.session.add(job)
     db.session.flush()
 
+    # Save any extracted application todos
+    from backend.models.application_todo import ApplicationTodo
+    app_todos = enriched.get("_application_todos", [])
+    for i, item in enumerate(app_todos):
+        todo = ApplicationTodo(
+            job_id=job.id,
+            category=item.get("category", "other"),
+            title=item["title"],
+            description=item.get("description", ""),
+            sort_order=i,
+        )
+        db.session.add(todo)
+
     result.added_to_tracker = True
     result.tracker_job_id = job.id
     db.session.commit()

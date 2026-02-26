@@ -66,12 +66,14 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/routes/profile.py` — Profile blueprint (`profile_bp` at `/api/profile`)
 - `backend/routes/resume.py` — Resume upload blueprint (`resume_bp` at `/api/resume`) — upload, fetch, delete resume files; LLM-powered resume parsing endpoint
 - `backend/resume_parser.py` — Resume parsing utilities (PDF via PyMuPDF, DOCX via python-docx); file save/load/delete helpers; parsed resume JSON storage (`save_parsed_resume`, `get_parsed_resume`, `delete_parsed_resume`)
-- `backend/job_enrichment.py` — Job enrichment utilities; scrapes job posting URLs and uses LLM to extract missing fields (salary, location, remote type, requirements, tags); used by `add_search_result_to_tracker` route and `create_job` agent tool
+- `backend/job_enrichment.py` — Job enrichment utilities; scrapes job posting URLs and uses LLM to extract missing fields (salary, location, remote type, requirements, tags); also extracts application todos from the same scraped text; used by `add_search_result_to_tracker` route and `create_job` agent tool
+- `backend/todo_extractor.py` — Application todo extraction; LLM prompt + parser for extracting application steps (documents, questions, assessments, references) from scraped job posting text
 - `backend/models/chat.py` — `Conversation` and `Message` models for chat persistence
 - `backend/llm/langchain_factory.py` — `create_langchain_model()` factory that returns a LangChain `BaseChatModel` for any supported provider
 - `backend/llm/model_listing.py` — `list_models()` functions for each provider (uses raw SDKs to query available models); `MODEL_LISTERS` registry
 - `backend/models/search_result.py` — `SearchResult` model for per-conversation job search results (fields: company, title, url, salary, location, remote_type, source, description, requirements, nice_to_haves, job_fit, fit_reason, added_to_tracker, tracker_job_id)
-- `backend/agent/tools.py` — `AgentTools` class with `@agent_tool`-decorated methods (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume, run_job_search, list_search_results), Pydantic input schemas, and `to_langchain_tools()` for auto-generating LangChain `StructuredTool` instances
+- `backend/models/application_todo.py` — `ApplicationTodo` model for per-job application steps (fields: job_id, category, title, description, completed, sort_order)
+- `backend/agent/tools.py` — `AgentTools` class with `@agent_tool`-decorated methods (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume, run_job_search, list_search_results, extract_application_todos), Pydantic input schemas, and `to_langchain_tools()` for auto-generating LangChain `StructuredTool` instances
 - `backend/agent/langchain_agent.py` — `LangChainAgent` (streaming tool-calling loop with sub-agent event forwarding), `LangChainOnboardingAgent` (profile interview), `LangChainResumeParser` (non-streaming JSON extraction); system prompts; helper utilities for tool-call chunk accumulation, message conversion, and JSON extraction
 - `backend/agent/job_search_agent.py` — `LangChainJobSearchAgent` (job search sub-agent); `JobSearchSubAgentTools` with `add_search_result` tool; searches multiple job boards, evaluates fit against user profile, adds qualifying results (≥3 stars) to per-conversation results panel via SSE events
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
@@ -116,6 +118,11 @@ The start scripts handle everything automatically. Use the manual commands below
 | GET | `/api/jobs/:id` | Get single job |
 | PATCH | `/api/jobs/:id` | Update job (partial) |
 | DELETE | `/api/jobs/:id` | Delete job |
+| GET | `/api/jobs/:id/todos` | List application todos for a job |
+| POST | `/api/jobs/:id/todos` | Create an application todo |
+| PATCH | `/api/jobs/:id/todos/:todoId` | Update a todo (toggle completed, edit) |
+| DELETE | `/api/jobs/:id/todos/:todoId` | Delete a todo |
+| POST | `/api/jobs/:id/todos/extract` | LLM-extract application todos from job URL |
 | GET | `/api/chat/conversations` | List conversations (newest first) |
 | POST | `/api/chat/conversations` | Create conversation |
 | GET | `/api/chat/conversations/:id` | Get conversation with messages |

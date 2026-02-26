@@ -1,4 +1,45 @@
+import { useState, useEffect, useCallback } from "react";
+import { fetchJobTodos, createJobTodo, updateJobTodo, deleteJobTodo, extractJobTodos } from "../api";
+
+const CATEGORY_META = {
+  document: { icon: "📄", label: "Documents" },
+  question: { icon: "❓", label: "Application Questions" },
+  assessment: { icon: "📝", label: "Assessments" },
+  reference: { icon: "📋", label: "References" },
+  other: { icon: "📌", label: "Other" },
+};
+
+const CATEGORY_ORDER = ["document", "question", "assessment", "reference", "other"];
+
 function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
+  const [todos, setTodos] = useState([]);
+  const [extracting, setExtracting] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTodoTitle, setNewTodoTitle] = useState("");
+  const [newTodoCategory, setNewTodoCategory] = useState("other");
+  const [newTodoDescription, setNewTodoDescription] = useState("");
+  const [expandedTodos, setExpandedTodos] = useState(new Set());
+  const [extractError, setExtractError] = useState(null);
+
+  const loadTodos = useCallback(async () => {
+    if (!job?.id) return;
+    try {
+      const data = await fetchJobTodos(job.id);
+      setTodos(data);
+    } catch (err) {
+      console.error("Failed to load todos:", err);
+    }
+  }, [job?.id]);
+
+  useEffect(() => {
+    if (isOpen && job?.id) {
+      loadTodos();
+      setExtractError(null);
+    } else {
+      setTodos([]);
+    }
+  }, [isOpen, job?.id, loadTodos]);
+
   if (!isOpen || !job) return null;
 
   const statusColors = {
@@ -21,6 +62,74 @@ function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
     if (min) return `$${min.toLocaleString()}+`;
     if (max) return `Up to $${max.toLocaleString()}`;
   }
+
+  async function handleExtract() {
+    setExtracting(true);
+    setExtractError(null);
+    try {
+      await extractJobTodos(job.id);
+      await loadTodos();
+    } catch (err) {
+      setExtractError(err.message);
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function handleToggleTodo(todo) {
+    try {
+      const updated = await updateJobTodo(job.id, todo.id, { completed: !todo.completed });
+      setTodos((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    } catch (err) {
+      console.error("Failed to toggle todo:", err);
+    }
+  }
+
+  async function handleDeleteTodo(todoId) {
+    try {
+      await deleteJobTodo(job.id, todoId);
+      setTodos((prev) => prev.filter((t) => t.id !== todoId));
+    } catch (err) {
+      console.error("Failed to delete todo:", err);
+    }
+  }
+
+  async function handleAddTodo(e) {
+    e.preventDefault();
+    if (!newTodoTitle.trim()) return;
+    try {
+      const created = await createJobTodo(job.id, {
+        title: newTodoTitle.trim(),
+        category: newTodoCategory,
+        description: newTodoDescription.trim(),
+      });
+      setTodos((prev) => [...prev, created]);
+      setNewTodoTitle("");
+      setNewTodoCategory("other");
+      setNewTodoDescription("");
+      setShowAddForm(false);
+    } catch (err) {
+      console.error("Failed to add todo:", err);
+    }
+  }
+
+  function toggleExpanded(todoId) {
+    setExpandedTodos((prev) => {
+      const next = new Set(prev);
+      if (next.has(todoId)) next.delete(todoId);
+      else next.add(todoId);
+      return next;
+    });
+  }
+
+  // Group todos by category
+  const grouped = {};
+  for (const todo of todos) {
+    const cat = todo.category || "other";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(todo);
+  }
+  const completedCount = todos.filter((t) => t.completed).length;
 
   return (
     <>
@@ -107,6 +216,184 @@ function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
               </a>
             </div>
           )}
+
+          {/* Application Steps */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-700">
+                Application Steps
+                {todos.length > 0 && (
+                  <span className="ml-2 text-xs font-normal text-gray-500">
+                    {completedCount}/{todos.length} completed
+                  </span>
+                )}
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="text-xs px-2 py-1 text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50"
+                  title="Add a custom step"
+                >
+                  + Add
+                </button>
+                {job.url && (
+                  <button
+                    onClick={handleExtract}
+                    disabled={extracting}
+                    className="text-xs px-2 py-1 text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Extract application steps from job posting"
+                  >
+                    {extracting ? (
+                      <span className="flex items-center gap-1">
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Extracting…
+                      </span>
+                    ) : (
+                      "Extract from posting"
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {todos.length > 0 && (
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
+                <div
+                  className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                  style={{ width: `${(completedCount / todos.length) * 100}%` }}
+                />
+              </div>
+            )}
+
+            {/* Extract error */}
+            {extractError && (
+              <div className="text-xs text-red-600 bg-red-50 rounded p-2 mb-2">
+                {extractError}
+              </div>
+            )}
+
+            {/* Add form */}
+            {showAddForm && (
+              <form onSubmit={handleAddTodo} className="bg-gray-50 rounded-lg p-3 mb-3 space-y-2">
+                <input
+                  type="text"
+                  value={newTodoTitle}
+                  onChange={(e) => setNewTodoTitle(e.target.value)}
+                  placeholder="Step title (e.g., Submit cover letter)"
+                  className="w-full px-3 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={newTodoCategory}
+                    onChange={(e) => setNewTodoCategory(e.target.value)}
+                    className="px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  >
+                    {CATEGORY_ORDER.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {CATEGORY_META[cat].icon} {CATEGORY_META[cat].label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={newTodoDescription}
+                    onChange={(e) => setNewTodoDescription(e.target.value)}
+                    placeholder="Description (optional)"
+                    className="flex-1 px-3 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddForm(false)}
+                    className="text-xs px-3 py-1.5 text-gray-600 hover:text-gray-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newTodoTitle.trim()}
+                    className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Add Step
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Grouped todo list */}
+            {todos.length > 0 ? (
+              <div className="space-y-3">
+                {CATEGORY_ORDER.filter((cat) => grouped[cat]?.length > 0).map((cat) => (
+                  <div key={cat}>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <span className="text-sm">{CATEGORY_META[cat].icon}</span>
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        {CATEGORY_META[cat].label}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {grouped[cat].map((todo) => (
+                        <div
+                          key={todo.id}
+                          className={`group flex items-start gap-2 px-3 py-2 rounded-lg border ${
+                            todo.completed
+                              ? "bg-green-50 border-green-200"
+                              : "bg-white border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={todo.completed}
+                            onChange={() => handleToggleTodo(todo)}
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <button
+                              onClick={() => todo.description && toggleExpanded(todo.id)}
+                              className={`text-sm text-left w-full ${
+                                todo.completed ? "line-through text-gray-400" : "text-gray-900"
+                              } ${todo.description ? "cursor-pointer hover:text-blue-600" : "cursor-default"}`}
+                            >
+                              {todo.title}
+                              {todo.description && (
+                                <span className="ml-1 text-gray-400 text-xs">
+                                  {expandedTodos.has(todo.id) ? "▾" : "▸"}
+                                </span>
+                              )}
+                            </button>
+                            {todo.description && expandedTodos.has(todo.id) && (
+                              <p className="text-xs text-gray-500 mt-1 whitespace-pre-wrap">
+                                {todo.description}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleDeleteTodo(todo.id)}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity p-0.5"
+                            title="Remove step"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">
+                {job.url ? "Click \"Extract from posting\" to detect application steps, or add them manually." : "Add application steps manually to track your progress."}
+              </p>
+            )}
+          </div>
 
           {/* Requirements */}
           {job.requirements && (

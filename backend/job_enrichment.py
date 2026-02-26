@@ -262,6 +262,17 @@ def enrich_job_data(job_data, scraped_text=None, url=None, search_api_key="", ll
         logger.info("enrich: filled %d fields: %s", len(fields_filled), fields_filled)
         enriched["_enrichment_status"] = "enriched"
         enriched["_fields_enriched"] = fields_filled
+
+        # Also extract application todos from the same scraped text
+        try:
+            from backend.todo_extractor import extract_application_todos
+            todos = extract_application_todos(scraped_text, llm_model)
+            enriched["_application_todos"] = todos
+            logger.info("enrich: extracted %d application todos", len(todos))
+        except Exception as todo_err:
+            logger.warning("enrich: todo extraction failed (non-fatal): %s", todo_err)
+            enriched["_application_todos"] = []
+
         return enriched
 
     except Exception as e:

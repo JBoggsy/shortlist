@@ -22,9 +22,10 @@
 
 - [x] **Better job adding** — Jobs added to tracker are auto-enriched by scraping the posting URL and extracting missing fields via LLM
 
-- [ ] **Job application preparation**
-  - Add per-job preparation components (interview prep, resume tailoring, cover letter drafts)
-  - Store preparation notes/materials linked to each job
+- [x] **Application todo extraction** — Extract & track per-job application steps (documents, questions, assessments) from job postings via LLM; checklist UI in Job Detail Panel with auto-extraction and agent tool
+
+- [ ] **Job application preparation (phase 2)**
+  - Interview prep, resume tailoring, cover letter draft generation
   - Agent tools to generate and manage prep content
 
 ## Desktop App
