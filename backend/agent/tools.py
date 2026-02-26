@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from backend.database import db
 from backend.models.job import Job
+from backend.models.search_result import SearchResult
 from backend.agent.user_profile import read_profile, write_profile
 from backend.resume_parser import get_resume_text
 
@@ -159,6 +160,34 @@ class ListJobsInput(BaseModel):
     limit: int = Field(default=20, description="Max number of jobs to return (default 20)")
 
 
+class RunJobSearchInput(BaseModel):
+    """Input for run_job_search tool."""
+
+    query: str = Field(
+        description="Natural language description of what jobs to search for (e.g., 'React developer jobs', 'senior data scientist positions')"
+    )
+    location: Optional[str] = Field(
+        default=None, description="Target location (e.g., 'Austin, TX', 'San Francisco')"
+    )
+    remote_only: Optional[bool] = Field(
+        default=None, description="Only search for remote positions"
+    )
+    salary_min: Optional[int] = Field(
+        default=None, description="Minimum salary filter"
+    )
+    salary_max: Optional[int] = Field(
+        default=None, description="Maximum salary filter"
+    )
+
+
+class ListSearchResultsInput(BaseModel):
+    """Input for list_search_results tool."""
+
+    min_fit: Optional[int] = Field(
+        default=None, description="Minimum job fit rating to include (0-5)"
+    )
+
+
 class UpdateUserProfileInput(BaseModel):
     """Input for update_user_profile tool."""
 
@@ -174,12 +203,18 @@ class UpdateUserProfileInput(BaseModel):
 
 class AgentTools:
     def __init__(self, search_api_key="", adzuna_app_id="", adzuna_app_key="",
-                 adzuna_country="us", jsearch_api_key=""):
+                 adzuna_country="us", jsearch_api_key="",
+                 conversation_id=None, event_callback=None,
+                 search_model=None):
         self.search_api_key = search_api_key
         self.adzuna_app_id = adzuna_app_id
         self.adzuna_app_key = adzuna_app_key
         self.adzuna_country = adzuna_country
         self.jsearch_api_key = jsearch_api_key
+        # For job search sub-agent
+        self.conversation_id = conversation_id
+        self.event_callback = event_callback
+        self.search_model = search_model
 
     # -- Tool dispatch (used by agent loop for tool-call execution) -----
 
@@ -614,3 +649,70 @@ class AgentTools:
         if text is None:
             return {"content": None, "message": "No resume uploaded. The user can upload a resume via the Profile panel."}
         return {"content": text}
+
+    @agent_tool(
+        description=(
+            "Launch a comprehensive job search using a specialized sub-agent. "
+            "The sub-agent will search multiple job boards, evaluate each job against "
+            "the user's profile, and add qualifying results (rated ≥3/5 stars) to a "
+            "search results panel visible to the user. Use this whenever the user asks "
+            "to find, search for, or discover job listings. The sub-agent runs "
+            "autonomously and returns a summary of what it found. After receiving the "
+            "summary, use list_search_results to review the full results and highlight "
+            "the top 5 matches to the user."
+        ),
+        args_schema=RunJobSearchInput,
+    )
+    def run_job_search(self, query, location=None, remote_only=False,
+                       salary_min=None, salary_max=None):
+        if not self.conversation_id:
+            return {"error": "Job search requires an active conversation."}
+        if not self.event_callback:
+            return {"error": "Job search event forwarding not configured."}
+
+        from backend.agent.job_search_agent import LangChainJobSearchAgent
+
+        # Use search-specific model if configured, otherwise fall back to main model
+        model = self.search_model
+        if model is None:
+            return {"error": "No LLM model available for job search sub-agent."}
+
+        agent = LangChainJobSearchAgent(
+            model=model,
+            conversation_id=self.conversation_id,
+            event_callback=self.event_callback,
+            search_api_key=self.search_api_key,
+            adzuna_app_id=self.adzuna_app_id,
+            adzuna_app_key=self.adzuna_app_key,
+            adzuna_country=self.adzuna_country,
+            jsearch_api_key=self.jsearch_api_key,
+        )
+
+        summary = agent.run(
+            query=query,
+            location=location,
+            remote_only=remote_only or False,
+            salary_min=salary_min,
+            salary_max=salary_max,
+        )
+        return summary
+
+    @agent_tool(
+        description=(
+            "List all job search results found in the current conversation's search "
+            "results panel. Use this after run_job_search completes to review what was "
+            "found and pick the top matches to highlight to the user."
+        ),
+        args_schema=ListSearchResultsInput,
+    )
+    def list_search_results(self, min_fit=None):
+        if not self.conversation_id:
+            return {"error": "No active conversation."}
+        query = SearchResult.query.filter_by(conversation_id=self.conversation_id)
+        if min_fit is not None:
+            query = query.filter(SearchResult.job_fit >= min_fit)
+        results = query.order_by(SearchResult.job_fit.desc(), SearchResult.created_at).all()
+        return {
+            "results": [r.to_dict() for r in results],
+            "total": len(results),
+        }

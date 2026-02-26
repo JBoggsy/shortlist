@@ -5,10 +5,12 @@ from flask import Blueprint, Response, current_app, request, stream_with_context
 
 from backend.agent.langchain_agent import LangChainAgent, LangChainOnboardingAgent
 from backend.agent.user_profile import is_onboarding_in_progress, set_onboarding_in_progress
-from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_integration_config
+from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_search_llm_config, get_integration_config
 from backend.database import db
 from backend.llm.langchain_factory import create_langchain_model
 from backend.models.chat import Conversation, Message
+from backend.models.job import Job
+from backend.models.search_result import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +129,23 @@ def send_message(convo_id):
                 "X-Accel-Buffering": "no",
             },
         )
+    # Create search sub-agent model (may be a cheaper model)
+    search_llm_config = get_search_llm_config()
+    search_model = None
+    try:
+        if search_llm_config["api_key"] or search_llm_config["provider"] == "ollama":
+            search_model = create_langchain_model(
+                search_llm_config["provider"],
+                search_llm_config["api_key"],
+                search_llm_config["model"],
+            )
+    except Exception as e:
+        logger.warning("Failed to create search LLM model, falling back to main: %s", e)
+
+    # Fall back to main model if search model not configured
+    if search_model is None:
+        search_model = model
+
     agent = LangChainAgent(
         model,
         search_api_key=integration_config["search_api_key"],
@@ -134,6 +153,8 @@ def send_message(convo_id):
         adzuna_app_key=integration_config["adzuna_app_key"],
         adzuna_country=integration_config["adzuna_country"],
         jsearch_api_key=integration_config["jsearch_api_key"],
+        conversation_id=convo_id,
+        search_model=search_model,
     )
 
     def generate():
@@ -171,6 +192,53 @@ def send_message(convo_id):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@chat_bp.route("/conversations/<int:convo_id>/search-results", methods=["GET"])
+def get_search_results(convo_id):
+    convo = db.session.get(Conversation, convo_id)
+    if not convo:
+        return {"error": "Conversation not found"}, 404
+    results = (
+        SearchResult.query
+        .filter_by(conversation_id=convo_id)
+        .order_by(SearchResult.job_fit.desc(), SearchResult.created_at)
+        .all()
+    )
+    return [r.to_dict() for r in results]
+
+
+@chat_bp.route("/conversations/<int:convo_id>/search-results/<int:result_id>/add-to-tracker", methods=["POST"])
+def add_search_result_to_tracker(convo_id, result_id):
+    result = db.session.get(SearchResult, result_id)
+    if not result or result.conversation_id != convo_id:
+        return {"error": "Search result not found"}, 404
+    if result.added_to_tracker:
+        return {"error": "Already added to tracker", "job_id": result.tracker_job_id}, 409
+
+    job = Job(
+        company=result.company,
+        title=result.title,
+        url=result.url,
+        status="saved",
+        salary_min=result.salary_min,
+        salary_max=result.salary_max,
+        location=result.location,
+        remote_type=result.remote_type,
+        source=result.source,
+        job_fit=result.job_fit,
+        requirements=result.requirements,
+        nice_to_haves=result.nice_to_haves,
+        notes=result.fit_reason,
+    )
+    db.session.add(job)
+    db.session.flush()
+
+    result.added_to_tracker = True
+    result.tracker_job_id = job.id
+    db.session.commit()
+
+    return {"result": result.to_dict(), "job": job.to_dict()}, 201
 
 
 def _get_onboarding_model():

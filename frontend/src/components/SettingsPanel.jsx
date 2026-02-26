@@ -99,6 +99,9 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
   const [onboardingProvider, setOnboardingProvider] = useState('');
   const [onboardingApiKey, setOnboardingApiKey] = useState('');
   const [onboardingModel, setOnboardingModel] = useState('');
+  const [searchLlmProvider, setSearchLlmProvider] = useState('');
+  const [searchLlmApiKey, setSearchLlmApiKey] = useState('');
+  const [searchLlmModel, setSearchLlmModel] = useState('');
   const [searchApiKey, setSearchApiKey] = useState('');
   const [jsearchApiKey, setJsearchApiKey] = useState('');
   const [adzunaAppId, setAdzunaAppId] = useState('');
@@ -124,6 +127,9 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
       setOnboardingProvider(data.onboarding_llm?.provider || '');
       setOnboardingApiKey(data.onboarding_llm?.api_key || '');
       setOnboardingModel(data.onboarding_llm?.model || '');
+      setSearchLlmProvider(data.search_llm?.provider || '');
+      setSearchLlmApiKey(data.search_llm?.api_key || '');
+      setSearchLlmModel(data.search_llm?.model || '');
       setSearchApiKey(data.integrations?.search_api_key || '');
       setJsearchApiKey(data.integrations?.jsearch_api_key || '');
       setAdzunaAppId(data.integrations?.adzuna_app_id || '');
@@ -160,6 +166,11 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
           provider: onboardingProvider,
           api_key: onboardingApiKey,
           model: onboardingModel,
+        },
+        search_llm: {
+          provider: searchLlmProvider,
+          api_key: searchLlmApiKey,
+          model: searchLlmModel,
         },
         integrations: {
           search_api_key: searchApiKey,
@@ -401,6 +412,62 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                         apiKey={onboardingApiKey || llmApiKey}
                         value={onboardingModel}
                         onChange={setOnboardingModel}
+                        placeholder="Leave blank to use the provider default"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                </details>
+              </div>
+
+              {/* Search Sub-Agent */}
+              <div>
+                <details>
+                  <summary className="text-lg font-semibold text-gray-900 cursor-pointer select-none">
+                    Job Search Agent <span className="text-sm font-normal text-gray-500">(Optional)</span>
+                  </summary>
+                  <div className="mt-3 space-y-4">
+                    <p className="text-sm text-gray-600">
+                      Uses a separate model for the job search sub-agent that finds and evaluates job listings. Leave blank to use the same AI Assistant configuration above. A cheaper model is recommended to reduce costs during searches.
+                    </p>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Provider
+                      </label>
+                      <select
+                        value={searchLlmProvider}
+                        onChange={(e) => setSearchLlmProvider(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Same as above</option>
+                        {providers.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        API Key
+                      </label>
+                      <input
+                        type="password"
+                        value={searchLlmApiKey}
+                        onChange={(e) => setSearchLlmApiKey(e.target.value)}
+                        placeholder="Leave blank to use the same key as above"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Model Override (optional)
+                      </label>
+                      <ModelCombobox
+                        provider={searchLlmProvider || llmProvider}
+                        apiKey={searchLlmApiKey || llmApiKey}
+                        value={searchLlmModel}
+                        onChange={setSearchLlmModel}
                         placeholder="Leave blank to use the provider default"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />

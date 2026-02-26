@@ -73,6 +73,13 @@ def update_config():
                 if value is not None and not is_masked_value(value):
                     config["onboarding_llm"][key] = value
 
+        if "search_llm" in data:
+            if "search_llm" not in config:
+                config["search_llm"] = {"provider": "", "api_key": "", "model": ""}
+            for key, value in data["search_llm"].items():
+                if value is not None and not is_masked_value(value):
+                    config["search_llm"][key] = value
+
         if "integrations" in data:
             for key, value in data["integrations"].items():
                 if value is not None and not is_masked_value(value):
@@ -194,6 +201,8 @@ def list_models():
                 api_key = config.get('llm', {}).get('api_key', '')
             elif config.get('onboarding_llm', {}).get('provider') == provider_name:
                 api_key = config.get('onboarding_llm', {}).get('api_key', '')
+            elif config.get('search_llm', {}).get('provider') == provider_name:
+                api_key = config.get('search_llm', {}).get('api_key', '')
 
         if not provider_name:
             return jsonify({"models": [], "error": "No provider specified"}), 200

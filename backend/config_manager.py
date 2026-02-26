@@ -32,6 +32,11 @@ DEFAULT_CONFIG = {
         "api_key": "",
         "model": ""
     },
+    "search_llm": {
+        "provider": "",
+        "api_key": "",
+        "model": ""
+    },
     "integrations": {
         "search_api_key": "",
         "adzuna_app_id": "",
@@ -181,6 +186,22 @@ def get_onboarding_llm_config() -> Dict[str, Optional[str]]:
     }
 
 
+def get_search_llm_config() -> Dict[str, Optional[str]]:
+    """
+    Get search sub-agent LLM configuration with fallback to main LLM config.
+
+    Returns:
+        Dictionary with provider, api_key, and model
+    """
+    main_config = get_llm_config()
+
+    return {
+        "provider": get_config_value("search_llm.provider", main_config["provider"]),
+        "api_key": get_config_value("search_llm.api_key", main_config["api_key"]),
+        "model": get_config_value("search_llm.model", main_config["model"])
+    }
+
+
 def get_integration_config() -> Dict[str, Optional[str]]:
     """
     Get integration API keys (search, job boards, etc.).
@@ -222,6 +243,9 @@ def config_to_dict() -> Dict[str, Any]:
 
     if "onboarding_llm" in masked_config and "api_key" in masked_config["onboarding_llm"]:
         masked_config["onboarding_llm"]["api_key"] = mask_value(masked_config["onboarding_llm"]["api_key"])
+
+    if "search_llm" in masked_config and "api_key" in masked_config["search_llm"]:
+        masked_config["search_llm"]["api_key"] = mask_value(masked_config["search_llm"]["api_key"])
 
     if "integrations" in masked_config:
         for key in ["search_api_key", "adzuna_app_key", "jsearch_api_key"]:

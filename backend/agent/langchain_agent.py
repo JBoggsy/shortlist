@@ -68,9 +68,16 @@ Resume status: {resume_status}
 
 ## Job Search Behavior
 
-When the user asks you to find jobs, search for them, extract the relevant details (company, title, location, salary, remote type, requirements, nice-to-haves, etc.), and offer to add them to the tracker. When scraping a URL, extract as much structured information as possible including requirements and nice-to-have qualifications.
+**When the user asks you to find or search for jobs**, use the `run_job_search` tool. This launches a specialized search sub-agent that will:
+- Search multiple job boards with varied queries
+- Evaluate each job against the user's profile
+- Add qualifying results (rated ≥3/5 stars) to a visual results panel
 
-Before adding a new job, check if it's already in the tracker by searching for the company name or URL to avoid duplicates.
+After `run_job_search` completes, use `list_search_results` to review all found jobs, then highlight up to 5 of the best matches to the user with brief commentary on why each is a good fit.
+
+**When the user shares a specific job URL** (not a general search), scrape it directly with `scrape_url`, evaluate the details, and offer to add it to the tracker with `create_job`.
+
+Before adding a job directly to the tracker, check if it's already tracked by searching for the company name or URL to avoid duplicates.
 
 When adding a job, always set the `job_fit` field (0-5) based on how well the job matches the user's profile. 5 = excellent fit, 0 = poor fit. Consider requirements match, salary alignment, location/remote preferences, and career goals.
 
@@ -396,13 +403,24 @@ class LangChainAgent:
         adzuna_app_key: str = "",
         adzuna_country: str = "us",
         jsearch_api_key: str = "",
+        conversation_id: int | None = None,
+        search_model: BaseChatModel | None = None,
     ):
+        # Pending SSE events from sub-agents, yielded after tool execution
+        self._pending_events: list[dict] = []
+
+        def _event_callback(event):
+            self._pending_events.append(event)
+
         self.agent_tools = AgentTools(
             search_api_key=search_api_key,
             adzuna_app_id=adzuna_app_id,
             adzuna_app_key=adzuna_app_key,
             adzuna_country=adzuna_country,
             jsearch_api_key=jsearch_api_key,
+            conversation_id=conversation_id,
+            event_callback=_event_callback,
+            search_model=search_model,
         )
         self.lc_tools = self.agent_tools.to_langchain_tools()
         self.model_with_tools = model.bind_tools(self.lc_tools)
@@ -509,7 +527,15 @@ class LangChainAgent:
                     "data": {"id": tc.id, "name": tc.name, "arguments": tc.args},
                 }
 
+                # Clear pending events before execution
+                self._pending_events.clear()
+
                 result = self.agent_tools.execute(tc.name, tc.args)
+
+                # Flush any SSE events queued by sub-agents (e.g., search_result_added)
+                for pending in self._pending_events:
+                    yield pending
+                self._pending_events.clear()
 
                 if isinstance(result, dict) and "error" in result:
                     logger.warning("Tool error: %s — %s", tc.name, result["error"])

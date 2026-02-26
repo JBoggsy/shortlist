@@ -129,6 +129,24 @@ async function _readSSE(res, onEvent, signal) {
   }
 }
 
+// Search Results API
+
+export async function fetchSearchResults(conversationId) {
+  const res = await fetch(`${CHAT_BASE}/conversations/${conversationId}/search-results`);
+  if (!res.ok) throw new Error("Failed to fetch search results");
+  return res.json();
+}
+
+export async function addSearchResultToTracker(conversationId, resultId) {
+  const res = await fetch(
+    `${CHAT_BASE}/conversations/${conversationId}/search-results/${resultId}/add-to-tracker`,
+    { method: "POST" }
+  );
+  const data = await res.json();
+  if (!res.ok && res.status !== 409) throw new Error(data.error || "Failed to add to tracker");
+  return data;
+}
+
 // Profile API
 
 export async function fetchProfile() {

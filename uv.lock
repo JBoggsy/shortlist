@@ -1510,7 +1510,7 @@ wheels = [
 
 [[package]]
 name = "shortlist"
-version = "0.7.3"
+version = "0.8.0"
 source = { virtual = "." }
 dependencies = [
     { name = "anthropic" },

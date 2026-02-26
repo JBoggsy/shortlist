@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import useResizablePanel from "../hooks/useResizablePanel";
+import SearchResultsPanel from "./SearchResultsPanel";
 import {
   fetchConversations,
   createConversation,
@@ -11,6 +12,8 @@ import {
   createOnboardingConversation,
   kickOnboarding,
   streamOnboardingMessage,
+  fetchSearchResults,
+  addSearchResultToTracker,
 } from "../api";
 
 // Tool names that modify job data — when these complete, notify parent to refresh
@@ -27,6 +30,11 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const { width, isDragging, handleMouseDown } = useResizablePanel("chatPanelWidth", 512);
+
+  // Search results state
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchResultsOpen, setSearchResultsOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   // Auto-resize textarea to fit content (up to ~8 lines)
   const autoResize = (el) => {
@@ -167,6 +175,17 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       const data = await fetchConversation(id);
       setCurrentConversation(data);
       setMessages(data.messages || []);
+
+      // Load search results for this conversation
+      try {
+        const results = await fetchSearchResults(id);
+        setSearchResults(results);
+        if (results.length > 0) setSearchResultsOpen(true);
+        else setSearchResultsOpen(false);
+      } catch {
+        setSearchResults([]);
+        setSearchResultsOpen(false);
+      }
     } catch (e) {
       console.error("Failed to load conversation:", e);
     }
@@ -177,6 +196,9 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       const convo = await createConversation();
       setCurrentConversation(convo);
       setMessages([]);
+      setSearchResults([]);
+      setSearchResultsOpen(false);
+      setIsSearching(false);
       await loadConversations();
     } catch (e) {
       console.error("Failed to create conversation:", e);
@@ -189,6 +211,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       abortControllerRef.current = null;
     }
     setIsStreaming(false);
+    setIsSearching(false);
   }
 
   async function handleDeleteConversation(id, e) {
@@ -198,11 +221,44 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       if (currentConversation?.id === id) {
         setCurrentConversation(null);
         setMessages([]);
+        setSearchResults([]);
+        setSearchResultsOpen(false);
       }
       await loadConversations();
     } catch (err) {
       console.error("Failed to delete conversation:", err);
     }
+  }
+
+  // Handle SSE events common to both streaming paths
+  function handleSearchEvent(event) {
+    if (event.event === "search_started") {
+      setIsSearching(true);
+      setSearchResultsOpen(true);
+    } else if (event.event === "search_result_added") {
+      setSearchResults((prev) => {
+        // Deduplicate
+        if (prev.some((r) => r.id === event.data.id)) return prev;
+        return [...prev, { ...event.data, _isNew: true }];
+      });
+      setSearchResultsOpen(true);
+    } else if (event.event === "search_completed") {
+      setIsSearching(false);
+    }
+  }
+
+  async function handleAddToTracker(resultId) {
+    if (!currentConversation) return;
+    const data = await addSearchResultToTracker(currentConversation.id, resultId);
+    // Update local state to reflect the result is now tracked
+    setSearchResults((prev) =>
+      prev.map((r) =>
+        r.id === resultId
+          ? { ...r, added_to_tracker: true, tracker_job_id: data.job?.id || data.result?.tracker_job_id }
+          : r
+      )
+    );
+    if (onJobsChanged) onJobsChanged();
   }
 
   async function handleSend() {
@@ -250,6 +306,9 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
 
     try {
       await streamer(convo.id, userMessage.content, (event) => {
+        // Handle search-related events
+        handleSearchEvent(event);
+
         if (event.event === "text_delta") {
           fullText += event.data.content;
           // Append to current text segment, or create a new one
@@ -298,6 +357,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
         pushUpdate();
         abortControllerRef.current = null;
         setIsStreaming(false);
+        setIsSearching(false);
         return;
       }
       console.error("Stream error:", e);
@@ -312,6 +372,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
 
     abortControllerRef.current = null;
     setIsStreaming(false);
+    setIsSearching(false);
     if (onboardingDone && onOnboardingComplete) {
       onOnboardingComplete();
       return;
@@ -322,222 +383,256 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
 
   if (!isOpen) return null;
 
+  const showResultsPanel = searchResultsOpen && searchResults.length > 0;
+  const resultsPanelWidth = 320;
+
   return (
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
 
-      {/* Panel */}
+      {/* Panel container */}
       <div
-        className={`fixed right-0 top-0 h-full bg-white shadow-xl z-50 flex flex-col${isDragging ? " select-none" : ""}`}
-        style={{ width }}
+        className={`fixed right-0 top-0 h-full z-50 flex${isDragging ? " select-none" : ""}`}
+        style={{ width: showResultsPanel ? width + resultsPanelWidth : width }}
       >
         {/* Resize handle */}
         <div
           onMouseDown={handleMouseDown}
           className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-10 transition-colors"
         />
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-          <h2 className="font-semibold text-gray-900">
-            {onboarding ? "Welcome! Let\u2019s set up your profile" : "AI Assistant"}
-          </h2>
-          <div className="flex gap-2">
-            {!onboarding && (
-              <>
-                <button
-                  onClick={handleNewChat}
-                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  New Chat
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentConversation(null);
-                    setMessages([]);
-                  }}
-                  className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                >
-                  History
-                </button>
-              </>
-            )}
-            <button
-              onClick={onClose}
-              className="p-1 text-gray-500 hover:text-gray-700"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
 
-        {/* Content */}
-        {!currentConversation && !onboarding ? (
-          /* Conversation list */
-          <div className="flex-1 overflow-y-auto p-4">
-            {conversations.length === 0 ? (
-              <p className="text-gray-500 text-center mt-8">
-                No conversations yet. Start a new chat!
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {conversations.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => selectConversation(c.id)}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 truncate">{c.title}</p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(c.updated_at).toLocaleDateString()}
-                      </p>
-                    </div>
+        {/* Chat panel */}
+        <div className="flex flex-col bg-white shadow-xl h-full" style={{ width }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+            <h2 className="font-semibold text-gray-900">
+              {onboarding ? "Welcome! Let\u2019s set up your profile" : "AI Assistant"}
+            </h2>
+            <div className="flex gap-2">
+              {!onboarding && (
+                <>
+                  {searchResults.length > 0 && !searchResultsOpen && (
                     <button
-                      onClick={(e) => handleDeleteConversation(c.id, e)}
-                      className="ml-2 p-1 text-gray-400 hover:text-red-500"
+                      onClick={() => setSearchResultsOpen(true)}
+                      className="relative px-2 py-1 text-sm bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100"
+                      title="Show search results"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
+                      <span className="ml-1 text-xs font-medium">{searchResults.length}</span>
                     </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Chat view */
-          <>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg, i) => (
-                <div key={i}>
-                  {msg.role === "assistant" && msg.segments && msg.segments.length > 0 ? (
-                    /* Render assistant segments in order */
-                    msg.segments.map((seg, j) =>
-                      seg.type === "text" ? (
-                        <div key={j} className="flex justify-start mb-2">
-                          <div className="max-w-[80%] rounded-lg px-4 py-2 bg-gray-100 text-gray-900">
-                            <div className="markdown-body">
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {seg.content}
-                              </ReactMarkdown>
-                            </div>
-                          </div>
-                        </div>
-                      ) : seg.type === "tool" ? (
-                        <div key={j} className="ml-2 mb-2">
-                          <div className="flex items-center gap-2 text-xs text-gray-500">
-                            {seg.status === "running" ? (
-                              <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                            ) : seg.status === "completed" ? (
-                              <span className="text-green-500">&#10003;</span>
-                            ) : (
-                              <span className="text-amber-500">&#9888;</span>
-                            )}
-                            <span className="font-mono">{seg.name}</span>
-                            {seg.error && (
-                              <button
-                                onClick={() => setExpandedErrors((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(seg.id)) next.delete(seg.id);
-                                  else next.add(seg.id);
-                                  return next;
-                                })}
-                                className="text-gray-400 hover:text-gray-600 underline"
-                              >
-                                {expandedErrors.has(seg.id) ? "Hide details" : "Details"}
-                              </button>
-                            )}
-                          </div>
-                          {seg.error && expandedErrors.has(seg.id) && (
-                            <div className="ml-5 mt-1 px-2 py-1 text-xs text-gray-500 bg-gray-50 rounded border border-gray-200 font-mono break-all">
-                              {seg.error}
-                            </div>
-                          )}
-                        </div>
-                      ) : null
-                    )
-                  ) : (
-                    /* User messages or assistant messages without segments (e.g. from history) */
-                    <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                          msg.role === "user"
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-100 text-gray-900"
-                        }`}
-                      >
-                        {msg.role === "assistant" ? (
-                          <div className="markdown-body">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {msg.content}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                        )}
-                      </div>
-                    </div>
                   )}
-                </div>
-              ))}
-              {isStreaming && messages[messages.length - 1]?.content === "" && (!messages[messages.length - 1]?.segments || messages[messages.length - 1].segments.length === 0) && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-lg px-4 py-2 flex items-center gap-1.5">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                    <span className="ml-2 text-sm text-gray-500">Thinking...</span>
-                  </div>
+                  <button
+                    onClick={handleNewChat}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    New Chat
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentConversation(null);
+                      setMessages([]);
+                      setSearchResults([]);
+                      setSearchResultsOpen(false);
+                    }}
+                    className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  >
+                    History
+                  </button>
+                </>
+              )}
+              <button
+                onClick={onClose}
+                className="p-1 text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          {!currentConversation && !onboarding ? (
+            /* Conversation list */
+            <div className="flex-1 overflow-y-auto p-4">
+              {conversations.length === 0 ? (
+                <p className="text-gray-500 text-center mt-8">
+                  No conversations yet. Start a new chat!
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {conversations.map((c) => (
+                    <div
+                      key={c.id}
+                      onClick={() => selectConversation(c.id)}
+                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50 cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 truncate">{c.title}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(c.updated_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => handleDeleteConversation(c.id, e)}
+                        className="ml-2 p-1 text-gray-400 hover:text-red-500"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
-
-            {/* Input */}
-            <div className="border-t p-4">
-              <div className="flex gap-2 items-end">
-                <textarea
-                  ref={inputRef}
-                  rows={1}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder={onboarding ? "Tell me about yourself..." : "Ask about jobs..."}
-                  disabled={isStreaming}
-                  className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none leading-6"
-                  style={{ maxHeight: "12rem" }}
-                />
-                {isStreaming ? (
-                  <button
-                    onClick={handleStop}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-1.5"
-                  >
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <rect x="6" y="6" width="12" height="12" rx="2" />
-                    </svg>
-                    Stop
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSend}
-                    disabled={!input.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Send
-                  </button>
+          ) : (
+            /* Chat view */
+            <>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((msg, i) => (
+                  <div key={i}>
+                    {msg.role === "assistant" && msg.segments && msg.segments.length > 0 ? (
+                      /* Render assistant segments in order */
+                      msg.segments.map((seg, j) =>
+                        seg.type === "text" ? (
+                          <div key={j} className="flex justify-start mb-2">
+                            <div className="max-w-[80%] rounded-lg px-4 py-2 bg-gray-100 text-gray-900">
+                              <div className="markdown-body">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                  {seg.content}
+                                </ReactMarkdown>
+                              </div>
+                            </div>
+                          </div>
+                        ) : seg.type === "tool" ? (
+                          <div key={j} className="ml-2 mb-2">
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              {seg.status === "running" ? (
+                                <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                              ) : seg.status === "completed" ? (
+                                <span className="text-green-500">&#10003;</span>
+                              ) : (
+                                <span className="text-amber-500">&#9888;</span>
+                              )}
+                              <span className="font-mono">{seg.name}</span>
+                              {seg.error && (
+                                <button
+                                  onClick={() => setExpandedErrors((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(seg.id)) next.delete(seg.id);
+                                    else next.add(seg.id);
+                                    return next;
+                                  })}
+                                  className="text-gray-400 hover:text-gray-600 underline"
+                                >
+                                  {expandedErrors.has(seg.id) ? "Hide details" : "Details"}
+                                </button>
+                              )}
+                            </div>
+                            {seg.error && expandedErrors.has(seg.id) && (
+                              <div className="ml-5 mt-1 px-2 py-1 text-xs text-gray-500 bg-gray-50 rounded border border-gray-200 font-mono break-all">
+                                {seg.error}
+                              </div>
+                            )}
+                          </div>
+                        ) : null
+                      )
+                    ) : (
+                      /* User messages or assistant messages without segments (e.g. from history) */
+                      <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                            msg.role === "user"
+                              ? "bg-blue-600 text-white"
+                              : "bg-gray-100 text-gray-900"
+                          }`}
+                        >
+                          {msg.role === "assistant" ? (
+                            <div className="markdown-body">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {msg.content}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {isStreaming && messages[messages.length - 1]?.content === "" && (!messages[messages.length - 1]?.segments || messages[messages.length - 1].segments.length === 0) && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 rounded-lg px-4 py-2 flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      <span className="ml-2 text-sm text-gray-500">Thinking...</span>
+                    </div>
+                  </div>
                 )}
+                <div ref={messagesEndRef} />
               </div>
-            </div>
-          </>
+
+              {/* Input */}
+              <div className="border-t p-4">
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder={onboarding ? "Tell me about yourself..." : "Ask about jobs..."}
+                    disabled={isStreaming}
+                    className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none leading-6"
+                    style={{ maxHeight: "12rem" }}
+                  />
+                  {isStreaming ? (
+                    <button
+                      onClick={handleStop}
+                      className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-1.5"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                      </svg>
+                      Stop
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSend}
+                      disabled={!input.trim()}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Send
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Search results panel (right side of chat) */}
+        {showResultsPanel && (
+          <div style={{ width: resultsPanelWidth }} className="h-full">
+            <SearchResultsPanel
+              isOpen={true}
+              results={searchResults}
+              onClose={() => setSearchResultsOpen(false)}
+              onAddToTracker={handleAddToTracker}
+              isSearching={isSearching}
+            />
+          </div>
         )}
       </div>
     </>
