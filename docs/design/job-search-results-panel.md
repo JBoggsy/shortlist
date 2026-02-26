@@ -342,7 +342,8 @@ User message: "Find me React jobs in Austin"
 1. **Sub-agent LLM cost:** The sub-agent will make many LLM calls (evaluating each job
    individually). Should we offer a config option to use a cheaper model for the sub-agent (like the
    onboarding agent pattern)?
-   **Answer:** Yes, and it should default to a cheap option. Also, 
+   **Answer:** Yes, and it should default to a cheap option. Also, lets batch the jobs in groups of
+   5 to reduce LLM calls.
 
 2. **Deduplication:** If the user asks to search again in the same conversation, should results
    append to the existing list or replace it?

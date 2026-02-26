@@ -35,6 +35,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
   const [searchResults, setSearchResults] = useState([]);
   const [searchResultsOpen, setSearchResultsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchProgress, setSearchProgress] = useState("");
 
   // Auto-resize textarea to fit content (up to ~8 lines)
   const autoResize = (el) => {
@@ -235,15 +236,23 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
     if (event.event === "search_started") {
       setIsSearching(true);
       setSearchResultsOpen(true);
+      setSearchProgress("Starting job search...");
+    } else if (event.event === "search_progress") {
+      // Brief status lines from the sub-agent
+      const text = (event.data.content || "").trim();
+      if (text) setSearchProgress(text);
     } else if (event.event === "search_result_added") {
       setSearchResults((prev) => {
         // Deduplicate
         if (prev.some((r) => r.id === event.data.id)) return prev;
-        return [...prev, { ...event.data, _isNew: true }];
+        const updated = [...prev, { ...event.data, _isNew: true }];
+        setSearchProgress(`Found ${updated.length} matching job${updated.length !== 1 ? "s" : ""} so far...`);
+        return updated;
       });
       setSearchResultsOpen(true);
     } else if (event.event === "search_completed") {
       setIsSearching(false);
+      setSearchProgress("");
     }
   }
 
@@ -402,6 +411,19 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
           className="absolute left-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-blue-400/40 active:bg-blue-400/60 z-10 transition-colors"
         />
 
+        {/* Search results panel (left side of chat) */}
+        {showResultsPanel && (
+          <div style={{ width: resultsPanelWidth }} className="h-full">
+            <SearchResultsPanel
+              isOpen={true}
+              results={searchResults}
+              onClose={() => setSearchResultsOpen(false)}
+              onAddToTracker={handleAddToTracker}
+              isSearching={isSearching}
+            />
+          </div>
+        )}
+
         {/* Chat panel */}
         <div className="flex flex-col bg-white shadow-xl h-full" style={{ width }}>
           {/* Header */}
@@ -519,6 +541,9 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
                                 <span className="text-amber-500">&#9888;</span>
                               )}
                               <span className="font-mono">{seg.name}</span>
+                              {seg.name === "run_job_search" && seg.status === "running" && searchProgress && (
+                                <span className="text-gray-400 italic">{searchProgress}</span>
+                              )}
                               {seg.error && (
                                 <button
                                   onClick={() => setExpandedErrors((prev) => {
@@ -622,18 +647,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
           )}
         </div>
 
-        {/* Search results panel (right side of chat) */}
-        {showResultsPanel && (
-          <div style={{ width: resultsPanelWidth }} className="h-full">
-            <SearchResultsPanel
-              isOpen={true}
-              results={searchResults}
-              onClose={() => setSearchResultsOpen(false)}
-              onAddToTracker={handleAddToTracker}
-              isSearching={isSearching}
-            />
-          </div>
-        )}
       </div>
     </>
   );
