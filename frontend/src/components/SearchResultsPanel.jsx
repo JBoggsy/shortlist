@@ -20,22 +20,16 @@ function StarRating({ rating }) {
 function ResultCard({ result, onAddToTracker }) {
   const [expanded, setExpanded] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [addPhase, setAddPhase] = useState(""); // "", "enriching", "done"
 
   const handleAdd = async (e) => {
     e.stopPropagation();
     setAdding(true);
-    setAddPhase("enriching");
     try {
       await onAddToTracker(result.id);
-      setAddPhase("done");
     } catch {
       setAdding(false);
-      setAddPhase("");
     }
   };
-
-  const addButtonLabel = addPhase === "enriching" ? "Enriching & Adding..." : "Add to Tracker";
 
   const salary =
     result.salary_min || result.salary_max
@@ -128,7 +122,7 @@ function ResultCard({ result, onAddToTracker }) {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 )}
-                {addButtonLabel}
+                {adding ? "Adding..." : "Add to Tracker"}
               </button>
             )}
           </div>

@@ -20,8 +20,6 @@
 
 ## Features
 
-- [x] **Better job adding** — Jobs added to tracker are auto-enriched by scraping the posting URL and extracting missing fields via LLM
-
 - [x] **Application todo extraction** — Extract & track per-job application steps (documents, questions, assessments) from job postings via LLM; checklist UI in Job Detail Panel with auto-extraction and agent tool
 
 - [ ] **Job application preparation (phase 2)**

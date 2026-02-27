@@ -69,13 +69,12 @@ class AgentTools(
         conversation_id:   Current conversation ID
         event_callback:    Callable for sub-agent SSE events
         search_model:      Optional cheaper LLM for sub-agent
-        enrichment_model:  Optional LLM for job enrichment
     """
 
     def __init__(self, search_api_key="", adzuna_app_id="", adzuna_app_key="",
                  adzuna_country="us", jsearch_api_key="",
                  conversation_id=None, event_callback=None,
-                 search_model=None, enrichment_model=None):
+                 search_model=None):
         self.search_api_key = search_api_key
         self.adzuna_app_id = adzuna_app_id
         self.adzuna_app_key = adzuna_app_key
@@ -84,7 +83,6 @@ class AgentTools(
         self.conversation_id = conversation_id
         self.event_callback = event_callback
         self.search_model = search_model
-        self.enrichment_model = enrichment_model
 
     def execute(self, tool_name, arguments):
         """Execute a tool by name with error handling."""

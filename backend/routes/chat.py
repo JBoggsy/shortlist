@@ -7,7 +7,6 @@ from backend.agent.base import Agent, OnboardingAgent
 from backend.agent.user_profile import is_onboarding_in_progress, set_onboarding_in_progress
 from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_search_llm_config, get_integration_config
 from backend.database import db
-from backend.job_enrichment import enrich_job_data
 from backend.llm.langchain_factory import create_langchain_model
 from backend.models.chat import Conversation, Message
 from backend.models.job import Job
@@ -217,98 +216,36 @@ def add_search_result_to_tracker(convo_id, result_id):
     if result.added_to_tracker:
         return {"error": "Already added to tracker", "job_id": result.tracker_job_id}, 409
 
-    # Build initial job data from the search result
-    job_data = {
-        "company": result.company,
-        "title": result.title,
-        "url": result.url,
-        "salary_min": result.salary_min,
-        "salary_max": result.salary_max,
-        "location": result.location,
-        "remote_type": result.remote_type,
-        "source": result.source,
-        "requirements": result.requirements,
-        "nice_to_haves": result.nice_to_haves,
-    }
-
-    # Enrich from URL if fields are missing
-    enriched = _enrich_job_data_safe(job_data)
-
+    # Create job directly from the search result data
     job = Job(
-        company=enriched.get("company", result.company),
-        title=enriched.get("title", result.title),
+        company=result.company,
+        title=result.title,
         url=result.url,
         status="saved",
-        salary_min=enriched.get("salary_min"),
-        salary_max=enriched.get("salary_max"),
-        location=enriched.get("location"),
-        remote_type=enriched.get("remote_type"),
-        source=enriched.get("source"),
+        salary_min=result.salary_min,
+        salary_max=result.salary_max,
+        location=result.location,
+        remote_type=result.remote_type,
+        source=result.source,
         job_fit=result.job_fit,
-        requirements=enriched.get("requirements"),
-        nice_to_haves=enriched.get("nice_to_haves"),
-        tags=enriched.get("tags"),
+        requirements=result.requirements,
+        nice_to_haves=result.nice_to_haves,
         notes=result.fit_reason,
     )
     db.session.add(job)
     db.session.flush()
 
-    # Save any extracted application todos
-    from backend.models.application_todo import ApplicationTodo
-    app_todos = enriched.get("_application_todos", [])
-    for i, item in enumerate(app_todos):
-        todo = ApplicationTodo(
-            job_id=job.id,
-            category=item.get("category", "other"),
-            title=item["title"],
-            description=item.get("description", ""),
-            sort_order=i,
-        )
-        db.session.add(todo)
-
     result.added_to_tracker = True
     result.tracker_job_id = job.id
     db.session.commit()
 
-    enrichment_status = enriched.get("_enrichment_status", "skipped")
-    fields_enriched = enriched.get("_fields_enriched", [])
-    logger.info("add_to_tracker: job id=%d enrichment=%s fields=%s",
-                job.id, enrichment_status, fields_enriched)
+    logger.info("add_to_tracker: job id=%d company=%s title=%s",
+                job.id, result.company, result.title)
 
     return {
         "result": result.to_dict(),
         "job": job.to_dict(),
-        "enrichment_status": enrichment_status,
-        "fields_enriched": fields_enriched,
     }, 201
-
-
-def _enrich_job_data_safe(job_data):
-    """Attempt to enrich job data, falling back gracefully on any error.
-
-    Uses the search LLM config (cheaper model) for enrichment.
-    """
-    try:
-        # Get LLM model for enrichment (use search model — cheaper)
-        search_config = get_search_llm_config()
-        integration_config = get_integration_config()
-
-        llm_model = None
-        if search_config.get("api_key") or search_config.get("provider") == "ollama":
-            llm_model = create_langchain_model(
-                search_config["provider"],
-                search_config.get("api_key", ""),
-                search_config.get("model", ""),
-            )
-
-        return enrich_job_data(
-            job_data=job_data,
-            search_api_key=integration_config.get("search_api_key", ""),
-            llm_model=llm_model,
-        )
-    except Exception as e:
-        logger.warning("Job enrichment failed, using original data: %s", e)
-        return job_data
 
 
 def _get_onboarding_model():

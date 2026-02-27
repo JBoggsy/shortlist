@@ -17,7 +17,7 @@ import {
 } from "../api";
 
 // Tool names that modify job data — when these complete, notify parent to refresh
-const JOB_MUTATING_TOOLS = new Set(["create_job", "extract_application_todos"]);
+const JOB_MUTATING_TOOLS = new Set(["create_job", "edit_job", "remove_job"]);
 
 function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, onJobsChanged, onError }) {
   const [conversations, setConversations] = useState([]);

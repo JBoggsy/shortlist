@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { fetchJobTodos, createJobTodo, updateJobTodo, deleteJobTodo, extractJobTodos } from "../api";
+import { fetchJobTodos, createJobTodo, updateJobTodo, deleteJobTodo } from "../api";
 
 const CATEGORY_META = {
   document: { icon: "📄", label: "Documents" },
@@ -13,13 +13,11 @@ const CATEGORY_ORDER = ["document", "question", "assessment", "reference", "othe
 
 function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
   const [todos, setTodos] = useState([]);
-  const [extracting, setExtracting] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTodoTitle, setNewTodoTitle] = useState("");
   const [newTodoCategory, setNewTodoCategory] = useState("other");
   const [newTodoDescription, setNewTodoDescription] = useState("");
   const [expandedTodos, setExpandedTodos] = useState(new Set());
-  const [extractError, setExtractError] = useState(null);
 
   const loadTodos = useCallback(async () => {
     if (!job?.id) return;
@@ -34,7 +32,6 @@ function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
   useEffect(() => {
     if (isOpen && job?.id) {
       loadTodos();
-      setExtractError(null);
     } else {
       setTodos([]);
     }
@@ -61,19 +58,6 @@ function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
     if (min && max) return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
     if (min) return `$${min.toLocaleString()}+`;
     if (max) return `Up to $${max.toLocaleString()}`;
-  }
-
-  async function handleExtract() {
-    setExtracting(true);
-    setExtractError(null);
-    try {
-      await extractJobTodos(job.id);
-      await loadTodos();
-    } catch (err) {
-      setExtractError(err.message);
-    } finally {
-      setExtracting(false);
-    }
   }
 
   async function handleToggleTodo(todo) {
@@ -236,26 +220,6 @@ function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
                 >
                   + Add
                 </button>
-                {job.url && (
-                  <button
-                    onClick={handleExtract}
-                    disabled={extracting}
-                    className="text-xs px-2 py-1 text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Extract application steps from job posting"
-                  >
-                    {extracting ? (
-                      <span className="flex items-center gap-1">
-                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Extracting…
-                      </span>
-                    ) : (
-                      "Extract from posting"
-                    )}
-                  </button>
-                )}
               </div>
             </div>
 
@@ -266,13 +230,6 @@ function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
                   className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
                   style={{ width: `${(completedCount / todos.length) * 100}%` }}
                 />
-              </div>
-            )}
-
-            {/* Extract error */}
-            {extractError && (
-              <div className="text-xs text-red-600 bg-red-50 rounded p-2 mb-2">
-                {extractError}
               </div>
             )}
 
@@ -390,7 +347,7 @@ function JobDetailPanel({ job, isOpen, onClose, onEdit }) {
               </div>
             ) : (
               <p className="text-xs text-gray-400 italic">
-                {job.url ? "Click \"Extract from posting\" to detect application steps, or add them manually." : "Add application steps manually to track your progress."}
+                Add application steps manually to track your progress, or ask the AI assistant to extract them.
               </p>
             )}
           </div>

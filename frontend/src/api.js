@@ -76,13 +76,6 @@ export async function deleteJobTodo(jobId, todoId) {
   if (!res.ok) throw new Error("Failed to delete todo");
 }
 
-export async function extractJobTodos(jobId) {
-  const res = await fetch(`${BASE}/${jobId}/todos/extract`, { method: "POST" });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to extract todos");
-  return data;
-}
-
 // Chat API
 
 export async function fetchConversations() {

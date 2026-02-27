@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Job enrichment** — Removed `backend/job_enrichment.py` and all automatic enrichment when adding jobs to tracker
+- **Scraper and todo extractor modules** — Removed `backend/scraper.py` and `backend/todo_extractor.py`; scraping and extraction are now exclusively handled by the agent
+- **Extract todos endpoint** — Removed `POST /api/jobs/:id/todos/extract`; "Extract from posting" button removed from Job Detail Panel
+
 ### Changed
 - **Agent ABCs** — Extracted abstract base classes (`Agent`, `OnboardingAgent`, `ResumeParser`) into `backend/agent/base.py`, decoupling the agent interface from any specific LLM framework. Routes now import from `base.py` instead of `langchain_agent.py`.
 - **Agent tools consolidated** — Moved `add_search_result` tool from the removed `JobSearchSubAgentTools` into the main `AgentTools` class. All tools are now in a single class.
