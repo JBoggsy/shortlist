@@ -192,7 +192,7 @@ shortlist/
 
 **`backend/agent/base.py`**: Abstract base classes defining the agent interfaces: `Agent` (main chat agent), `OnboardingAgent` (profile interview), `ResumeParser` (non-streaming resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()` for agents, `parse()` for resume parser) that concrete implementations must satisfy. Routes import from here.
 
-**`backend/agent/tools.py`**: Defines the `AgentTools` class with `@agent_tool`-decorated methods for all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`, `run_job_search`, `add_search_result`, `extract_application_todos`, `list_search_results`). Includes Pydantic input schemas for each tool, `execute()` for dispatching tool calls by name, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
+**`backend/agent/tools.py`**: Defines the `AgentTools` class with `@agent_tool`-decorated methods for all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`, `add_search_result`, `list_search_results`). Includes Pydantic input schemas for each tool, `execute()` for dispatching tool calls by name, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
 
 **`backend/agent/langchain_agent.py`**: Backwards-compatibility shim that re-exports `Agent`, `OnboardingAgent`, and `ResumeParser` from `base.py` under the old `LangChain*` names.
 
@@ -705,7 +705,6 @@ Defined in `backend/agent/tools.py`:
 | `read_resume` | Read the user's uploaded resume text | — |
 | `run_job_search` | Launch a comprehensive job search sub-agent | `query`, `location` (opt), `remote_only` (opt), `salary_min`/`salary_max` (opt) |
 | `add_search_result` | Add a qualifying job to search results panel | `company`, `title`, `job_fit` (required); plus optional fields |
-| `extract_application_todos` | Extract application steps from a job posting | `job_id` |
 | `list_search_results` | List search results from current conversation | `min_fit` (opt) |
 
 ### Tool Definitions

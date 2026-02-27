@@ -72,7 +72,7 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/models/search_result.py` — `SearchResult` model for per-conversation job search results (fields: company, title, url, salary, location, remote_type, source, description, requirements, nice_to_haves, job_fit, fit_reason, added_to_tracker, tracker_job_id)
 - `backend/models/application_todo.py` — `ApplicationTodo` model for per-job application steps (fields: job_id, category, title, description, completed, sort_order)
 - `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy. Routes import and instantiate agents via these ABCs.
-- `backend/agent/tools.py` — `AgentTools` class with `@agent_tool`-decorated methods (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume, run_job_search, add_search_result, extract_application_todos, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
+- `backend/agent/tools.py` — `AgentTools` class with `@agent_tool`-decorated methods (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume, add_search_result, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
 - `backend/agent/langchain_agent.py` — Backwards-compatibility shim that re-exports `Agent`, `OnboardingAgent`, and `ResumeParser` from `base.py` under the old `LangChain*` names
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
 
@@ -224,10 +224,7 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - `tool_error` — `{"id": "...", "name": "...", "error": "..."}` — tool execution failed
 - `done` — `{"content": "full text"}` — agent finished
 - `onboarding_complete` — `{}` — onboarding interview finished (only in onboarding flow)
-- `search_started` — `{"query": "..."}` — job search sub-agent has begun
-- `search_result_added` — full `SearchResult` dict — a new result was added to the results panel
-- `search_progress` — `{"content": "..."}` — brief status update from the search sub-agent
-- `search_completed` — `{"results_added": N}` — job search sub-agent finished
+- `search_result_added` — full `SearchResult` dict — emitted by the `add_search_result` tool; opens the results panel and adds the entry in real time
 - `error` — `{"message": "..."}` — fatal error
 
 ## Conventions
@@ -263,8 +260,8 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - Frontend Vite dev server proxies `/api` to Flask at `localhost:5000`
 - Frontend pages live in `frontend/src/pages/`, reusable components in `frontend/src/components/`
 - API helper functions in `frontend/src/api.js` — all backend calls go through this module
-- **Live job list refresh:** `ChatPanel` has a `JOB_MUTATING_TOOLS` set that tracks which agent tools modify job data (currently `create_job`). When a `tool_result` SSE event fires for one of these tools, the panel calls `onJobsChanged()` which bumps a `jobsVersion` counter in `App`, causing `JobList` to re-fetch. **When adding a new agent tool that creates, updates, or deletes jobs, add its name to `JOB_MUTATING_TOOLS` in `frontend/src/components/ChatPanel.jsx`.**
-- **Job search results panel:** When the main agent calls `run_job_search`, a sub-agent emits `search_started`, `search_result_added`, and `search_completed` SSE events that ChatPanel handles to populate a `SearchResultsPanel` alongside the chat. Results persist per-conversation in the `search_results` DB table and are loaded when opening historical conversations. "Add to Tracker" promotes a `SearchResult` to a `Job` record and refreshes the job list.
+- **Live job list refresh:** `ChatPanel` has a `JOB_MUTATING_TOOLS` set that tracks which agent tools modify job data (currently `create_job`, `edit_job`, `remove_job`). When a `tool_result` SSE event fires for one of these tools, the panel calls `onJobsChanged()` which bumps a `jobsVersion` counter in `App`, causing `JobList` to re-fetch. **When adding a new agent tool that creates, updates, or deletes jobs, add its name to `JOB_MUTATING_TOOLS` in `frontend/src/components/ChatPanel.jsx`.**
+- **Job search results panel:** When the main agent calls `add_search_result`, a `search_result_added` SSE event is emitted and ChatPanel handles it to populate a `SearchResultsPanel` alongside the chat. Results accumulate in real time as the agent adds them. Results persist per-conversation in the `search_results` DB table and are loaded when opening historical conversations. "Add to Tracker" promotes a `SearchResult` to a `Job` record and refreshes the job list.
 
 ## Best Practices
 

@@ -5,7 +5,7 @@ from flask import Blueprint, Response, current_app, request, stream_with_context
 
 from backend.agent.base import Agent, OnboardingAgent
 from backend.agent.user_profile import is_onboarding_in_progress, set_onboarding_in_progress
-from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_search_llm_config, get_integration_config
+from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_integration_config
 from backend.database import db
 from backend.llm.langchain_factory import create_langchain_model
 from backend.models.chat import Conversation, Message
@@ -129,23 +129,6 @@ def send_message(convo_id):
                 "X-Accel-Buffering": "no",
             },
         )
-    # Create search sub-agent model (may be a cheaper model)
-    search_llm_config = get_search_llm_config()
-    search_model = None
-    try:
-        if search_llm_config["api_key"] or search_llm_config["provider"] == "ollama":
-            search_model = create_langchain_model(
-                search_llm_config["provider"],
-                search_llm_config["api_key"],
-                search_llm_config["model"],
-            )
-    except Exception as e:
-        logger.warning("Failed to create search LLM model, falling back to main: %s", e)
-
-    # Fall back to main model if search model not configured
-    if search_model is None:
-        search_model = model
-
     agent = Agent(
         model,
         search_api_key=integration_config["search_api_key"],
@@ -154,7 +137,6 @@ def send_message(convo_id):
         adzuna_country=integration_config["adzuna_country"],
         jsearch_api_key=integration_config["jsearch_api_key"],
         conversation_id=convo_id,
-        search_model=search_model,
     )
 
     def generate():

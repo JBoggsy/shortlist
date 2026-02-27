@@ -22,8 +22,7 @@ class Agent(ABC):
         adzuna_app_key:   Adzuna application key
         adzuna_country:   Adzuna country code (default "us")
         jsearch_api_key:  RapidAPI key for JSearch
-        conversation_id:  Current conversation ID (for DB writes / sub-agent)
-        search_model:     Optional cheaper model for job search sub-agent
+        conversation_id:  Current conversation ID (for DB writes)
 
     Subclasses must implement run().
     """
@@ -38,7 +37,6 @@ class Agent(ABC):
         adzuna_country: str = "us",
         jsearch_api_key: str = "",
         conversation_id: int | None = None,
-        search_model=None,
     ):
         ...
 
@@ -50,18 +48,13 @@ class Agent(ABC):
             messages: List of {"role": "user"|"assistant", "content": str}
 
         Yields SSE event dicts:
-            {"event": "text_delta",  "data": {"content": str}}
-            {"event": "tool_start",  "data": {"id": str, "name": str, "arguments": dict}}
-            {"event": "tool_result", "data": {"id": str, "name": str, "result": dict}}
-            {"event": "tool_error",  "data": {"id": str, "name": str, "error": str}}
-            {"event": "done",        "data": {"content": str}}   # full accumulated text
-            {"event": "error",       "data": {"message": str}}   # fatal error
-
-        Job-search sub-agent events forwarded through the stream:
-            {"event": "search_started",      "data": {"query": str}}
-            {"event": "search_progress",     "data": {"content": str}}
-            {"event": "search_result_added", "data": {SearchResult dict}}
-            {"event": "search_completed",    "data": {"results_added": int}}
+            {"event": "text_delta",          "data": {"content": str}}
+            {"event": "tool_start",          "data": {"id": str, "name": str, "arguments": dict}}
+            {"event": "tool_result",         "data": {"id": str, "name": str, "result": dict}}
+            {"event": "tool_error",          "data": {"id": str, "name": str, "error": str}}
+            {"event": "done",                "data": {"content": str}}   # full accumulated text
+            {"event": "error",               "data": {"message": str}}   # fatal error
+            {"event": "search_result_added", "data": {SearchResult dict}}  # from add_search_result tool
         """
         ...
 

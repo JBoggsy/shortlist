@@ -25,11 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.0] - 2026-02-26
 
 ### Added
-- **Application todo extraction** — Extract application steps (documents, questions, assessments) from job postings via LLM. Todos are tracked per-job with checkboxes in the Job Detail Panel. Auto-extracted during job enrichment, on-demand via "Extract from posting" button, or via AI agent `extract_application_todos` tool. Manual todo creation also supported.
+- **Application todo extraction** — Extract application steps (documents, questions, assessments) from job postings via LLM. Todos are tracked per-job with checkboxes in the Job Detail Panel. On-demand via "Extract from posting" button. Manual todo creation also supported.
 - **ApplicationTodo model** — New `backend/models/application_todo.py` with category, title, description, completed, sort_order fields
 - **Todo extractor module** — New `backend/todo_extractor.py` with LLM prompt for extracting application steps from scraped job text
 - **Todo API endpoints** — CRUD routes at `/api/jobs/:id/todos` plus `/api/jobs/:id/todos/extract` for LLM extraction
-- **Agent tool** — `extract_application_todos` tool lets the AI extract and save application steps for any tracked job
 - **Application Steps UI** — Interactive checklist in Job Detail Panel grouped by category with progress bar, expand/collapse descriptions, and inline add/delete
 
 ## [0.9.1] - 2026-02-26

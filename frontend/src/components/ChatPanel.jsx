@@ -34,8 +34,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
   // Search results state
   const [searchResults, setSearchResults] = useState([]);
   const [searchResultsOpen, setSearchResultsOpen] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchProgress, setSearchProgress] = useState("");
 
   // Auto-resize textarea to fit content (up to ~8 lines)
   const autoResize = (el) => {
@@ -199,7 +197,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       setMessages([]);
       setSearchResults([]);
       setSearchResultsOpen(false);
-      setIsSearching(false);
       await loadConversations();
     } catch (e) {
       console.error("Failed to create conversation:", e);
@@ -212,7 +209,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       abortControllerRef.current = null;
     }
     setIsStreaming(false);
-    setIsSearching(false);
   }
 
   async function handleDeleteConversation(id, e) {
@@ -231,28 +227,14 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
     }
   }
 
-  // Handle SSE events common to both streaming paths
+  // Handle search_result_added SSE events (emitted by the add_search_result tool)
   function handleSearchEvent(event) {
-    if (event.event === "search_started") {
-      setIsSearching(true);
-      setSearchResultsOpen(true);
-      setSearchProgress("Starting job search...");
-    } else if (event.event === "search_progress") {
-      // Brief status lines from the sub-agent
-      const text = (event.data.content || "").trim();
-      if (text) setSearchProgress(text);
-    } else if (event.event === "search_result_added") {
+    if (event.event === "search_result_added") {
       setSearchResults((prev) => {
-        // Deduplicate
         if (prev.some((r) => r.id === event.data.id)) return prev;
-        const updated = [...prev, { ...event.data, _isNew: true }];
-        setSearchProgress(`Found ${updated.length} matching job${updated.length !== 1 ? "s" : ""} so far...`);
-        return updated;
+        return [...prev, { ...event.data, _isNew: true }];
       });
       setSearchResultsOpen(true);
-    } else if (event.event === "search_completed") {
-      setIsSearching(false);
-      setSearchProgress("");
     }
   }
 
@@ -366,7 +348,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
         pushUpdate();
         abortControllerRef.current = null;
         setIsStreaming(false);
-        setIsSearching(false);
         return;
       }
       console.error("Stream error:", e);
@@ -381,7 +362,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
 
     abortControllerRef.current = null;
     setIsStreaming(false);
-    setIsSearching(false);
     if (onboardingDone && onOnboardingComplete) {
       onOnboardingComplete();
       return;
@@ -419,7 +399,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
               results={searchResults}
               onClose={() => setSearchResultsOpen(false)}
               onAddToTracker={handleAddToTracker}
-              isSearching={isSearching}
             />
           </div>
         )}
@@ -541,9 +520,6 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
                                 <span className="text-amber-500">&#9888;</span>
                               )}
                               <span className="font-mono">{seg.name}</span>
-                              {seg.name === "run_job_search" && seg.status === "running" && searchProgress && (
-                                <span className="text-gray-400 italic">{searchProgress}</span>
-                              )}
                               {seg.error && (
                                 <button
                                   onClick={() => setExpandedErrors((prev) => {
