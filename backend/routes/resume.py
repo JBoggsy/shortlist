@@ -112,7 +112,7 @@ def parse_resume_with_llm():
     """
     from backend.config_manager import get_llm_config
     from backend.llm.langchain_factory import create_langchain_model
-    from backend.agent.langchain_agent import LangChainResumeParser
+    from backend.agent.base import ResumeParser
 
     # Get the raw resume text
     raw_text = get_resume_text()
@@ -135,7 +135,7 @@ def parse_resume_with_llm():
         return {"error": f"Failed to initialize LLM provider: {str(e)}"}, 500
 
     try:
-        parser = LangChainResumeParser(model)
+        parser = ResumeParser(model)
         parsed = parser.parse(raw_text)
         logger.info("Resume parsed successfully via LLM")
         return {"parsed": parsed}

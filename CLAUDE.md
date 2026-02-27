@@ -73,9 +73,9 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/llm/model_listing.py` — `list_models()` functions for each provider (uses raw SDKs to query available models); `MODEL_LISTERS` registry
 - `backend/models/search_result.py` — `SearchResult` model for per-conversation job search results (fields: company, title, url, salary, location, remote_type, source, description, requirements, nice_to_haves, job_fit, fit_reason, added_to_tracker, tracker_job_id)
 - `backend/models/application_todo.py` — `ApplicationTodo` model for per-job application steps (fields: job_id, category, title, description, completed, sort_order)
-- `backend/agent/tools.py` — `AgentTools` class with `@agent_tool`-decorated methods (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume, run_job_search, list_search_results, extract_application_todos), Pydantic input schemas, and `to_langchain_tools()` for auto-generating LangChain `StructuredTool` instances
-- `backend/agent/langchain_agent.py` — `LangChainAgent` (streaming tool-calling loop with sub-agent event forwarding), `LangChainOnboardingAgent` (profile interview), `LangChainResumeParser` (non-streaming JSON extraction); system prompts; helper utilities for tool-call chunk accumulation, message conversion, and JSON extraction
-- `backend/agent/job_search_agent.py` — `LangChainJobSearchAgent` (job search sub-agent); `JobSearchSubAgentTools` with `add_search_result` tool; searches multiple job boards, evaluates fit against user profile, adds qualifying results (≥3 stars) to per-conversation results panel via SSE events
+- `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy. Routes import and instantiate agents via these ABCs.
+- `backend/agent/tools.py` — `AgentTools` class with `@agent_tool`-decorated methods (web_search, job_search, scrape_url, create_job, list_jobs, read_user_profile, update_user_profile, read_resume, run_job_search, add_search_result, extract_application_todos, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
+- `backend/agent/langchain_agent.py` — Backwards-compatibility shim that re-exports `Agent`, `OnboardingAgent`, and `ResumeParser` from `base.py` under the old `LangChain*` names
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
 
 ### Frontend
@@ -218,7 +218,7 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - `LOG_LEVEL` — `DEBUG`, `INFO` (default), `WARNING`, `ERROR`
 - Logs go to both the console and `logs/app.log` (file auto-rotated by the OS; directory auto-created)
 - Set `LOG_LEVEL=DEBUG` to see full tool result payloads in the log
-- Key loggers: `backend.agent.agent` (agent loop, iterations, tool calls), `backend.agent.tools` (tool execution details), `backend.llm.*` (provider requests/responses), `backend.routes.chat` (incoming messages, response completion)
+- Key loggers: `backend.agent.tools` (tool execution details), `backend.llm.*` (provider requests/responses), `backend.routes.chat` (incoming messages, response completion)
 
 ### SSE Event Types (chat streaming)
 - `text_delta` — `{"content": "..."}` — incremental text from the LLM

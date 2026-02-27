@@ -88,9 +88,9 @@ shortlist/
 │   │   ├── langchain_factory.py   # create_langchain_model() — returns LangChain BaseChatModel
 │   │   └── model_listing.py       # list_models() per provider, MODEL_LISTERS registry
 │   └── agent/
-│       ├── tools.py               # AgentTools class with tool execution methods
-│       ├── langchain_tools.py     # Pydantic input models + create_langchain_tools() factory
-│       ├── langchain_agent.py     # LangChainAgent, LangChainOnboardingAgent, LangChainResumeParser
+│       ├── base.py                # ABCs: Agent, OnboardingAgent, ResumeParser
+│       ├── tools.py               # AgentTools class with @agent_tool methods and Pydantic schemas
+│       ├── langchain_agent.py     # Backwards-compat shim (re-exports from base.py)
 │       └── user_profile.py        # User profile file management
 ├── frontend/
 │   ├── vite.config.js             # Vite config (React, Tailwind CSS plugin, proxy)
@@ -182,7 +182,7 @@ shortlist/
 
 **`backend/routes/config.py`**: Configuration blueprint for settings management. Provides endpoints for getting/updating config, testing LLM connections, listing providers, and health checks. Mounted at `/api/config`.
 
-**`backend/routes/resume.py`**: Resume upload blueprint. Handles file upload (multipart/form-data), parsing, storage, retrieval, and deletion. Supports PDF and DOCX files up to 10 MB. Also provides an LLM-powered parsing endpoint (`POST /api/resume/parse`) that uses `LangChainResumeParser` to clean up raw extracted text and structure it into JSON. Mounted at `/api/resume`.
+**`backend/routes/resume.py`**: Resume upload blueprint. Handles file upload (multipart/form-data), parsing, storage, retrieval, and deletion. Supports PDF and DOCX files up to 10 MB. Also provides an LLM-powered parsing endpoint (`POST /api/resume/parse`) that uses `ResumeParser` to clean up raw extracted text and structure it into JSON. Mounted at `/api/resume`.
 
 **`backend/resume_parser.py`**: Resume parsing utilities. Extracts plain text from PDF files (via PyMuPDF) and DOCX files (via python-docx, including table content). Provides file save/load/delete helpers with resume files stored in a `resumes/` subdirectory under the data dir. Also stores LLM-parsed structured JSON (`save_parsed_resume`, `get_parsed_resume`, `delete_parsed_resume`).
 
@@ -190,11 +190,11 @@ shortlist/
 
 **`backend/llm/model_listing.py`**: `list_models(provider_name, api_key)` functions for each provider (uses raw SDKs to query available models). Includes `MODEL_LISTERS` registry mapping provider names to their listing functions.
 
-**`backend/agent/tools.py`**: Defines the `AgentTools` class with execution methods for all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`).
+**`backend/agent/base.py`**: Abstract base classes defining the agent interfaces: `Agent` (main chat agent), `OnboardingAgent` (profile interview), `ResumeParser` (non-streaming resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()` for agents, `parse()` for resume parser) that concrete implementations must satisfy. Routes import from here.
 
-**`backend/agent/langchain_tools.py`**: Pydantic input models for each tool and `create_langchain_tools()` factory that wraps `AgentTools` methods as LangChain `StructuredTool` instances.
+**`backend/agent/tools.py`**: Defines the `AgentTools` class with `@agent_tool`-decorated methods for all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `read_user_profile`, `update_user_profile`, `read_resume`, `run_job_search`, `add_search_result`, `extract_application_todos`, `list_search_results`). Includes Pydantic input schemas for each tool, `execute()` for dispatching tool calls by name, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
 
-**`backend/agent/langchain_agent.py`**: `LangChainAgent` class that runs the streaming tool-calling loop via LangChain `BaseChatModel.stream()`. Also includes `LangChainOnboardingAgent` (profile interview flow) and `LangChainResumeParser` (non-streaming JSON extraction). Injects resume availability status into the system prompt.
+**`backend/agent/langchain_agent.py`**: Backwards-compatibility shim that re-exports `Agent`, `OnboardingAgent`, and `ResumeParser` from `base.py` under the old `LangChain*` names.
 
 **`backend/agent/user_profile.py`**: User profile file management with YAML frontmatter parsing. Handles reading, writing, and onboarding status checking.
 
@@ -504,7 +504,7 @@ Auto-generated:
 
 The raw text is extracted using PyMuPDF (PDF) or python-docx (DOCX, including table content). Resume files are stored in a `resumes/` subdirectory under the data directory.
 
-The `POST /api/resume/parse` endpoint uses `LangChainResumeParser` to send the raw extracted text to the configured LLM, which cleans up PDF/DOCX extraction artifacts (broken formatting, garbled characters, merged words) and returns structured JSON with fields like `contact_info`, `work_experience`, `education`, `skills`, `certifications`, `projects`, and more. The structured data is persisted as `resume_parsed.json` and returned by subsequent `GET /api/resume` calls.
+The `POST /api/resume/parse` endpoint uses `ResumeParser` to send the raw extracted text to the configured LLM, which cleans up PDF/DOCX extraction artifacts (broken formatting, garbled characters, merged words) and returns structured JSON with fields like `contact_info`, `work_experience`, `education`, `skills`, `certifications`, `projects`, and more. The structured data is persisted as `resume_parsed.json` and returned by subsequent `GET /api/resume` calls.
 
 **Configuration Object Format:**
 ```json
@@ -666,16 +666,26 @@ elif provider_name == "yourprovider":
 
 ## Agent System
 
-The agent system provides an iterative tool-calling loop that enables the AI to interact with external APIs and the database.
+The agent system uses abstract base classes (ABCs) to define the interface between the application routes and agent implementations. This allows agent implementations to be swapped without modifying the rest of the application.
 
 ### Architecture
 
-**Agent Loop** (`backend/agent/langchain_agent.py`):
+**Agent ABCs** (`backend/agent/base.py`):
+- `Agent` — main chat agent with `run(messages)` generator method
+- `OnboardingAgent` — profile interview agent with `run(messages)` generator method
+- `ResumeParser` — resume parsing with `parse(raw_text)` method
+
+**Agent Tools** (`backend/agent/tools.py`):
+- `AgentTools` — tool implementations with `@agent_tool` decorator
+- `execute(tool_name, arguments)` — dispatch tool calls by name
+- `get_tool_definitions()` — return tool metadata for LLM framework adaptation
+
+**Agent Loop** (implemented by concrete agent classes):
 1. User sends message
-2. Agent calls LangChain `BaseChatModel.stream()` with system prompt + conversation history + bound tools
-3. LLM responds with text deltas and/or tool call chunks (accumulated)
-4. Agent executes tool calls via `AgentTools`
-5. Tool results are added to conversation history as `ToolMessage`s
+2. Agent calls LLM with system prompt + conversation history + tools
+3. LLM responds with text and/or tool calls
+4. Agent executes tool calls via `AgentTools.execute()`
+5. Tool results are added to conversation history
 6. If LLM made tool calls, return to step 2
 7. Stream final response to user via SSE events
 
@@ -693,23 +703,27 @@ Defined in `backend/agent/tools.py`:
 | `read_user_profile` | Read the user's profile markdown | — |
 | `update_user_profile` | Update the user's profile | `content` |
 | `read_resume` | Read the user's uploaded resume text | — |
+| `run_job_search` | Launch a comprehensive job search sub-agent | `query`, `location` (opt), `remote_only` (opt), `salary_min`/`salary_max` (opt) |
+| `add_search_result` | Add a qualifying job to search results panel | `company`, `title`, `job_fit` (required); plus optional fields |
+| `extract_application_todos` | Extract application steps from a job posting | `job_id` |
+| `list_search_results` | List search results from current conversation | `min_fit` (opt) |
 
 ### Tool Definitions
 
-Tools are defined as Pydantic input models in `backend/agent/langchain_tools.py` and wrapped as LangChain `StructuredTool` instances via `create_langchain_tools()`:
+Tools are defined as `@agent_tool`-decorated methods on `AgentTools` with colocated Pydantic input schemas. The `get_tool_definitions()` method returns metadata that agent implementations use to adapt tools to their specific LLM framework:
 
 ```python
 class WebSearchInput(BaseModel):
     query: str = Field(description="Search query")
     num_results: int = Field(default=5, description="Number of results to return (max 10)")
 
-# In create_langchain_tools():
-StructuredTool.from_function(
-    func=agent_tools.web_search,
-    name="web_search",
+@agent_tool(
     description="Search the web using Tavily.",
     args_schema=WebSearchInput,
 )
+def web_search(self, query, num_results=5):
+    # tool implementation
+    ...
 ```
 
 ### User Profile Integration
@@ -720,45 +734,41 @@ The agent also proactively extracts job-search-relevant information from user me
 
 ### Onboarding Agent
 
-`LangChainOnboardingAgent` is a specialized agent class with a dedicated system prompt that conducts an interview to build the user's profile. It asks about:
+`OnboardingAgent` is a specialized agent ABC. Implementations use a dedicated system prompt that conducts an interview to build the user's profile. It asks about:
 - Job search status and goals
 - Preferred job titles and roles
 - Skills and experience
 - Location preferences and remote work preferences
 - Salary expectations
 
-Once complete, it sets the `onboarded: true` flag in the user profile frontmatter.
+Once complete, it sets the `onboarded: true` flag in the user profile frontmatter and yields an `onboarding_complete` SSE event.
 
 ### Adding a New Tool
 
-1. Add the tool method to the `AgentTools` class in `backend/agent/tools.py`
-2. Create a Pydantic input model in `backend/agent/langchain_tools.py`
-3. Add the `StructuredTool.from_function()` call in `create_langchain_tools()`
-4. If the tool mutates jobs, add its name to `JOB_MUTATING_TOOLS` in `frontend/src/components/ChatPanel.jsx` to trigger live list refresh
+1. Create a Pydantic input model in `backend/agent/tools.py`
+2. Add the `@agent_tool`-decorated method to the `AgentTools` class in `backend/agent/tools.py`
+3. If the tool mutates jobs, add its name to `JOB_MUTATING_TOOLS` in `frontend/src/components/ChatPanel.jsx` to trigger live list refresh
 
 Example:
 
 ```python
-# In backend/agent/tools.py — AgentTools class
-def update_job(self, job_id: int, field: str, value: str) -> dict:
-    job = Job.query.get_or_404(job_id)
-    setattr(job, field, value)
-    db.session.commit()
-    return job.to_dict()
+# In backend/agent/tools.py
 
-# In backend/agent/langchain_tools.py
 class UpdateJobInput(BaseModel):
     job_id: int = Field(description="ID of the job to update")
     field: str = Field(description="Field name to update")
     value: str = Field(description="New value for the field")
 
-# In create_langchain_tools():
-StructuredTool.from_function(
-    func=agent_tools.update_job,
-    name="update_job",
+# In the AgentTools class:
+@agent_tool(
     description="Update an existing job in the tracker",
     args_schema=UpdateJobInput,
 )
+def update_job(self, job_id, field, value):
+    job = Job.query.get_or_404(job_id)
+    setattr(job, field, value)
+    db.session.commit()
+    return job.to_dict()
 ```
 
 Then in `frontend/src/components/ChatPanel.jsx`:
@@ -803,7 +813,6 @@ const JOB_MUTATING_TOOLS = new Set(['create_job', 'update_job']);
   - `WARNING`: Unexpected but handled situations
   - `ERROR`: Errors that need attention
 - **Key loggers**:
-  - `backend.agent.agent`: Agent loop, iterations, tool calls
   - `backend.agent.tools`: Tool execution details
   - `backend.llm.*`: Provider requests/responses
   - `backend.routes.chat`: Incoming messages, response completion

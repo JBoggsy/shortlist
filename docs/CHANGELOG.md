@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Agent ABCs** — Extracted abstract base classes (`Agent`, `OnboardingAgent`, `ResumeParser`) into `backend/agent/base.py`, decoupling the agent interface from any specific LLM framework. Routes now import from `base.py` instead of `langchain_agent.py`.
+- **Agent tools consolidated** — Moved `add_search_result` tool from the removed `JobSearchSubAgentTools` into the main `AgentTools` class. All tools are now in a single class.
+- **Framework-agnostic tool metadata** — Replaced `to_langchain_tools()` with `get_tool_definitions()` which returns tool metadata without importing LangChain. Agent implementations adapt definitions to their own framework.
+
+### Removed
+- **`LangChainJobSearchAgent`** — Removed the job search sub-agent class and emptied `backend/agent/job_search_agent.py`. The `run_job_search` and `add_search_result` tools remain in `AgentTools`.
+- **`JobSearchSubAgentTools`** — Removed the `AgentTools` subclass; `add_search_result` moved to the base `AgentTools`.
+- **LangChain class names** — `LangChainAgent`, `LangChainOnboardingAgent`, `LangChainResumeParser` renamed to `Agent`, `OnboardingAgent`, `ResumeParser`. Old names available via backwards-compat shim in `langchain_agent.py`.
+
 ## [0.10.0] - 2026-02-26
 
 ### Added
@@ -29,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Job search sub-agent with results panel** — When the user asks the AI to search for jobs, a specialized sub-agent runs multiple searches, evaluates each job against the user profile (0-5 star rating), and populates a slide-out results panel next to the chat. Results are persistent per-conversation and each can be added to the job tracker with one click.
 - **SearchResult model** — New `backend/models/search_result.py` for per-conversation job search results with fit rating, description, and tracker promotion state
-- **Job search sub-agent** — New `backend/agent/job_search_agent.py` with `LangChainJobSearchAgent` that searches, scrapes, evaluates, and collects qualifying jobs (>=3 stars) via `add_search_result` tool
+- **Job search sub-agent** — New job search sub-agent that searches, scrapes, evaluates, and collects qualifying jobs (>=3 stars) via `add_search_result` tool (later consolidated into `AgentTools`)
 - **Main agent search tools** — `run_job_search` tool delegates to sub-agent; `list_search_results` tool reads results for highlight commentary
 - **Search results API** — `GET /api/chat/conversations/:id/search-results` and `POST .../add-to-tracker` endpoints
 - **SearchResultsPanel component** — Slide-out panel with collapsible result cards, star ratings, fit reasons, and "Add to Tracker" buttons
