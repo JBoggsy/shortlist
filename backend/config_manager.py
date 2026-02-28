@@ -37,6 +37,9 @@ DEFAULT_CONFIG = {
         "api_key": "",
         "model": ""
     },
+    "agent": {
+        "design": "default"
+    },
     "integrations": {
         "search_api_key": "",
         "adzuna_app_id": "",

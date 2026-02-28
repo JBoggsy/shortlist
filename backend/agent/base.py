@@ -11,6 +11,8 @@ Consumers:
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 
+from langchain_core.language_models import BaseChatModel
+
 
 class Agent(ABC):
     """Main chat agent.
@@ -30,7 +32,7 @@ class Agent(ABC):
     @abstractmethod
     def __init__(
         self,
-        model,
+        model: BaseChatModel,
         search_api_key: str = "",
         adzuna_app_id: str = "",
         adzuna_app_key: str = "",
@@ -69,7 +71,7 @@ class OnboardingAgent(ABC):
     """
 
     @abstractmethod
-    def __init__(self, model):
+    def __init__(self, model: BaseChatModel):
         ...
 
     @abstractmethod
@@ -93,7 +95,7 @@ class ResumeParser(ABC):
     """
 
     @abstractmethod
-    def __init__(self, model):
+    def __init__(self, model: BaseChatModel):
         ...
 
     @abstractmethod
