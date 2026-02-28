@@ -20,8 +20,6 @@
 
 ## Features
 
-- [x] **Application todo extraction** — Extract & track per-job application steps (documents, questions, assessments) from job postings via LLM; checklist UI in Job Detail Panel with auto-extraction and agent tool
-
 - [ ] **Job application preparation (phase 2)**
   - Interview prep, resume tailoring, cover letter draft generation
   - Agent tools to generate and manage prep content

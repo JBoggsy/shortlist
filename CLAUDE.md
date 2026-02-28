@@ -71,9 +71,11 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/llm/model_listing.py` — `list_models()` functions for each provider (uses raw SDKs to query available models); `MODEL_LISTERS` registry
 - `backend/models/search_result.py` — `SearchResult` model for per-conversation job search results (fields: company, title, url, salary, location, remote_type, source, description, requirements, nice_to_haves, job_fit, fit_reason, added_to_tracker, tracker_job_id)
 - `backend/models/application_todo.py` — `ApplicationTodo` model for per-job application steps (fields: job_id, category, title, description, completed, sort_order)
-- `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy. Routes import and instantiate agents via these ABCs.
-- `backend/agent/tools.py` — `AgentTools` class with `@agent_tool`-decorated methods (web_search, job_search, scrape_url, create_job, list_jobs, edit_job, remove_job, list_job_todos, add_job_todo, edit_job_todo, remove_job_todo, read_user_profile, update_user_profile, read_resume, add_search_result, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
-- `backend/agent/langchain_agent.py` — Backwards-compatibility shim that re-exports `Agent`, `OnboardingAgent`, and `ResumeParser` from `base.py` under the old `LangChain*` names
+- `backend/agent/__init__.py` — Agent design selector. Reads `agent.design` from config, dynamically imports the matching sub-package (`backend/agent/{design_name}/`), and re-exports its classes as `ActiveAgent`, `ActiveOnboardingAgent`, `ActiveResumeParser`. Falls back to the ABCs from `base.py` if the design cannot be loaded. Routes import `Active*` classes from here.
+- `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy.
+- `backend/agent/{design_name}/` — Each agent design/strategy is a sub-package whose `__init__.py` exports `{DesignName}Agent`, `{DesignName}OnboardingAgent`, `{DesignName}ResumeParser` (PascalCase of the folder name). See `backend/agent/README.md` for instructions on creating a new design.
+- `backend/agent/default/` — **Default design**: monolithic ReAct loop. `DefaultAgent` (main chat), `DefaultOnboardingAgent` (onboarding interview), `DefaultResumeParser` (single-shot JSON extraction). Uses LangChain `bind_tools` + streaming. System prompts in `default/prompts.py`.
+- `backend/agent/tools/` — `@agent_tool`-decorated tool functions (web_search, job_search, scrape_url, create_job, list_jobs, edit_job, remove_job, list_job_todos, add_job_todo, edit_job_todo, remove_job_todo, read_user_profile, update_user_profile, read_resume, add_search_result, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
 
 ### Frontend
@@ -179,6 +181,9 @@ Configuration structure in `config.json`:
     "api_key": "",
     "model": ""
   },
+  "agent": {
+    "design": "default"
+  },
   "integrations": {
     "search_api_key": "tvly-...",
     "jsearch_api_key": "",
@@ -204,6 +209,7 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - `SEARCH_LLM_PROVIDER` — optional, defaults to `LLM_PROVIDER`
 - `SEARCH_LLM_API_KEY` — optional, defaults to `LLM_API_KEY`
 - `SEARCH_LLM_MODEL` — optional, defaults to `LLM_MODEL` (use a cheaper model to save costs on job searches)
+- `AGENT_DESIGN` — agent design/strategy to use (default: `default`); corresponds to a sub-package in `backend/agent/`
 - `SEARCH_API_KEY` — Tavily API key for web search tool
 - `ADZUNA_APP_ID` — Adzuna API application ID (for job search)
 - `ADZUNA_APP_KEY` — Adzuna API application key (for job search)

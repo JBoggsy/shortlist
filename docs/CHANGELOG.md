@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Pluggable agent design system** — Agent implementations are now selectable via `agent.design` in config; new designs are sub-packages of `backend/agent/` with auto-discovery
+- **Default agent design** — Monolithic ReAct loop implementation (`backend/agent/default/`) with `DefaultAgent`, `DefaultOnboardingAgent`, `DefaultResumeParser`
+- **Ollama tool-call recovery** — When Ollama's server fails to parse a tool call (model prepends thinking text before JSON), the error handler extracts valid JSON from the raw response and matches it to the appropriate tool schema
 - **Agent job CRUD tools** — Implemented `create_job`, `list_jobs`, `edit_job`, and `remove_job` agent tools with full database access, input validation, and live job list refresh
 - **Agent todo tools** — Added `list_job_todos`, `add_job_todo`, `edit_job_todo`, and `remove_job_todo` agent tools so the AI assistant can manage per-job application todo items (documents, questions, assessments, etc.)
 
@@ -20,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Agent ABCs** — Extracted abstract base classes (`Agent`, `OnboardingAgent`, `ResumeParser`) into `backend/agent/base.py`, decoupling the agent interface from any specific LLM framework. Routes now import from `base.py` instead of `langchain_agent.py`.
 - **Agent tools consolidated** — Moved `add_search_result` tool from the removed `JobSearchSubAgentTools` into the main `AgentTools` class. All tools are now in a single class.
 - **Framework-agnostic tool metadata** — Replaced `to_langchain_tools()` with `get_tool_definitions()` which returns tool metadata without importing LangChain. Agent implementations adapt definitions to their own framework.
+- **Anthropic streaming text extraction** — Fixed text extraction for Anthropic's content block format (list of dicts instead of plain strings)
+- **Ollama float-to-int coercion** — Added Pydantic `BeforeValidator` on integer fields so Ollama models sending floats (e.g. `4.5` for `job_fit`) are silently truncated
+- **JSearch timeout and retry** — Increased JSearch API timeout to 30s with automatic retry on timeout
+- **Improved system prompt** — Added "Communication — CRITICAL" section requiring the agent to acknowledge, provide progress updates, summarize, and invite follow-up
 
 ### Removed
 - **`LangChainJobSearchAgent`** — Removed the job search sub-agent class and emptied `backend/agent/job_search_agent.py`. The `run_job_search` and `add_search_result` tools remain in `AgentTools`.
