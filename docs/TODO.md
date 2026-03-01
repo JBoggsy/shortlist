@@ -17,12 +17,10 @@
 - [x] Dedicated visual interface for job search results (v0.9.0)
 - [x] Job search sub-agent for better result coverage (v0.9.0)
 - [x] Main agent delegates job searches to specialized sub-agent via `run_job_search` tool (v0.9.0)
+- [x] Fixed pipeline agent design — structured routing + micro-agents replacing the monolithic ReAct loop
+- [x] Job application preparation — interview prep, cover letters, resume tailoring, question generation (via fixed_pipeline prepare pipeline)
 
 ## Features
-
-- [ ] **Job application preparation (phase 2)**
-  - Interview prep, resume tailoring, cover letter draft generation
-  - Agent tools to generate and manage prep content
 
 ## Desktop App
 

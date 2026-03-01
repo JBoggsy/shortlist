@@ -675,12 +675,20 @@ The agent system uses abstract base classes (ABCs) to define the interface betwe
 - `OnboardingAgent` — profile interview agent with `run(messages)` generator method
 - `ResumeParser` — resume parsing with `parse(raw_text)` method
 
-**Agent Tools** (`backend/agent/tools.py`):
+**Agent Tools** (`backend/agent/tools/`):
 - `AgentTools` — tool implementations with `@agent_tool` decorator
 - `execute(tool_name, arguments)` — dispatch tool calls by name
 - `get_tool_definitions()` — return tool metadata for LLM framework adaptation
 
-**Agent Loop** (implemented by concrete agent classes):
+### Agent Designs
+
+The application supports pluggable agent designs, selectable via `agent.design` in config (or `AGENT_DESIGN` env var; defaults to `"default"`). Two designs are currently available:
+
+#### Default Design (`default`)
+
+A monolithic ReAct loop powered by LangChain `bind_tools`. The agent has access to all tools on every iteration and reasons freely about what to do next. Simple and general-purpose, but slower and less predictable for multi-step tasks.
+
+**Agent loop:**
 1. User sends message
 2. Agent calls LLM with system prompt + conversation history + tools
 3. LLM responds with text and/or tool calls
@@ -688,6 +696,27 @@ The agent system uses abstract base classes (ABCs) to define the interface betwe
 5. Tool results are added to conversation history
 6. If LLM made tool calls, return to step 2
 7. Stream final response to user via SSE events
+
+#### Fixed Pipeline Design (`fixed_pipeline`)
+
+A structured routing + deterministic pipeline architecture. A Routing Agent classifies user intent into one of 11 request types, then a pipeline dispatcher executes the appropriate sequence of programmatic steps and scoped LLM calls (micro-agents).
+
+**Agent loop:**
+1. User sends message
+2. Routing Agent classifies intent → request type + structured params (single LLM call)
+3. Acknowledgment streamed immediately
+4. Pipeline dispatcher maps request type → pipeline function
+5. Pipeline executes deterministic steps: programmatic (DB/API) + micro-agents (scoped LLM)
+6. SSE events streamed throughout; `done` event at end
+
+**Request types:** `find_jobs`, `research_url`, `track_crud`, `query_jobs`, `todo_mgmt`, `profile_mgmt`, `prepare`, `compare`, `research`, `general`, `multi_step`
+
+**Key advantages:** Faster multi-step tasks, cheaper (scoped micro-agents), predictable tool sequences, easier to debug, consistent quality. See `backend/agent/fixed_pipeline/DESIGN.md` for full architecture.
+
+**Selecting a design:**
+- In `config.json`: `{"agent": {"design": "fixed_pipeline"}}`
+- Via environment variable: `export AGENT_DESIGN=fixed_pipeline`
+- Restart the application for changes to take effect
 
 ### Available Tools
 

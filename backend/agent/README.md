@@ -115,9 +115,10 @@ classes are resolved at import time).
 
 ## Extant Designs
 
-| Design name | Folder                   | Description                                  |
-|-------------|--------------------------|----------------------------------------------|
-| `default`   | `backend/agent/default/` | Monolithic ReAct loop (reason → act → observe). Each agent streams a tool-calling loop powered by LangChain `bind_tools`. This is the simplest possible design and the default. |
+| Design name      | Folder                            | Description                                  |
+|------------------|-----------------------------------|----------------------------------------------|
+| `default`        | `backend/agent/default/`          | Monolithic ReAct loop (reason → act → observe). Each agent streams a tool-calling loop powered by LangChain `bind_tools`. This is the simplest possible design and the default. |
+| `fixed_pipeline` | `backend/agent/fixed_pipeline/`   | Structured routing + deterministic pipelines with micro-agents. A Routing Agent classifies user intent, then a pipeline dispatcher executes the right sequence of programmatic steps and scoped LLM calls. Faster, cheaper, and more predictable than ReAct. |
 
 ### `default` — Monolithic ReAct Loop
 
@@ -141,3 +142,60 @@ classes are resolved at import time).
    results are appended as `ToolMessage`s, and the loop continues.
 5. When the LLM responds without tool calls, the loop exits and a `done` event
    is yielded.
+
+### `fixed_pipeline` — Structured Routing + Deterministic Pipelines
+
+**Files:**
+
+| File                  | Class / Purpose                     | Description                              |
+|-----------------------|-------------------------------------|------------------------------------------|
+| `__init__.py`         | Module exports                      | Exports `FixedPipelineAgent`; re-exports `DefaultOnboardingAgent`, `DefaultResumeParser` |
+| `agent.py`            | `FixedPipelineAgent`                | Main entry — route → acknowledge → dispatch pipeline → done |
+| `routing.py`          | `route()`                           | Intent classification via `with_structured_output(RoutingResult)` |
+| `schemas.py`          | Pydantic models                     | `RoutingResult`, per-pipeline param schemas, micro-agent output schemas |
+| `context.py`          | `RequestContext`                    | Per-request cache for profile, resume, jobs; avoids redundant tool calls |
+| `streaming.py`        | SSE helpers                         | `yield_text`, `yield_tool_start/result/error`, `execute_tool_with_events` |
+| `prompts.py`          | Prompt templates                    | System prompts for routing agent and all 18 micro-agents |
+| `micro_agents.py`     | `BaseMicroAgent` + implementations  | `invoke()` for structured output, `stream()` for text; 18 concrete agents |
+| `entity_resolution.py`| `resolve_job_ref()`                 | Resolves "the Google job" → Job record by ID, company, or title |
+| `pipelines/`          | Pipeline functions                  | One `run()` function per request type (11 total) |
+
+**How it works:**
+
+1. User message arrives at `FixedPipelineAgent.run()`.
+2. **Routing** — A single LLM call with `with_structured_output(RoutingResult)`
+   classifies the message into one of 11 request types and extracts structured
+   parameters. Falls back to `general` on failure.
+3. **Acknowledgment** — The routing result includes a brief acknowledgment
+   string, streamed immediately as `text_delta`.
+4. **Pipeline dispatch** — A pure Python registry maps the request type to a
+   pipeline function in `pipelines/`.
+5. **Pipeline execution** — Each pipeline is a deterministic sequence of:
+   - **Programmatic steps** (DB queries, API calls, filtering, templating)
+   - **Micro-agent steps** (scoped LLM calls with focused prompts and minimal context)
+6. **SSE streaming** — Same event protocol as the default design (`text_delta`,
+   `tool_start`, `tool_result`, `done`, etc.). No frontend changes required.
+
+**Request types / pipelines:**
+
+| Type | Pipeline | Description |
+|------|----------|-------------|
+| `find_jobs` | Query generation → job_search → deduplicate → evaluate fit → add_search_result → summarize | Full job search workflow |
+| `research_url` | scrape_url → extract details → evaluate fit → optionally create_job → summarize | Analyze a job posting URL |
+| `track_crud` | resolve entity → validate → create/edit/delete job → template confirmation | Job tracker CRUD |
+| `query_jobs` | list_jobs → format or analyze (complex questions use AnalysisAgent) | Query tracked jobs |
+| `todo_mgmt` | resolve job → branch by action → execute tool(s) → confirm | Todo CRUD + AI generation |
+| `profile_mgmt` | read or update profile (complex updates use ProfileUpdateAgent) | Profile management |
+| `prepare` | resolve job → gather context → branch by prep_type → stream content | Interview prep, cover letters, etc. |
+| `compare` | resolve jobs → branch by mode → comparison/ranking analysis | Compare or rank jobs |
+| `research` | generate queries → web_search → synthesize report | General research |
+| `general` | load context → stream AdvisorAgent response | Career advice, fallback |
+| `multi_step` | execute sub-pipelines sequentially | Compound requests |
+
+**Key advantages over default:**
+
+- **Speed**: Pipelines know the plan; LLM only runs at reasoning-critical steps
+- **Cost**: Micro-agents receive minimal context (not the entire tool set)
+- **Predictability**: Fixed ordering prevents suboptimal tool sequences
+- **Debuggability**: Clear inputs/outputs at each pipeline step
+- **Quality**: Pipeline guarantees each step runs (no skipping due to LLM reasoning)

@@ -1,0 +1,252 @@
+"""Micro-agent base class and all micro-agent implementations.
+
+Micro-agents are scoped LLM calls — each gets a focused prompt and produces
+either structured output (via invoke) or streamed text (via stream).
+"""
+
+import json
+import logging
+import re
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from backend.agent.default.agent import _extract_text
+
+from . import schemas
+
+logger = logging.getLogger(__name__)
+
+
+def _needs_json_fallback(model: BaseChatModel) -> bool:
+    """Check if the model lacks native structured output support."""
+    return type(model).__name__ == "ChatOllama"
+
+
+class BaseMicroAgent:
+    """Base class for micro-agents.
+
+    Provides invoke() for structured output and stream() for text streaming.
+    """
+
+    def __init__(self, model: BaseChatModel):
+        self.model = model
+
+    def invoke(self, system_prompt: str, user_message: str, output_schema=None) -> dict | str:
+        """Single LLM call, optionally with structured output.
+
+        For providers with native structured output (Anthropic, OpenAI, Gemini),
+        uses with_structured_output() with one retry on failure.
+        For Ollama, falls back to JSON-in-text parsing.
+        """
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_message),
+        ]
+
+        if not output_schema:
+            response = self.model.invoke(messages)
+            return _extract_text(response.content)
+
+        if _needs_json_fallback(self.model):
+            # Ollama: JSON-in-text fallback
+            messages[0] = SystemMessage(
+                content=system_prompt + "\n\nRespond with ONLY valid JSON matching the requested schema."
+            )
+            response = self.model.invoke(messages)
+            text = _extract_text(response.content)
+            return self._parse_json_response(text, output_schema)
+
+        # Native structured output (Anthropic, OpenAI, Gemini): one retry
+        structured_model = self.model.with_structured_output(output_schema)
+        try:
+            return structured_model.invoke(messages)
+        except Exception:
+            logger.info("Structured output failed on first attempt, retrying once")
+            return structured_model.invoke(messages)
+
+    def stream(self, system_prompt: str, user_message: str):
+        """Stream LLM response, yielding text chunks.
+
+        Yields (str) text pieces as they arrive.
+        """
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_message),
+        ]
+        for chunk in self.model.stream(messages):
+            if chunk.content:
+                text = _extract_text(chunk.content)
+                if text:
+                    yield text
+
+    def _parse_json_response(self, text: str, schema=None):
+        """Parse a JSON response from text, optionally validating against a schema."""
+        # Strip markdown code fences
+        cleaned = re.sub(r"^```(?:json)?\s*\n?", "", text.strip())
+        cleaned = re.sub(r"\n?```\s*$", "", cleaned)
+
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError:
+            # Try to find JSON in the text
+            match = re.search(r"\{[\s\S]*\}", cleaned)
+            if match:
+                data = json.loads(match.group())
+            else:
+                # Try array
+                match = re.search(r"\[[\s\S]*\]", cleaned)
+                if match:
+                    data = json.loads(match.group())
+                else:
+                    raise
+
+        if schema:
+            return schema.model_validate(data)
+        return data
+
+
+# ── Concrete micro-agents ───────────────────────────────────────────────
+
+class AdvisorAgent(BaseMicroAgent):
+    """General career advice and open-ended questions."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream advice text. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class AnalysisAgent(BaseMicroAgent):
+    """Analyze tracked jobs against profile and question."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream analysis text. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class ProfileUpdateAgent(BaseMicroAgent):
+    """Interpret natural-language profile updates."""
+
+    def run(self, system_prompt: str, user_message: str) -> schemas.ProfileUpdateResult:
+        """Return structured profile updates."""
+        return self.invoke(system_prompt, user_message, schemas.ProfileUpdateResult)
+
+
+class TodoGeneratorAgent(BaseMicroAgent):
+    """Generate application preparation todos."""
+
+    def run(self, system_prompt: str, user_message: str) -> schemas.TodoGeneratorResult:
+        """Return structured todo list."""
+        return self.invoke(system_prompt, user_message, schemas.TodoGeneratorResult)
+
+
+class QueryGeneratorAgent(BaseMicroAgent):
+    """Generate optimized job search queries."""
+
+    def run(self, system_prompt: str, user_message: str) -> schemas.QueryGeneratorResult:
+        """Return structured search queries."""
+        return self.invoke(system_prompt, user_message, schemas.QueryGeneratorResult)
+
+
+class EvaluatorAgent(BaseMicroAgent):
+    """Evaluate job results against user profile."""
+
+    def run(self, system_prompt: str, user_message: str) -> schemas.JobEvaluationResult:
+        """Return structured evaluations."""
+        return self.invoke(system_prompt, user_message, schemas.JobEvaluationResult)
+
+
+class DetailExtractionAgent(BaseMicroAgent):
+    """Extract structured job details from raw data."""
+
+    def run(self, system_prompt: str, user_message: str) -> schemas.JobDetails:
+        """Return structured job details."""
+        return self.invoke(system_prompt, user_message, schemas.JobDetails)
+
+
+class FitEvaluatorAgent(BaseMicroAgent):
+    """Deep fit analysis with strengths and gaps."""
+
+    def run(self, system_prompt: str, user_message: str) -> schemas.FitEvaluation:
+        """Return structured fit evaluation."""
+        return self.invoke(system_prompt, user_message, schemas.FitEvaluation)
+
+
+class ResultsSummaryAgent(BaseMicroAgent):
+    """Summarize job search results."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream summary text. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class AnalysisSummaryAgent(BaseMicroAgent):
+    """Summarize job posting analysis."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream analysis summary. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class InterviewPrepAgent(BaseMicroAgent):
+    """Generate interview preparation content."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream prep content. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class CoverLetterAgent(BaseMicroAgent):
+    """Draft cover letters."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream cover letter. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class ResumeTailorAgent(BaseMicroAgent):
+    """Suggest resume tailoring edits."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream resume suggestions. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class QuestionGeneratorAgent(BaseMicroAgent):
+    """Predict interview questions."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream questions and frameworks. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class ComparisonAgent(BaseMicroAgent):
+    """Side-by-side job comparison."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream comparison analysis. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class RankingAgent(BaseMicroAgent):
+    """Score and rank jobs."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream ranking analysis. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)
+
+
+class ResearchQueryAgent(BaseMicroAgent):
+    """Generate research search queries."""
+
+    def run(self, system_prompt: str, user_message: str) -> schemas.SearchQueryList:
+        """Return structured search queries."""
+        return self.invoke(system_prompt, user_message, schemas.SearchQueryList)
+
+
+class ResearchSynthesizerAgent(BaseMicroAgent):
+    """Synthesize research findings into a report."""
+
+    def run(self, system_prompt: str, user_message: str):
+        """Stream research report. Yields str chunks."""
+        yield from self.stream(system_prompt, user_message)

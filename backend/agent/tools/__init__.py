@@ -61,19 +61,32 @@ class AgentTools(
         adzuna_country:    Adzuna country code (default "us")
         jsearch_api_key:   RapidAPI JSearch key
         conversation_id:   Current conversation ID
-        event_callback:    Callable for SSE events (e.g. search_result_added)
     """
 
     def __init__(self, search_api_key="", adzuna_app_id="", adzuna_app_key="",
                  adzuna_country="us", jsearch_api_key="",
-                 conversation_id=None, event_callback=None):
+                 conversation_id=None):
         self.search_api_key = search_api_key
         self.adzuna_app_id = adzuna_app_id
         self.adzuna_app_key = adzuna_app_key
         self.adzuna_country = adzuna_country
         self.jsearch_api_key = jsearch_api_key
         self.conversation_id = conversation_id
-        self.event_callback = event_callback
+
+        # Internal event queue — tools call self.event_callback() to enqueue
+        # SSE events (e.g. search_result_added). Consumers call flush_pending().
+        self._pending_events: list[dict] = []
+        self.event_callback = self._queue_event
+
+    def _queue_event(self, event: dict):
+        """Internal callback that queues an SSE event."""
+        self._pending_events.append(event)
+
+    def flush_pending(self) -> list[dict]:
+        """Return and clear all queued SSE events."""
+        events = list(self._pending_events)
+        self._pending_events.clear()
+        return events
 
     def execute(self, tool_name, arguments):
         """Execute a tool by name with error handling.

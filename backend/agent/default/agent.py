@@ -194,9 +194,6 @@ class DefaultAgent(Agent):
         self.model = model
         self.conversation_id = conversation_id
 
-        # Queued events from tool callbacks (e.g. search_result_added)
-        self._pending_events: list[dict] = []
-
         self.tools = AgentTools(
             search_api_key=search_api_key,
             adzuna_app_id=adzuna_app_id,
@@ -204,14 +201,9 @@ class DefaultAgent(Agent):
             adzuna_country=adzuna_country,
             jsearch_api_key=jsearch_api_key,
             conversation_id=conversation_id,
-            event_callback=self._on_tool_event,
         )
         lc_tools = _build_langchain_tools(self.tools)
         self.bound_model = model.bind_tools(lc_tools) if lc_tools else model
-
-    def _on_tool_event(self, event: dict):
-        """Callback for tool-emitted SSE events (e.g. search_result_added)."""
-        self._pending_events.append(event)
 
     def run(self, messages: list[dict]) -> Generator[dict, None, None]:
         # Build the LangChain message list
@@ -291,9 +283,8 @@ class DefaultAgent(Agent):
                     result = self.tools.execute(tc["name"], tc["args"])
 
                     # Flush any pending events from tool callbacks
-                    for pending in self._pending_events:
+                    for pending in self.tools.flush_pending():
                         yield pending
-                    self._pending_events.clear()
 
                     if "error" in result:
                         yield {
@@ -341,9 +332,8 @@ class DefaultAgent(Agent):
                             "data": {"id": tc["id"], "name": tc["name"], "arguments": tc["args"]},
                         }
                         result = self.tools.execute(tc["name"], tc["args"])
-                        for pending in self._pending_events:
+                        for pending in self.tools.flush_pending():
                             yield pending
-                        self._pending_events.clear()
                         if "error" in result:
                             yield {
                                 "event": "tool_error",
