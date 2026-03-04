@@ -80,7 +80,9 @@ class FindJobsPipeline(Pipeline):
 
         # Step 5: Evaluate jobs against profile
         logger.info("[FindJobsPipeline] evaluating %d jobs against profile", len(deduped))
-        evaluations = _evaluate_jobs(self.model, deduped, profile, resume_summary)
+        evaluations = _evaluate_jobs(self.model, deduped, profile, resume_summary,
+                                      user_intent=p.user_intent,
+                                      soft_constraints=p.soft_constraints)
         logger.info("[FindJobsPipeline] evaluations done — %d results", len(evaluations))
 
         # Step 6: Filter and add search results
@@ -135,6 +137,8 @@ class FindJobsPipeline(Pipeline):
                 "query": p.query, "location": p.location, "remote_type": p.remote_type,
                 "salary_min": p.salary_min, "salary_max": p.salary_max,
                 "employment_type": p.employment_type,
+                "user_intent": p.user_intent,
+                "soft_constraints": p.soft_constraints,
             })
             system_prompt = QUERY_GENERATOR_PROMPT.format(criteria=criteria, profile=profile)
             agent = QueryGeneratorAgent(self.model)
@@ -167,7 +171,8 @@ class FindJobsPipeline(Pipeline):
             yield self.text(chunk)
 
 
-def _evaluate_jobs(model, jobs: list[dict], profile: str, resume_summary: str) -> dict:
+def _evaluate_jobs(model, jobs: list[dict], profile: str, resume_summary: str,
+                   *, user_intent: str = "", soft_constraints: list[str] | None = None) -> dict:
     """Evaluate jobs against profile using micro-agent. Returns {index: {job_fit, fit_reason}}."""
     if not jobs:
         return {}
@@ -183,8 +188,11 @@ def _evaluate_jobs(model, jobs: list[dict], profile: str, resume_summary: str) -
             if job.get("description"):
                 jobs_text += f"\n  {job['description'][:200]}"
 
+        constraints_text = "\n".join(f"- {c}" for c in (soft_constraints or [])) or "(none)"
         system_prompt = EVALUATOR_PROMPT.format(
             profile=profile, resume_summary=resume_summary, jobs=jobs_text,
+            user_intent=user_intent or "(not specified)",
+            soft_constraints=constraints_text,
         )
         agent = EvaluatorAgent(model)
         result = agent.run(system_prompt, "Evaluate these jobs against the user's profile.")

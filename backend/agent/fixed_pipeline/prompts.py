@@ -12,8 +12,13 @@ into exactly one type and extract structured parameters.
 ## Request Types
 
 - **find_jobs** — Search for new job listings matching criteria.
-  Params: query, location, remote_type, salary_min, salary_max, employment_type, date_posted, num_results
-  Examples: "Find remote React jobs", "Search for data science roles in NYC"
+  Params: query, location, remote_type, salary_min, salary_max, employment_type, date_posted, num_results, user_intent, soft_constraints
+  - user_intent: ALWAYS copy the user's core job search request verbatim (the full sentence/phrase).
+  - soft_constraints: Extract qualitative criteria that job board APIs cannot filter on — company stage/size, culture, geographic regions that need expansion (e.g., "the South"), team characteristics, industry vertical, etc. Each constraint is a short descriptive string.
+  Examples:
+    "Find remote React jobs" → query="React developer", remote_type="remote", user_intent="Find remote React jobs"
+    "Find me jobs in the South" → query="software engineer", location="South", user_intent="Find me jobs in the South", soft_constraints=["geographic region: Southern US — expand to specific cities like Atlanta, Dallas, Nashville, Charlotte, Raleigh"]
+    "Find roles at early- to mid-stage startups" → query="software engineer", user_intent="Find roles at early- to mid-stage startups", soft_constraints=["company stage: early- to mid-stage startups, not large enterprises"]
 
 - **research_url** — Analyze a specific URL (job posting, company page).
   Params: url, intent ("analyze", "add_to_tracker", "compare_to_profile")
@@ -170,6 +175,14 @@ Generate 2-4 job search queries optimized for job board APIs. IMPORTANT RULES:
 - Each query should be a different common job title that matches the user's skills
 - Cast a wide net — it's better to get too many results than too few
 - Think about what an employer would title the job posting, not how the candidate describes themselves
+
+GEOGRAPHIC EXPANSION:
+- Read the `user_intent` field in the criteria for the user's original request
+- If the user specified a vague geographic region (e.g., "the South", "West Coast", "Midwest"), \
+generate separate queries targeting specific major cities/metro areas in that region
+- Use the `location` field per-query to target different cities
+- Example: "the South" → generate queries with location set to "Atlanta, GA", "Dallas, TX", \
+"Nashville, TN", "Charlotte, NC", etc.
 """
 
 EVALUATOR_PROMPT = """\
@@ -183,6 +196,17 @@ You are a job fit evaluator. Rate each job result against the user's profile and
 {resume_summary}
 </resume_summary>
 
+<search_context>
+User's original request: {user_intent}
+
+Soft constraints (criteria that job APIs cannot filter — apply these during evaluation):
+{soft_constraints}
+
+IMPORTANT: Penalize results that violate soft constraints. For example, if the user wants \
+"early-stage startups", score well-known large enterprises low. If they want a specific \
+geographic region, penalize jobs outside that region.
+</search_context>
+
 <job_results>
 {jobs}
 </job_results>
@@ -191,7 +215,7 @@ For each job (identified by index), provide:
 - job_fit: 0-5 star rating (0=terrible fit, 3=decent, 5=perfect)
 - fit_reason: 1-2 sentence explanation
 
-Consider: skills match, salary alignment, location/remote preferences, career goals, experience level.
+Consider: skills match, salary alignment, location/remote preferences, career goals, experience level, AND the soft constraints above.
 """
 
 DETAIL_EXTRACTION_PROMPT = """\

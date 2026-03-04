@@ -36,6 +36,8 @@ class FindJobsParams(BaseModel):
     employment_type: str | None = None
     date_posted: str | None = None
     num_results: int = 10
+    user_intent: str = ""
+    soft_constraints: list[str] = Field(default_factory=list)
 
     @field_validator("num_results", mode="before")
     @classmethod
