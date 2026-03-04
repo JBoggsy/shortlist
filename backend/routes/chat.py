@@ -60,8 +60,8 @@ def send_message(convo_id):
     if not data or not data.get("content"):
         return {"error": "content is required"}, 400
 
-    logger.info("Chat message received — conversation=%d content_len=%d",
-                convo_id, len(data["content"]))
+    logger.info("Chat message received — conversation=%d: %s",
+                convo_id, data["content"][:200])
 
     # Save user message
     user_msg = Message(conversation_id=convo_id, role="user", content=data["content"])

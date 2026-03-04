@@ -163,10 +163,13 @@ the user's search criteria and their profile.
 {profile}
 </user_profile>
 
-Generate 1-3 job search queries optimized for job board APIs. Each query should:
-- Use concise, keyword-focused terms (not natural language)
-- Target slightly different angles (e.g., different synonyms, broader/narrower)
-- Be practical for API search (short, relevant keywords)
+Generate 2-4 job search queries optimized for job board APIs. IMPORTANT RULES:
+- Keep queries SHORT — 2-4 words max (e.g., "machine learning engineer", "data scientist", "computer vision engineer")
+- Use COMMON job titles that employers actually post, not niche academic terms
+- DO NOT combine multiple specializations into one query (BAD: "machine learning researcher neuro-symbolic robotics")
+- Each query should be a different common job title that matches the user's skills
+- Cast a wide net — it's better to get too many results than too few
+- Think about what an employer would title the job posting, not how the candidate describes themselves
 """
 
 EVALUATOR_PROMPT = """\

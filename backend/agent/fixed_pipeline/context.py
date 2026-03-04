@@ -55,7 +55,13 @@ class RequestContext:
             if parsed.get("summary"):
                 parts.append(f"Summary: {parsed['summary']}")
             if parsed.get("skills"):
-                parts.append(f"Skills: {', '.join(parsed['skills'][:20])}")
+                skills = parsed["skills"]
+                if isinstance(skills, dict):
+                    # Flatten categorized skills: {"languages": [...], "tools": [...]}
+                    flat = [s for group in skills.values() if isinstance(group, list) for s in group]
+                    skills = flat
+                if isinstance(skills, list):
+                    parts.append(f"Skills: {', '.join(str(s) for s in skills[:20])}")
             if parsed.get("experience"):
                 for exp in parsed["experience"][:3]:
                     parts.append(f"- {exp.get('title', '?')} at {exp.get('company', '?')}")

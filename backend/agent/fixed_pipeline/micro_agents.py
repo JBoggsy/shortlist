@@ -18,8 +18,8 @@ from . import schemas
 logger = logging.getLogger(__name__)
 
 
-def _needs_json_fallback(model: BaseChatModel) -> bool:
-    """Check if the model lacks native structured output support."""
+def _is_ollama(model: BaseChatModel) -> bool:
+    """Check if the model is an Ollama instance."""
     return type(model).__name__ == "ChatOllama"
 
 
@@ -35,10 +35,17 @@ class BaseMicroAgent:
     def invoke(self, system_prompt: str, user_message: str, output_schema=None) -> dict | str:
         """Single LLM call, optionally with structured output.
 
-        For providers with native structured output (Anthropic, OpenAI, Gemini),
-        uses with_structured_output() with one retry on failure.
-        For Ollama, falls back to JSON-in-text parsing.
+        For all providers, tries with_structured_output() first.
+        - Non-Ollama (Anthropic, OpenAI, Gemini): retries once on failure,
+          then lets the exception propagate.
+        - Ollama: falls back to JSON-in-text parsing on failure, since many
+          Ollama models don't support structured output reliably.
         """
+        agent_name = type(self).__name__
+        schema_name = output_schema.__name__ if output_schema else "none"
+        logger.info("[%s] invoke start — schema=%s, user_msg=%s",
+                    agent_name, schema_name, user_message[:150])
+
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_message),
@@ -46,39 +53,61 @@ class BaseMicroAgent:
 
         if not output_schema:
             response = self.model.invoke(messages)
-            return _extract_text(response.content)
-
-        if _needs_json_fallback(self.model):
-            # Ollama: JSON-in-text fallback
-            messages[0] = SystemMessage(
-                content=system_prompt + "\n\nRespond with ONLY valid JSON matching the requested schema."
-            )
-            response = self.model.invoke(messages)
             text = _extract_text(response.content)
-            return self._parse_json_response(text, output_schema)
+            logger.info("[%s] invoke done — raw text, len=%d", agent_name, len(text))
+            return text
 
-        # Native structured output (Anthropic, OpenAI, Gemini): one retry
-        structured_model = self.model.with_structured_output(output_schema)
+        # Try native structured output first for all providers
         try:
-            return structured_model.invoke(messages)
-        except Exception:
-            logger.info("Structured output failed on first attempt, retrying once")
-            return structured_model.invoke(messages)
+            structured_model = self.model.with_structured_output(output_schema)
+            result = structured_model.invoke(messages)
+            logger.info("[%s] invoke done — structured output: %s", agent_name, type(result).__name__)
+            return result
+        except (NotImplementedError, AttributeError, TypeError) as e:
+            # Model doesn't support structured output at all
+            logger.info("[%s] structured output not supported: %s", agent_name, e)
+        except Exception as e:
+            if _is_ollama(self.model):
+                # Ollama: fall through to JSON-in-text fallback
+                logger.info("[%s] structured output failed (Ollama), falling back to JSON-in-text: %s",
+                           agent_name, e)
+            else:
+                # Non-Ollama: retry once, then let it propagate
+                logger.warning("[%s] structured output failed: %s — retrying once", agent_name, e)
+                result = structured_model.invoke(messages)
+                logger.info("[%s] invoke done (retry) — structured output: %s", agent_name, type(result).__name__)
+                return result
+
+        # JSON-in-text fallback (Ollama models or models lacking structured output)
+        logger.info("[%s] using JSON-in-text fallback", agent_name)
+        messages[0] = SystemMessage(
+            content=system_prompt + "\n\nRespond with ONLY valid JSON matching the requested schema."
+        )
+        response = self.model.invoke(messages)
+        text = _extract_text(response.content)
+        result = self._parse_json_response(text, output_schema)
+        logger.info("[%s] invoke done — parsed JSON fallback: %s", agent_name, type(result).__name__)
+        return result
 
     def stream(self, system_prompt: str, user_message: str):
         """Stream LLM response, yielding text chunks.
 
         Yields (str) text pieces as they arrive.
         """
+        agent_name = type(self).__name__
+        logger.info("[%s] stream start — user_msg=%s", agent_name, user_message[:150])
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_message),
         ]
+        total_len = 0
         for chunk in self.model.stream(messages):
             if chunk.content:
                 text = _extract_text(chunk.content)
                 if text:
+                    total_len += len(text)
                     yield text
+        logger.info("[%s] stream done — total_len=%d", agent_name, total_len)
 
     def _parse_json_response(self, text: str, schema=None):
         """Parse a JSON response from text, optionally validating against a schema."""

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ── Routing ─────────────────────────────────────────────────────────────
@@ -16,10 +16,12 @@ REQUEST_TYPES = Literal[
 
 class RoutingResult(BaseModel):
     """Structured output from the Routing Agent."""
-    request_type: REQUEST_TYPES
+    request_type: REQUEST_TYPES = Field(alias="type", default="general")
     params: dict = Field(default_factory=dict)
     entity_refs: list[str] = Field(default_factory=list)
     acknowledgment: str = ""
+
+    model_config = {"populate_by_name": True}
 
 
 # ── Pipeline param schemas ──────────────────────────────────────────────
@@ -34,6 +36,13 @@ class FindJobsParams(BaseModel):
     employment_type: str | None = None
     date_posted: str | None = None
     num_results: int = 10
+
+    @field_validator("num_results", mode="before")
+    @classmethod
+    def _coerce_num_results(cls, v):
+        if v is None:
+            return 10
+        return int(v)
 
 
 class ResearchUrlParams(BaseModel):
@@ -176,3 +185,20 @@ class TodoGeneratorResult(BaseModel):
 class SearchQueryList(BaseModel):
     """Output from Query Generator for research queries."""
     queries: list[str] = Field(default_factory=list)
+
+
+# ── Param schema registry ─────────────────────────────────────────────
+
+PARAM_SCHEMAS: dict[str, type[BaseModel] | None] = {
+    "find_jobs": FindJobsParams,
+    "research_url": ResearchUrlParams,
+    "track_crud": TrackCrudParams,
+    "query_jobs": QueryJobsParams,
+    "todo_mgmt": TodoMgmtParams,
+    "profile_mgmt": ProfileMgmtParams,
+    "prepare": PrepareParams,
+    "compare": CompareParams,
+    "research": ResearchParams,
+    "general": GeneralParams,
+    "multi_step": MultiStepParams,
+}
