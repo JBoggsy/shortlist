@@ -16,6 +16,8 @@ class QueryJobsPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[QueryJobsPipeline] question=%s, filters=%s, format=%s",
+                    (p.question or "")[:100], p.filters, p.format)
 
         tool_args = {}
         if p.filters:

@@ -19,6 +19,8 @@ class GeneralPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[GeneralPipeline] question=%s, needs_job_context=%s",
+                    (p.question or "")[:100], p.needs_job_context)
 
         # Always load profile for general advice
         profile = self.ctx.ensure_profile()

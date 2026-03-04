@@ -36,6 +36,8 @@ class PreparePipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[PreparePipeline] prep_type=%s, job_ref=%s, job_id=%s",
+                    p.prep_type, p.job_ref, p.job_id)
 
         # Resolve job reference
         job = None

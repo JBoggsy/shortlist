@@ -17,6 +17,8 @@ class ComparePipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[ComparePipeline] mode=%s, job_ids=%s, job_refs=%s",
+                    p.mode, p.job_ids, p.job_refs)
 
         # Resolve all job references
         resolved_jobs = []

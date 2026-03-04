@@ -14,6 +14,8 @@ class TrackCrudPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[TrackCrudPipeline] action=%s, job_ref=%s, job_id=%s, fields=%s",
+                    p.action, p.job_ref, p.job_id, dict(p.fields))
 
         if p.action == "create":
             yield from self._create()

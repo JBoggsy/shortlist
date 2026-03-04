@@ -15,6 +15,7 @@ class ProfileMgmtPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[ProfileMgmtPipeline] action=%s, section=%s", p.action, p.section)
 
         if p.action == "read":
             yield from self._read_profile()

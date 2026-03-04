@@ -17,6 +17,8 @@ class TodoMgmtPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[TodoMgmtPipeline] action=%s, job_ref=%s, job_id=%s, todo_id=%s",
+                    p.action, p.job_ref, p.job_id, p.todo_id)
 
         if p.action == "list":
             yield from self._list_todos()

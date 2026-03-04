@@ -24,17 +24,24 @@ class FindJobsPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[FindJobsPipeline] query=%s, location=%s, remote=%s, num_results=%d",
+                    p.query, p.location, p.remote_type, p.num_results)
 
         # Step 1: Load profile and resume
         profile = self.ctx.ensure_profile()
+        logger.info("[FindJobsPipeline] profile loaded, len=%d", len(profile))
         resume_summary = self.ctx.get_resume_summary()
+        logger.info("[FindJobsPipeline] resume summary loaded, len=%d", len(resume_summary))
 
         # Step 2: Generate optimized search queries
         yield self.text("\n\nSearching job boards...")
 
         queries = self._generate_queries(profile)
+        logger.info("[FindJobsPipeline] generated %d search queries: %s",
+                    len(queries), queries)
         if not queries:
             queries = [{"query": p.query, "location": p.location, "remote_only": p.remote_type == "remote"}]
+            logger.info("[FindJobsPipeline] using fallback query: %s", queries)
 
         # Step 3: Execute job searches
         all_results = []
@@ -60,16 +67,21 @@ class FindJobsPipeline(Pipeline):
             results = tr.data.get("results", [])
             all_results.extend(results)
 
+        logger.info("[FindJobsPipeline] job_search returned %d total results", len(all_results))
+
         if not all_results:
             yield self.text("\n\nI couldn't find any jobs matching your criteria. Try broadening your search terms or adjusting filters.")
             return
 
         # Step 4: Deduplicate by URL or company+title
         deduped = _deduplicate(all_results)
+        logger.info("[FindJobsPipeline] %d unique results after dedup", len(deduped))
         yield self.text(f"\n\nFound {len(deduped)} unique results. Evaluating fit...")
 
         # Step 5: Evaluate jobs against profile
+        logger.info("[FindJobsPipeline] evaluating %d jobs against profile", len(deduped))
         evaluations = _evaluate_jobs(self.model, deduped, profile, resume_summary)
+        logger.info("[FindJobsPipeline] evaluations done — %d results", len(evaluations))
 
         # Step 6: Filter and add search results
         added_count = 0

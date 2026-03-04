@@ -243,9 +243,14 @@ class JobSearchMixin:
         warnings = []
         provider_used = []
 
+        logger.info("job_search: query=%r, location=%r, remote_only=%s, providers=%s",
+                    query, location, remote_only,
+                    [p for p, use in [("jsearch", use_jsearch), ("adzuna", use_adzuna)] if use])
+
         if use_jsearch:
             try:
                 jsearch_results = self._search_jsearch(**search_kwargs)
+                logger.info("job_search: jsearch returned %d results", len(jsearch_results))
                 all_results.extend(jsearch_results)
                 provider_used.append("jsearch")
             except Exception as e:
@@ -257,6 +262,7 @@ class JobSearchMixin:
         if use_adzuna:
             try:
                 adzuna_results = self._search_adzuna(**search_kwargs)
+                logger.info("job_search: adzuna returned %d results", len(adzuna_results))
                 all_results.extend(adzuna_results)
                 provider_used.append("adzuna")
             except Exception as e:
@@ -278,6 +284,8 @@ class JobSearchMixin:
                 deduped.append(r)
 
         deduped = deduped[:num_results]
+        logger.info("job_search: %d total → %d after dedup (requested %d)",
+                    len(all_results), len(deduped), num_results)
 
         result = {
             "results": deduped,

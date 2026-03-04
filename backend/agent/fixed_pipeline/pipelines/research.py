@@ -15,6 +15,8 @@ class ResearchPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[ResearchPipeline] topic=%s, type=%s, company=%s",
+                    p.topic, p.research_type, p.company)
 
         if not p.topic:
             yield self.text("What would you like me to research?")

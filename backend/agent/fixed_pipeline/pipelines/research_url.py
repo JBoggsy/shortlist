@@ -16,6 +16,7 @@ class ResearchUrlPipeline(Pipeline):
 
     def execute(self):
         p = self.params
+        logger.info("[ResearchUrlPipeline] url=%s, intent=%s", p.url, p.intent)
 
         if not p.url:
             yield self.text("I need a URL to analyze. Could you share the link?")
