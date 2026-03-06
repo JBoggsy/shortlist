@@ -110,8 +110,7 @@ class AgentTools(
             - args_schema: Pydantic BaseModel class or None
 
         Agent implementations use this to adapt tools to their specific
-        LLM framework (e.g. LangChain StructuredTool, OpenAI function
-        calling, etc.).
+        LLM framework (e.g. OpenAI function-calling format).
         """
         definitions = []
         for name in _TOOL_REGISTRY:

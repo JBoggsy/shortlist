@@ -7,7 +7,7 @@ from backend.agent import ActiveAgent as Agent, ActiveOnboardingAgent as Onboard
 from backend.agent.user_profile import is_onboarding_in_progress, set_onboarding_in_progress
 from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_integration_config
 from backend.database import db
-from backend.llm.langchain_factory import create_langchain_model
+from backend.llm.llm_factory import create_llm_config
 from backend.models.chat import Conversation, Message
 from backend.models.job import Job
 from backend.models.search_result import SearchResult
@@ -102,15 +102,15 @@ def send_message(convo_id):
             },
         )
 
-    # Create LangChain model and agent
+    # Create LLM config and agent
     try:
-        model = create_langchain_model(
+        llm_config = create_llm_config(
             llm_config["provider"],
             llm_config["api_key"],
             llm_config["model"],
         )
     except Exception as e:
-        logger.error(f"Failed to create LLM model: {e}")
+        logger.error(f"Failed to create LLM config: {e}")
         error_message = f"Failed to initialize LLM provider: {str(e)}"
         def error_stream():
             error_msg = {
@@ -130,7 +130,7 @@ def send_message(convo_id):
             },
         )
     agent = Agent(
-        model,
+        llm_config,
         search_api_key=integration_config["search_api_key"],
         adzuna_app_id=integration_config["adzuna_app_id"],
         adzuna_app_key=integration_config["adzuna_app_key"],
@@ -230,8 +230,8 @@ def add_search_result_to_tracker(convo_id, result_id):
     }, 201
 
 
-def _get_onboarding_model():
-    """Build the LangChain model for onboarding, falling back to the main config.
+def _get_onboarding_llm_config():
+    """Build the LLM config for onboarding, falling back to the main config.
 
     Raises ValueError if LLM is not configured.
     """
@@ -244,7 +244,7 @@ def _get_onboarding_model():
     if not api_key and provider_name != "ollama":
         raise ValueError("LLM is not configured. Please configure your API key in Settings.")
 
-    return create_langchain_model(provider_name, api_key, model)
+    return create_llm_config(provider_name, api_key, model)
 
 
 @chat_bp.route("/onboarding/conversations", methods=["POST"])
@@ -276,8 +276,8 @@ def send_onboarding_message(convo_id):
         llm_messages.append({"role": msg.role, "content": msg.content})
 
     try:
-        model = _get_onboarding_model()
-        agent = OnboardingAgent(model)
+        llm_config = _get_onboarding_llm_config()
+        agent = OnboardingAgent(llm_config)
     except Exception as e:
         logger.error(f"Failed to create onboarding model: {e}")
         error_message = f"Failed to initialize LLM: {str(e)}"
@@ -374,8 +374,8 @@ def kick_onboarding():
     llm_messages = [{"role": "user", "content": kick_text}]
 
     try:
-        model = _get_onboarding_model()
-        agent = OnboardingAgent(model)
+        llm_config = _get_onboarding_llm_config()
+        agent = OnboardingAgent(llm_config)
     except Exception as e:
         logger.error(f"Failed to create onboarding model: {e}")
         error_message = f"Failed to initialize LLM: {str(e)}"

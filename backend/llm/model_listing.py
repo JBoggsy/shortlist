@@ -1,9 +1,8 @@
 """Model listing functions for each LLM provider.
 
-These use the raw SDKs directly (not LangChain) to list available models
-from each provider's API.  Extracted from the old provider classes during
-the LangChain migration so the ``/api/config/models`` endpoint can still
-enumerate models without depending on the deleted provider code.
+These use the raw SDKs directly (not LiteLLM) to list available models
+from each provider's API.  The ``/api/config/models`` endpoint uses these
+to enumerate models without depending on the agent code.
 """
 
 import logging

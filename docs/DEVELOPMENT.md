@@ -34,7 +34,7 @@ The Shortlist is built as a full-stack web application with a clear separation b
 - **Flask**: Web framework with blueprints for route organization
 - **Flask-SQLAlchemy**: ORM for database interactions
 - **SQLite**: Development database (easily swappable for PostgreSQL/MySQL in production)
-- **LangChain**: Unified LLM interface via `BaseChatModel` (with provider packages: `langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama`)
+- **LiteLLM**: Unified LLM interface — single `litellm.completion()` call works across all providers (Anthropic, OpenAI, Gemini, Ollama, and 100+ more)
 - **uv**: Fast Python package manager
 
 ### LLM Providers
@@ -85,12 +85,11 @@ shortlist/
 │   │   ├── resume.py              # Resume upload, fetch, delete, LLM parse endpoints
 │   │   └── config.py              # Config and health check endpoints
 │   ├── llm/
-│   │   ├── langchain_factory.py   # create_langchain_model() — returns LangChain BaseChatModel
+│   │   ├── llm_factory.py         # create_llm_config() — returns LLMConfig for litellm.completion()
 │   │   └── model_listing.py       # list_models() per provider, MODEL_LISTERS registry
 │   └── agent/
 │       ├── base.py                # ABCs: Agent, OnboardingAgent, ResumeParser
 │       ├── tools.py               # AgentTools class with @agent_tool methods and Pydantic schemas
-│       ├── langchain_agent.py     # Backwards-compat shim (re-exports from base.py)
 │       └── user_profile.py        # User profile file management
 ├── frontend/
 │   ├── vite.config.js             # Vite config (React, Tailwind CSS plugin, proxy)
@@ -186,15 +185,13 @@ shortlist/
 
 **`backend/resume_parser.py`**: Resume parsing utilities. Extracts plain text from PDF files (via PyMuPDF) and DOCX files (via python-docx, including table content). Provides file save/load/delete helpers with resume files stored in a `resumes/` subdirectory under the data dir. Also stores LLM-parsed structured JSON (`save_parsed_resume`, `get_parsed_resume`, `delete_parsed_resume`).
 
-**`backend/llm/langchain_factory.py`**: `create_langchain_model(provider_name, api_key, model)` factory function that returns a LangChain `BaseChatModel` for any supported provider (Anthropic, OpenAI, Gemini, Ollama).
+**`backend/llm/llm_factory.py`**: `create_llm_config(provider_name, api_key, model)` factory function that returns an `LLMConfig` dataclass used by `litellm.completion()` for any supported provider (Anthropic, OpenAI, Gemini, Ollama).
 
 **`backend/llm/model_listing.py`**: `list_models(provider_name, api_key)` functions for each provider (uses raw SDKs to query available models). Includes `MODEL_LISTERS` registry mapping provider names to their listing functions.
 
 **`backend/agent/base.py`**: Abstract base classes defining the agent interfaces: `Agent` (main chat agent), `OnboardingAgent` (profile interview), `ResumeParser` (non-streaming resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()` for agents, `parse()` for resume parser) that concrete implementations must satisfy. Routes import from here.
 
-**`backend/agent/tools.py`**: Defines the `AgentTools` class with `@agent_tool`-decorated methods for all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `edit_job`, `remove_job`, `read_user_profile`, `update_user_profile`, `read_resume`, `run_job_search`, `add_search_result`, `list_search_results`). Includes Pydantic input schemas for each tool, `execute()` for dispatching tool calls by name, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
-
-**`backend/agent/langchain_agent.py`**: Backwards-compatibility shim that re-exports `Agent`, `OnboardingAgent`, and `ResumeParser` from `base.py` under the old `LangChain*` names.
+**`backend/agent/tools.py`**: Defines the `AgentTools` class with `@agent_tool`-decorated methods for all available tools (`web_search`, `job_search`, `scrape_url`, `create_job`, `list_jobs`, `edit_job`, `remove_job`, `read_user_profile`, `update_user_profile`, `read_resume`, `run_job_search`, `add_search_result`, `list_search_results`). Includes Pydantic input schemas for each tool, `execute()` for dispatching tool calls by name, and `get_tool_definitions()` for returning tool metadata. Agent implementations convert Pydantic schemas to OpenAI function-calling format via `.model_json_schema()`.
 
 **`backend/agent/user_profile.py`**: User profile file management with YAML frontmatter parsing. Handles reading, writing, and onboarding status checking.
 
@@ -596,13 +593,13 @@ class Message(db.Model):
 
 ## LLM Provider System
 
-The LLM system uses LangChain to provide a unified interface across multiple AI providers. All providers are accessed through `BaseChatModel` instances created by a single factory function.
+The LLM system uses LiteLLM to provide a unified interface across multiple AI providers. All providers are accessed through `litellm.completion()` using a provider-prefixed model string and an `LLMConfig` dataclass created by a single factory function.
 
 ### Architecture
 
-1. **Factory** (`backend/llm/langchain_factory.py`): `create_langchain_model(provider_name, api_key, model)` returns a LangChain `BaseChatModel` for the requested provider
+1. **Factory** (`backend/llm/llm_factory.py`): `create_llm_config(provider_name, api_key, model)` returns an `LLMConfig` dataclass with the LiteLLM model string (e.g., `anthropic/claude-sonnet-4-5-20250929`) and credentials
 2. **Model Listing** (`backend/llm/model_listing.py`): `list_models(provider_name, api_key)` queries available models via each provider's raw SDK; `MODEL_LISTERS` maps provider names to listing functions
-3. **LangChain Packages**: Provider-specific packages (`langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama`) handle API communication and streaming
+3. **LiteLLM**: Single package that translates `litellm.completion()` calls to provider-specific APIs with consistent OpenAI-format input/output
 
 ### Supported Providers
 
@@ -650,19 +647,19 @@ Configuration is managed by `backend/config_manager.py` which reads from `config
 
 ### Adding a New Provider
 
-1. Install the LangChain package for the provider: `uv add langchain-yourprovider`
-2. Add a new case in `create_langchain_model()` in `backend/llm/langchain_factory.py`
-3. Add a default model in the `DEFAULT_MODELS` dict
-4. Add a model listing function in `backend/llm/model_listing.py` and register it in `MODEL_LISTERS`
+1. Add a new case in `create_llm_config()` in `backend/llm/llm_factory.py` with the LiteLLM model prefix
+2. Add a default model in the `DEFAULT_MODELS` dict
+3. Add a model listing function in `backend/llm/model_listing.py` and register it in `MODEL_LISTERS`
 
-Example (adding to `langchain_factory.py`):
+Example (adding to `llm_factory.py`):
 
 ```python
-# In create_langchain_model():
+# In create_llm_config():
 elif provider_name == "yourprovider":
-    from langchain_yourprovider import ChatYourProvider
-    return ChatYourProvider(api_key=api_key, model=resolved_model)
+    litellm_model = f"yourprovider/{resolved_model}"
 ```
+
+LiteLLM supports 100+ providers out of the box — often no code changes are needed beyond adding the model prefix mapping. See [LiteLLM providers](https://docs.litellm.ai/docs/providers) for the full list.
 
 ## Agent System
 

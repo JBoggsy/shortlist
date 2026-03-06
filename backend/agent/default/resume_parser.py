@@ -3,10 +3,10 @@
 import json
 import logging
 
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+import litellm
 
 from backend.agent.base import ResumeParser
+from backend.llm.llm_factory import LLMConfig
 
 from .prompts import RESUME_PARSE_PROMPT
 
@@ -16,22 +16,34 @@ logger = logging.getLogger(__name__)
 class DefaultResumeParser(ResumeParser):
     """Resume parser — single LLM invocation, no tools."""
 
-    def __init__(self, model: BaseChatModel):
-        self.model = model
+    def __init__(self, llm_config: LLMConfig):
+        self.llm_config = llm_config
 
     def parse(self, raw_text: str) -> dict:
         prompt = RESUME_PARSE_PROMPT.format(raw_text=raw_text)
 
+        kwargs = {
+            "model": self.llm_config.model,
+            "max_tokens": self.llm_config.max_tokens,
+        }
+        if self.llm_config.api_key:
+            kwargs["api_key"] = self.llm_config.api_key
+        if self.llm_config.api_base:
+            kwargs["api_base"] = self.llm_config.api_base
+
         try:
-            response = self.model.invoke([
-                SystemMessage(content="You are a precise resume parser. Return only valid JSON."),
-                HumanMessage(content=prompt),
-            ])
+            response = litellm.completion(
+                messages=[
+                    {"role": "system", "content": "You are a precise resume parser. Return only valid JSON."},
+                    {"role": "user", "content": prompt},
+                ],
+                **kwargs,
+            )
         except Exception as exc:
             logger.exception("LLM call failed during resume parsing")
             raise RuntimeError(f"LLM call failed: {exc}") from exc
 
-        content = response.content.strip()
+        content = response.choices[0].message.content.strip()
 
         # Strip markdown code fences if present
         if content.startswith("```"):
