@@ -1,0 +1,152 @@
+"""General workflow — fallback ReAct-based workflow for unspecialised outcomes.
+
+When no specialised workflow matches an outcome, the General workflow
+handles it by spinning up a DSPy ``ReAct`` module with access to the
+full agent tool-set.  The LLM reasons about what to do, calls tools as
+needed, and produces a textual answer.
+
+This is intentionally simple — it mirrors the behaviour of a standard
+ReAct agent loop, just scoped to a single outcome rather than the whole
+user request.
+"""
+
+from __future__ import annotations
+
+import logging
+from collections.abc import Generator
+
+import dspy
+
+from backend.agent.tools import AgentTools
+from backend.llm.llm_factory import LLMConfig
+
+from ._dspy_utils import build_dspy_tools
+from .registry import BaseWorkflow, WorkflowResult, register_workflow
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# DSPy signature for the ReAct module
+# ---------------------------------------------------------------------------
+
+
+class GeneralTaskSig(dspy.Signature):
+    """Complete a single task using the available tools.
+
+    You are a helpful job-search and job-application assistant.  You
+    have been given one specific task to accomplish.  Use the tools at
+    your disposal to gather information, perform actions, and then
+    provide a concise answer summarising what you did and what the user
+    should know.
+    """
+
+    task: str = dspy.InputField(desc="Description of the task to accomplish")
+    context: str = dspy.InputField(
+        desc="Extra context: user profile, prior results, or parameters (may be empty)"
+    )
+    answer: str = dspy.OutputField(
+        desc="A concise summary of what was done and any information the user needs"
+    )
+
+
+# ---------------------------------------------------------------------------
+# General workflow
+# ---------------------------------------------------------------------------
+
+
+@register_workflow("general")
+class GeneralWorkflow(BaseWorkflow):
+    """Fallback workflow: uses a DSPy ReAct loop with the full tool-set."""
+
+    def __init__(
+        self,
+        outcome_id: int,
+        params: dict,
+        tools: AgentTools,
+        llm_config: LLMConfig,
+        outcome_description: str = "",
+    ):
+        super().__init__(outcome_id, params, tools, llm_config, outcome_description)
+
+        # Build DSPy tools once
+        self._dspy_tools = build_dspy_tools(tools)
+
+        # Create the ReAct module
+        self._react = dspy.ReAct(
+            signature=GeneralTaskSig,
+            tools=self._dspy_tools,
+            max_iters=10,
+        )
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _configure_lm(self) -> dspy.LM:
+        """Build a ``dspy.LM`` from the project's ``LLMConfig``."""
+        kwargs: dict = {}
+        if self.llm_config.api_key:
+            kwargs["api_key"] = self.llm_config.api_key
+        if self.llm_config.api_base:
+            kwargs["api_base"] = self.llm_config.api_base
+
+        return dspy.LM(
+            model=self.llm_config.model,
+            max_tokens=self.llm_config.max_tokens,
+            **kwargs,
+        )
+
+    # ------------------------------------------------------------------
+    # Run
+    # ------------------------------------------------------------------
+
+    def run(self) -> Generator[dict, None, WorkflowResult]:
+        """Execute the ReAct loop for this outcome."""
+        yield {
+            "event": "text_delta",
+            "data": {"content": f"Working on outcome {self.outcome_id}...\n"},
+        }
+
+        task = self.outcome_description or self.params.get("task", self.params.get("description", ""))
+        context = ""
+        if self.params:
+            context = "Parameters: " + ", ".join(
+                f"{k}={v}" for k, v in self.params.items()
+            )
+
+        lm = self._configure_lm()
+
+        try:
+            with dspy.context(lm=lm):
+                prediction = self._react(task=task, context=context)
+
+            answer = prediction.answer
+
+            logger.info(
+                "GeneralWorkflow completed outcome %d: %s",
+                self.outcome_id,
+                answer[:120],
+            )
+
+            return WorkflowResult(
+                outcome_id=self.outcome_id,
+                success=True,
+                data={"answer": answer},
+                summary=answer,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "GeneralWorkflow failed for outcome %d", self.outcome_id
+            )
+            yield {
+                "event": "text_delta",
+                "data": {"content": f"Error on outcome {self.outcome_id}: {exc}\n"},
+            }
+            return WorkflowResult(
+                outcome_id=self.outcome_id,
+                success=False,
+                data={"error": str(exc)},
+                summary=f"Failed: {exc}",
+            )

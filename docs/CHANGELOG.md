@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Pluggable agent design system** — Agent implementations are now selectable via `agent.design` in config; new designs are sub-packages of `backend/agent/` with auto-discovery
 - **Default agent design** — Monolithic ReAct loop implementation (`backend/agent/default/`) with `DefaultAgent`, `DefaultOnboardingAgent`, `DefaultResumeParser`
+- **Micro Agents v1 agent design** — Workflow-orchestrated pipeline (`backend/agent/micro_agents_v1/`) using DSPy modules. Four stages: Outcome Planner decomposes requests into a dependency DAG, Workflow Mapper matches outcomes to registered workflows, Workflow Executor runs them in topological order with deferred parameter resolution, and Result Collator synthesises a unified response. Includes an extensible workflow registry with a `general` fallback workflow (DSPy ReAct with full tool set). Set `agent.design` to `micro_agents_v1` to use.
+- **DSPy dependency** — Added `dspy>=3.1.3` for declarative LLM programming (ChainOfThought, ReAct modules) used by the micro_agents_v1 design
 - **Agent job CRUD tools** — Implemented `create_job`, `list_jobs`, `edit_job`, and `remove_job` agent tools with full database access, input validation, and live job list refresh
 - **Agent todo tools** — Added `list_job_todos`, `add_job_todo`, `edit_job_todo`, and `remove_job_todo` agent tools so the AI assistant can manage per-job application todo items (documents, questions, assessments, etc.)
 

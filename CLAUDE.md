@@ -10,9 +10,10 @@ Available as a downloadable desktop app (via Tauri — the primary distribution 
 
 ## Tech Stack
 
-- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite, LiteLLM
+- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite, LiteLLM, DSPy
 - **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars) — unified via LiteLLM `completion()` API
 - **Agent tools:** Tavily search API, cloudscraper + BeautifulSoup web scraping (with Tavily Extract fallback), JSearch/Adzuna job search
+- **Agent framework:** DSPy (declarative self-improving language programs) — used by the `micro_agents_v1` design for structured reasoning stages and ReAct workflows
 - **Frontend:** React 19, Vite, Tailwind CSS 4
 - **Desktop wrapper:** Tauri v2 (sidecar approach — Flask as child process, React in native webview)
 - **Package management:** uv (Python), npm (JS)
@@ -40,6 +41,53 @@ The start scripts handle everything automatically. Use the manual commands below
 - `npm run tauri:dev` — launch Tauri dev window (start Flask manually in a separate terminal first)
 - `npm run tauri:build` — build production desktop app (run `./build_sidecar.sh` first to bundle Flask)
 - `./build_sidecar.sh` — build Flask backend as a standalone binary for Tauri sidecar
+
+### Manual API Testing (Backend)
+
+Use this process to test backend changes via curl against a running Flask server.
+
+**1. Start the server** (redirect output to a log file to prevent tty suspension):
+```bash
+lsof -ti:5000 | xargs kill -9 2>/dev/null   # kill anything on port 5000
+nohup uv run python main.py >/tmp/shortlist_server.log 2>&1 &
+sleep 4                                       # wait for startup
+curl -s http://localhost:5000/api/health      # verify it's running
+```
+
+**2. Check server logs** at any point:
+```bash
+cat /tmp/shortlist_server.log                 # full log
+grep -i "keyword" /tmp/shortlist_server.log   # filter for specific output
+```
+
+**3. Test chat/agent endpoints** (SSE streaming):
+```bash
+# Create a conversation
+curl -s -X POST http://localhost:5000/api/chat/conversations \
+  -H 'Content-Type: application/json' -d '{"title": "Test"}'
+
+# Send a message (returns SSE stream — use -N for unbuffered output)
+curl -sN -X POST http://localhost:5000/api/chat/conversations/1/messages \
+  -H 'Content-Type: application/json' -d '{"content": "your message here"}'
+```
+
+**4. Test REST endpoints** (jobs, config, profile, etc.):
+```bash
+curl -s http://localhost:5000/api/jobs                                    # GET
+curl -s -X POST http://localhost:5000/api/jobs \
+  -H 'Content-Type: application/json' -d '{"company":"Acme","title":"SWE"}'  # POST
+curl -s http://localhost:5000/api/config                                  # GET config
+```
+
+**5. Clean up** when done:
+```bash
+lsof -ti:5000 | xargs kill -9 2>/dev/null
+```
+
+**Tips:**
+- Set `config.json` values (model, agent design, etc.) **before** starting the server — agent design is resolved at import time
+- Use a cheaper model like `gpt-4o-mini` for iterative testing
+- Add temporary debug logging or `yield` statements to stream intermediate results for visibility during development
 
 ## Project Structure
 
@@ -75,6 +123,7 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs specify the constructor signatures (accepting `LLMConfig`) and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy.
 - `backend/agent/{design_name}/` — Each agent design/strategy is a sub-package whose `__init__.py` exports `{DesignName}Agent`, `{DesignName}OnboardingAgent`, `{DesignName}ResumeParser` (PascalCase of the folder name). See `backend/agent/README.md` for instructions on creating a new design.
 - `backend/agent/default/` — **Default design**: monolithic ReAct loop. `DefaultAgent` (main chat), `DefaultOnboardingAgent` (onboarding interview), `DefaultResumeParser` (single-shot JSON extraction). Uses `litellm.completion()` with streaming and OpenAI-format tool calling. System prompts in `default/prompts.py`.
+- `backend/agent/micro_agents_v1/` — **Micro Agents v1 design**: workflow-orchestrated pipeline using DSPy modules. Decomposes user requests into outcomes → maps to workflows → executes in dependency order → collates results. Four pipeline stages in `stages/` (outcome_planner, workflow_mapper, workflow_executor, result_collator). Extensible workflow system in `workflows/` with registry and a `general` fallback (DSPy ReAct with full tool set). Onboarding and resume parsing are stubs (not yet implemented). See `micro_agents_v1/README.md` for architecture details.
 - `backend/agent/tools/` — `@agent_tool`-decorated tool functions (web_search, job_search, scrape_url, create_job, list_jobs, edit_job, remove_job, list_job_todos, add_job_todo, edit_job_todo, remove_job_todo, read_user_profile, update_user_profile, read_resume, add_search_result, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations convert Pydantic schemas to OpenAI function-calling format via `.model_json_schema()`.
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
 
