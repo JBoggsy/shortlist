@@ -11,14 +11,14 @@ Consumers:
 from abc import ABC, abstractmethod
 from collections.abc import Generator
 
-from langchain_core.language_models import BaseChatModel
+from backend.llm.llm_factory import LLMConfig
 
 
 class Agent(ABC):
     """Main chat agent.
 
     Constructor args (expected by routes):
-        model:            LLM model instance
+        llm_config:       LLMConfig instance
         search_api_key:   Tavily API key for web search
         adzuna_app_id:    Adzuna application ID
         adzuna_app_key:   Adzuna application key
@@ -32,7 +32,7 @@ class Agent(ABC):
     @abstractmethod
     def __init__(
         self,
-        model: BaseChatModel,
+        llm_config: LLMConfig,
         search_api_key: str = "",
         adzuna_app_id: str = "",
         adzuna_app_key: str = "",
@@ -65,13 +65,13 @@ class OnboardingAgent(ABC):
     """Onboarding interview agent.
 
     Constructor args (expected by routes):
-        model: LLM model instance
+        llm_config: LLMConfig instance
 
     Subclasses must implement run().
     """
 
     @abstractmethod
-    def __init__(self, model: BaseChatModel):
+    def __init__(self, llm_config: LLMConfig):
         ...
 
     @abstractmethod
@@ -89,13 +89,13 @@ class ResumeParser(ABC):
     """Resume parsing agent (non-streaming).
 
     Constructor args (expected by routes):
-        model: LLM model instance
+        llm_config: LLMConfig instance
 
     Subclasses must implement parse().
     """
 
     @abstractmethod
-    def __init__(self, model: BaseChatModel):
+    def __init__(self, llm_config: LLMConfig):
         ...
 
     @abstractmethod

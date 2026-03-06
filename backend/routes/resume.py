@@ -111,7 +111,7 @@ def parse_resume_with_llm():
     return a structured representation of the resume.
     """
     from backend.config_manager import get_llm_config
-    from backend.llm.langchain_factory import create_langchain_model
+    from backend.llm.llm_factory import create_llm_config
     from backend.agent import ActiveResumeParser as ResumeParser
 
     # Get the raw resume text
@@ -125,17 +125,17 @@ def parse_resume_with_llm():
         return {"error": "LLM is not configured. Please configure your API key in Settings."}, 400
 
     try:
-        model = create_langchain_model(
+        config = create_llm_config(
             llm_config["provider"],
             llm_config["api_key"],
             llm_config["model"],
         )
     except Exception as e:
-        logger.error("Failed to create LLM model for resume parsing: %s", e)
+        logger.error("Failed to create LLM config for resume parsing: %s", e)
         return {"error": f"Failed to initialize LLM provider: {str(e)}"}, 500
 
     try:
-        parser = ResumeParser(model)
+        parser = ResumeParser(config)
         parsed = parser.parse(raw_text)
         logger.info("Resume parsed successfully via LLM")
         return {"parsed": parsed}

@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Pluggable agent design system** — Agent implementations are now selectable via `agent.design` in config; new designs are sub-packages of `backend/agent/` with auto-discovery
 - **Default agent design** — Monolithic ReAct loop implementation (`backend/agent/default/`) with `DefaultAgent`, `DefaultOnboardingAgent`, `DefaultResumeParser`
-- **Ollama tool-call recovery** — When Ollama's server fails to parse a tool call (model prepends thinking text before JSON), the error handler extracts valid JSON from the raw response and matches it to the appropriate tool schema
 - **Agent job CRUD tools** — Implemented `create_job`, `list_jobs`, `edit_job`, and `remove_job` agent tools with full database access, input validation, and live job list refresh
 - **Agent todo tools** — Added `list_job_todos`, `add_job_todo`, `edit_job_todo`, and `remove_job_todo` agent tools so the AI assistant can manage per-job application todo items (documents, questions, assessments, etc.)
 
@@ -18,11 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Job enrichment** — Removed `backend/job_enrichment.py` and all automatic enrichment when adding jobs to tracker
 - **Scraper and todo extractor modules** — Removed `backend/scraper.py` and `backend/todo_extractor.py`; scraping and extraction are now exclusively handled by the agent
 - **Extract todos endpoint** — Removed `POST /api/jobs/:id/todos/extract`; "Extract from posting" button removed from Job Detail Panel
+- **LangChain dependency** — Removed all 6 LangChain packages (`langchain-core`, `langchain`, `langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama`) and their ~12 transitive dependencies
+- **Ollama tool-call recovery** — Removed the LangChain-specific `_recover_ollama_tool_calls()` workaround (LiteLLM handles Ollama tool calling natively)
 
 ### Changed
+- **LiteLLM migration** — Replaced LangChain with LiteLLM for all LLM interactions. Single `litellm.completion()` function replaces `BaseChatModel.stream()`/`.invoke()`, LangChain message classes replaced with OpenAI-format dicts, `bind_tools()`/`StructuredTool` replaced with native `tools=[...]` parameter. Reduces dependency count and simplifies the codebase while supporting 100+ LLM providers.
+- **LLM factory** — `create_langchain_model()` replaced with `create_llm_config()` which returns an `LLMConfig` dataclass (model string, api_key, api_base) instead of a provider-specific class instance
+- **LLM factory rename** — `backend/llm/langchain_factory.py` renamed to `backend/llm/llm_factory.py` to reflect the LiteLLM migration
+- **Agent ABCs** — Constructor signatures updated from `model: BaseChatModel` to `llm_config: LLMConfig`; abstract interface unchanged
+- **Agent tools** — `get_tool_definitions()` Pydantic schemas now converted to OpenAI function-calling format via `.model_json_schema()` instead of LangChain `StructuredTool`
 - **Agent ABCs** — Extracted abstract base classes (`Agent`, `OnboardingAgent`, `ResumeParser`) into `backend/agent/base.py`, decoupling the agent interface from any specific LLM framework. Routes now import from `base.py` instead of `langchain_agent.py`.
 - **Agent tools consolidated** — Moved `add_search_result` tool from the removed `JobSearchSubAgentTools` into the main `AgentTools` class. All tools are now in a single class.
-- **Framework-agnostic tool metadata** — Replaced `to_langchain_tools()` with `get_tool_definitions()` which returns tool metadata without importing LangChain. Agent implementations adapt definitions to their own framework.
+- **Framework-agnostic tool metadata** — Replaced `to_langchain_tools()` with `get_tool_definitions()` which returns tool metadata without importing any LLM framework. Agent implementations adapt definitions to OpenAI function-calling format.
 - **Anthropic streaming text extraction** — Fixed text extraction for Anthropic's content block format (list of dicts instead of plain strings)
 - **Ollama float-to-int coercion** — Added Pydantic `BeforeValidator` on integer fields so Ollama models sending floats (e.g. `4.5` for `job_fit`) are silently truncated
 - **JSearch timeout and retry** — Increased JSearch API timeout to 30s with automatic retry on timeout

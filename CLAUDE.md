@@ -10,8 +10,8 @@ Available as a downloadable desktop app (via Tauri — the primary distribution 
 
 ## Tech Stack
 
-- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite, LangChain
-- **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars) — unified via LangChain `BaseChatModel`
+- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite, LiteLLM
+- **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars) — unified via LiteLLM `completion()` API
 - **Agent tools:** Tavily search API, cloudscraper + BeautifulSoup web scraping (with Tavily Extract fallback), JSearch/Adzuna job search
 - **Frontend:** React 19, Vite, Tailwind CSS 4
 - **Desktop wrapper:** Tauri v2 (sidecar approach — Flask as child process, React in native webview)
@@ -67,15 +67,15 @@ The start scripts handle everything automatically. Use the manual commands below
 - `backend/routes/resume.py` — Resume upload blueprint (`resume_bp` at `/api/resume`) — upload, fetch, delete resume files; LLM-powered resume parsing endpoint
 - `backend/resume_parser.py` — Resume parsing utilities (PDF via PyMuPDF, DOCX via python-docx); file save/load/delete helpers; parsed resume JSON storage (`save_parsed_resume`, `get_parsed_resume`, `delete_parsed_resume`)
 - `backend/models/chat.py` — `Conversation` and `Message` models for chat persistence
-- `backend/llm/langchain_factory.py` — `create_langchain_model()` factory that returns a LangChain `BaseChatModel` for any supported provider
+- `backend/llm/llm_factory.py` — `create_llm_config()` factory that returns an `LLMConfig` dataclass for `litellm.completion()` calls; maps provider names to LiteLLM model strings (e.g., `anthropic/claude-sonnet-4-5-20250929`)
 - `backend/llm/model_listing.py` — `list_models()` functions for each provider (uses raw SDKs to query available models); `MODEL_LISTERS` registry
 - `backend/models/search_result.py` — `SearchResult` model for per-conversation job search results (fields: company, title, url, salary, location, remote_type, source, description, requirements, nice_to_haves, job_fit, fit_reason, added_to_tracker, tracker_job_id)
 - `backend/models/application_todo.py` — `ApplicationTodo` model for per-job application steps (fields: job_id, category, title, description, completed, sort_order)
 - `backend/agent/__init__.py` — Agent design selector. Reads `agent.design` from config, dynamically imports the matching sub-package (`backend/agent/{design_name}/`), and re-exports its classes as `ActiveAgent`, `ActiveOnboardingAgent`, `ActiveResumeParser`. Falls back to the ABCs from `base.py` if the design cannot be loaded. Routes import `Active*` classes from here.
-- `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs specify the constructor signatures and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy.
+- `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs specify the constructor signatures (accepting `LLMConfig`) and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy.
 - `backend/agent/{design_name}/` — Each agent design/strategy is a sub-package whose `__init__.py` exports `{DesignName}Agent`, `{DesignName}OnboardingAgent`, `{DesignName}ResumeParser` (PascalCase of the folder name). See `backend/agent/README.md` for instructions on creating a new design.
-- `backend/agent/default/` — **Default design**: monolithic ReAct loop. `DefaultAgent` (main chat), `DefaultOnboardingAgent` (onboarding interview), `DefaultResumeParser` (single-shot JSON extraction). Uses LangChain `bind_tools` + streaming. System prompts in `default/prompts.py`.
-- `backend/agent/tools/` — `@agent_tool`-decorated tool functions (web_search, job_search, scrape_url, create_job, list_jobs, edit_job, remove_job, list_job_todos, add_job_todo, edit_job_todo, remove_job_todo, read_user_profile, update_user_profile, read_resume, add_search_result, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations are responsible for adapting tool definitions to their specific LLM framework.
+- `backend/agent/default/` — **Default design**: monolithic ReAct loop. `DefaultAgent` (main chat), `DefaultOnboardingAgent` (onboarding interview), `DefaultResumeParser` (single-shot JSON extraction). Uses `litellm.completion()` with streaming and OpenAI-format tool calling. System prompts in `default/prompts.py`.
+- `backend/agent/tools/` — `@agent_tool`-decorated tool functions (web_search, job_search, scrape_url, create_job, list_jobs, edit_job, remove_job, list_job_todos, add_job_todo, edit_job_todo, remove_job_todo, read_user_profile, update_user_profile, read_resume, add_search_result, list_search_results), Pydantic input schemas, `execute()` for tool dispatch, and `get_tool_definitions()` for returning tool metadata. Agent implementations convert Pydantic schemas to OpenAI function-calling format via `.model_json_schema()`.
 - `backend/agent/user_profile.py` — User profile markdown file management with YAML frontmatter (onboarded flag with tri-state: `false`/`in_progress`/`true`), read/write/onboarding helpers
 
 ### Frontend
