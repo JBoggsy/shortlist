@@ -7,88 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Job search workflow crash in micro_agents_v1** — `_add_search_results` was called with `yield from` but is a regular function returning `int`, not a generator; changed to a direct call and corrected the return type annotation
-- **JSearch 429 rate-limit errors during job search** — Added retry with exponential backoff (up to 3 retries) on 429 responses in the JSearch API client, and a 1-second inter-query delay in the micro_agents_v1 job search workflow to avoid overwhelming the API
-
-### Changed
-- **Replaced Adzuna with Active Jobs DB + LinkedIn Job Search** — Job search now uses three RapidAPI-based providers (JSearch, Active Jobs DB from Fantastic.jobs, LinkedIn Job Search from Fantastic.jobs), all sharing a single RapidAPI key. Removed Adzuna App ID/Key config fields. Renamed `jsearch_api_key` to `rapidapi_key` (backward-compatible with existing configs). Settings UI simplified to a single "RapidAPI Key" field. Provider failures are handled gracefully — if any provider returns 403 (not subscribed) or 429 (rate limited), the others continue.
-
-### Added
-- **Agent mode selector in Settings UI** — Users can switch between "Freeform" (default agent, best for SOTA models) and "Orchestrated" (micro_agents_v1, structured pipeline for cheaper/local models) via a visual toggle in Settings
-- **Hot-swappable agent design** — Agent mode changes take effect immediately without server restart; `get_agent_classes()` resolves the active design at request time
-- **Per-mode model overrides** — Each agent mode can have its own provider, API key, and model configured in Settings; falls back to the main LLM config when not set
-
-### Refactored
-- **Agent base classes are now DSPy modules** — Added combined `_AgentModuleMeta` metaclass to `backend/agent/base.py` enabling dual `ABC` + `dspy.Module` inheritance; `MicroAgentsV1Agent`, `MicroAgentsV1OnboardingAgent`, and `MicroAgentsV1ResumeParser` now call `dspy.Module.__init__()` and expose sub-modules via `named_sub_modules()` / `named_parameters()` / `save()` / `load()`; default design agents are unaffected
-
-### Improved
-- **Workflow metadata passed to WorkflowMapper** — Mapper now receives JSON with `name`, `description`, and `outputs` fields (via `available_workflows_with_metadata()`) instead of bare comma-separated names, enabling more accurate routing decisions; each workflow class declares an `OUTPUTS` dict; output schemas also surfaced in `DeferredParamExtractor` context and `ResultCollator` result formatting
-- **Conversation context now passed to micro_agents_v1 workflows** — Recent conversation history (last 10 messages) is injected into workflow params, enabling `JobResolver` and `SearchResultResolver` to handle relative references like "the first one" or "the job we just discussed"
+## [0.11.0] - 2026-03-09
 
 ### Added
 - **Pluggable agent design system** — Agent implementations are now selectable via `agent.design` in config; new designs are sub-packages of `backend/agent/` with auto-discovery
 - **Default agent design** — Monolithic ReAct loop implementation (`backend/agent/default/`) with `DefaultAgent`, `DefaultOnboardingAgent`, `DefaultResumeParser`
-- **Micro Agents v1 agent design** — Workflow-orchestrated pipeline (`backend/agent/micro_agents_v1/`) using DSPy modules. Four stages: Outcome Planner decomposes requests into a dependency DAG, Workflow Mapper matches outcomes to registered workflows, Workflow Executor runs them in topological order with deferred parameter resolution, and Result Collator synthesises a unified response. Includes an extensible workflow registry with a `general` fallback workflow (DSPy ReAct with full tool set). Set `agent.design` to `micro_agents_v1` to use.
+- **Micro Agents v1 agent design** — Workflow-orchestrated pipeline (`backend/agent/micro_agents_v1/`) using DSPy modules. Four stages: Outcome Planner decomposes requests into a dependency DAG, Workflow Mapper matches outcomes to registered workflows, Workflow Executor runs them in topological order with deferred parameter resolution, and Result Collator synthesises a unified response. Includes 12 registered workflows and a `general` fallback workflow (DSPy ReAct with full tool set)
+- **Agent mode selector in Settings UI** — Users can switch between "Freeform" (default agent, best for SOTA models) and "Orchestrated" (micro_agents_v1, structured pipeline for cheaper/local models) via a visual toggle in Settings
+- **Hot-swappable agent design** — Agent mode changes take effect immediately without server restart; `get_agent_classes()` resolves the active design at request time
+- **Per-mode model overrides** — Each agent mode can have its own provider, API key, and model configured in Settings; falls back to the main LLM config when not set
 - **DSPy dependency** — Added `dspy>=3.1.3` for declarative LLM programming (ChainOfThought, ReAct modules) used by the micro_agents_v1 design
-- **Agent job CRUD tools** — Implemented `create_job`, `list_jobs`, `edit_job`, and `remove_job` agent tools with full database access, input validation, and live job list refresh
-- **Agent todo tools** — Added `list_job_todos`, `add_job_todo`, `edit_job_todo`, and `remove_job_todo` agent tools so the AI assistant can manage per-job application todo items (documents, questions, assessments, etc.)
-- **Micro Agents v1 write-cover-letter workflow** — Implemented `WriteCoverLetterWorkflow` (`backend/agent/micro_agents_v1/workflows/write_cover_letter.py`) with job resolution via `JobResolver`, profile/resume context loading, outline+narrative generation, parallel section drafting, draft unification, grammar/style polishing, and versioned persistence through `save_job_document`
-- **Micro Agents v1 specialize-resume workflow** — Implemented `SpecializeResumeWorkflow` (`backend/agent/micro_agents_v1/workflows/specialize_resume.py`) with job resolution via `JobResolver`, resume source preference (`get_job_document` resume fallback to uploaded resume), section-by-section critique and revision, unification editing pass, strict claim validation against profile/request, and versioned persistence through `save_job_document`
-- **Micro Agents v1 onboarding agent** — Implemented `MicroAgentsV1OnboardingAgent` using a DSPy `ReAct` module with `OnboardingTurnSig` signature for interactive profile-building interviews; restricted to profile/resume tools, with structured section tracking and `is_complete` output field for reliable completion detection
-
-### Changed
-- **micro_agents_v1 interview prep company brief uses live web research** — `CompanyBriefSig` now runs as a `dspy.ReAct` module with `web_search` and `scrape_url` tools instead of relying solely on LLM training data
-- **micro_agents_v1 suppress verbose pipeline internals** — replaced raw outcome lists, workflow assignment dumps, and "Mapping to workflows…" with a single "Thinking…" indicator; executor now shows clean step labels; detailed internals moved to DEBUG logging
-- **micro_agents_v1 result collation streams token-by-token** — `ResultCollator` now uses `litellm.completion(stream=True)` instead of DSPy `ChainOfThought`, so the final synthesised response streams incrementally via SSE `text_delta` events
-- **micro_agents_v1 real-time tool streaming for all ReAct modules** — `build_dspy_tools` now accepts an optional `event_queue` to emit `tool_start`/`tool_result` SSE events; new `run_dspy_module_streaming()` helper runs DSPy modules in a background thread while draining tool events in real-time. Applied to all three ReAct call sites: `GeneralWorkflow`, `PrepInterviewWorkflow` company brief (parallel event draining during `ThreadPoolExecutor`), and `MicroAgentsV1OnboardingAgent`
-
-### Performance
-- **micro_agents_v1 per-run tool cache** — `WorkflowExecutor` now wraps tools in a `_CachedTools` proxy that caches `list_jobs`, `read_user_profile`, and `read_resume` results within a pipeline run; automatically invalidates on mutating tool calls
-- **micro_agents_v1 kwargs-unwrap hardened** — `build_dspy_tools` now checks whether a tool genuinely declares a `kwargs` parameter before unwrapping, and verifies the value is a dict
-
-### Refactored
-- **micro_agents_v1 deduplicated `ResumeSection` model** — `ResumeSection(title, content)` is now the shared base in `section_segmenter.py`; `SegmentedResumeSection` extends it with `section_type` and `heading`; `specialize_resume.py` imports from `resume_stages` instead of defining its own copy
-- **micro_agents_v1 extracted shared context loaders** — `load_job_context()` and `load_user_context()` in `_dspy_utils.py` replace four near-identical per-workflow copies; fixes `edit_cover_letter.py` missing `int(job_id)` error handling and hardcoded magic numbers
-
-### Fixed
-- **micro_agents_v1 resume parser graceful degradation** — extractor failures no longer abort the full parse; remaining extractors' results are preserved using empty fallbacks
-- **micro_agents_v1 pending events cleared on error** — `OnboardingAgent` now clears `_pending_events` in a `finally` block so stale events don't leak into subsequent turns
-- **micro_agents_v1 non-numeric job_id crash** — `_load_job_context()` in all three job workflows now catches `ValueError`/`TypeError` from `int(job_id)` and falls through to resolver-based lookup
-- **micro_agents_v1 dead-code guard** — removed unreachable `if not sections:` check in `WriteCoverLetterWorkflow`
-- **micro_agents_v1 Optional type hint** — corrected `ResumeAssembler.__init__` parameter to `Optional["LLMConfig"] = None`
-- **CLAUDE.md docs sync** — updated `micro_agents_v1` description to reflect the implemented `resume_stages/` pipeline
-- **micro_agents_v1 pending events not flushed** — `agent.py` now yields and clears `_pending_events` after workflow execution so `search_result_added` events reach the UI
-- **micro_agents_v1 NotImplementedError crash** — executor now catches `NotImplementedError` per-workflow and returns a clean failure result instead of crashing the full pipeline
-- **micro_agents_v1 truncated resume in claim validation** — `ValidateClaimsSig` now receives the full un-truncated resume via `_load_full_user_context()` to prevent false hallucination flags
-- **micro_agents_v1 JSON resume fed to text parser** — `_load_resume_text()` now converts parsed resume dicts to structured plain text via `_parsed_resume_to_text()` instead of `json.dumps()`
-- **Standardised profile section placeholder** — defined canonical `SECTION_PLACEHOLDER` constant and `is_section_unfilled()` helper in `user_profile.py`; all profile template sections now use the same placeholder; onboarding agent uses the helper instead of a narrow regex; legacy placeholders from older templates are still recognised; duplicate `PROFILE_SECTIONS` list in `update_profile.py` replaced with import
-
-### Removed
-- **Job enrichment** — Removed `backend/job_enrichment.py` and all automatic enrichment when adding jobs to tracker
-- **Scraper and todo extractor modules** — Removed `backend/scraper.py` and `backend/todo_extractor.py`; scraping and extraction are now exclusively handled by the agent
-- **Extract todos endpoint** — Removed `POST /api/jobs/:id/todos/extract`; "Extract from posting" button removed from Job Detail Panel
-- **LangChain dependency** — Removed all 6 LangChain packages (`langchain-core`, `langchain`, `langchain-anthropic`, `langchain-openai`, `langchain-google-genai`, `langchain-ollama`) and their ~12 transitive dependencies
-- **Ollama tool-call recovery** — Removed the LangChain-specific `_recover_ollama_tool_calls()` workaround (LiteLLM handles Ollama tool calling natively)
+- **Agent job CRUD tools** — Implemented `edit_job` and `remove_job` agent tools with full database access, input validation, and live job list refresh
+- **Agent todo tools** — Added `list_job_todos`, `add_job_todo`, `edit_job_todo`, and `remove_job_todo` agent tools so the AI assistant can manage per-job application todo items
+- **JobDocument model and API** — New `backend/models/job_document.py` for versioned per-job documents (cover letters, resumes) with `save_job_document` and `get_job_document` agent tools; REST endpoints at `/api/jobs/:id/documents`
+- **Micro Agents v1 workflows** — Implemented all 12 workflows: general, job_search, add_to_tracker, edit_job, remove_jobs, edit_cover_letter, compare_jobs, specialize_resume, write_cover_letter, prep_interview, application_todos, update_profile
+- **Micro Agents v1 onboarding agent** — DSPy `ReAct` module with profile/resume tools for interactive profile-building interviews
+- **Micro Agents v1 resume parser** — 3-stage pipeline: `SectionSegmenter` → three parallel extractors (contact, experience/education, skills) → `ResumeAssembler` with LLM-based skill gap-filling
+- **Real-time tool streaming for DSPy ReAct modules** — `build_dspy_tools` emits `tool_start`/`tool_result` SSE events via `run_dspy_module_streaming()` helper; applied to GeneralWorkflow, PrepInterviewWorkflow, and OnboardingAgent
 
 ### Changed
 - **LiteLLM migration** — Replaced LangChain with LiteLLM for all LLM interactions. Single `litellm.completion()` function replaces `BaseChatModel.stream()`/`.invoke()`, LangChain message classes replaced with OpenAI-format dicts, `bind_tools()`/`StructuredTool` replaced with native `tools=[...]` parameter. Reduces dependency count and simplifies the codebase while supporting 100+ LLM providers.
-- **LLM factory** — `create_langchain_model()` replaced with `create_llm_config()` which returns an `LLMConfig` dataclass (model string, api_key, api_base) instead of a provider-specific class instance
-- **LLM factory rename** — `backend/llm/langchain_factory.py` renamed to `backend/llm/llm_factory.py` to reflect the LiteLLM migration
-- **Agent ABCs** — Constructor signatures updated from `model: BaseChatModel` to `llm_config: LLMConfig`; abstract interface unchanged
-- **Agent tools** — `get_tool_definitions()` Pydantic schemas now converted to OpenAI function-calling format via `.model_json_schema()` instead of LangChain `StructuredTool`
-- **Agent ABCs** — Extracted abstract base classes (`Agent`, `OnboardingAgent`, `ResumeParser`) into `backend/agent/base.py`, decoupling the agent interface from any specific LLM framework. Routes now import from `base.py` instead of `langchain_agent.py`.
-- **Agent tools consolidated** — Moved `add_search_result` tool from the removed `JobSearchSubAgentTools` into the main `AgentTools` class. All tools are now in a single class.
-- **Framework-agnostic tool metadata** — Replaced `to_langchain_tools()` with `get_tool_definitions()` which returns tool metadata without importing any LLM framework. Agent implementations adapt definitions to OpenAI function-calling format.
+- **LLM factory** — `create_langchain_model()` replaced with `create_llm_config()` returning an `LLMConfig` dataclass; `backend/llm/langchain_factory.py` renamed to `backend/llm/llm_factory.py`
+- **Replaced Adzuna with Active Jobs DB + LinkedIn Job Search** — Job search now uses three RapidAPI-based providers (JSearch, Active Jobs DB, LinkedIn Job Search), all sharing a single RapidAPI key. Removed Adzuna App ID/Key config fields. Renamed `jsearch_api_key` to `rapidapi_key` (backward-compatible). Settings UI simplified to a single "RapidAPI Key" field. Provider failures handled gracefully.
+- **Agent ABCs** — Extracted abstract base classes into `backend/agent/base.py` with combined `_AgentModuleMeta` metaclass enabling dual `ABC` + `dspy.Module` inheritance; constructor signatures updated from `model: BaseChatModel` to `llm_config: LLMConfig`
+- **Agent tools refactored** — Split monolithic `backend/agent/tools.py` into per-tool modules under `backend/agent/tools/`; `get_tool_definitions()` now uses Pydantic `.model_json_schema()` for OpenAI function-calling format
+- **micro_agents_v1 result collation streams token-by-token** — `ResultCollator` uses `litellm.completion(stream=True)` for incremental SSE `text_delta` streaming
+- **micro_agents_v1 interview prep company brief uses live web research** — `CompanyBriefSig` now runs as a `dspy.ReAct` module with `web_search` and `scrape_url` tools
+- **micro_agents_v1 suppress verbose pipeline internals** — Replaced raw outcome/workflow dumps with a single "Thinking…" indicator; detailed internals moved to DEBUG logging
+- **Workflow metadata passed to WorkflowMapper** — Mapper receives JSON with `name`, `description`, and `outputs` fields instead of bare names; each workflow class declares an `OUTPUTS` dict
+- **Conversation context passed to micro_agents_v1 workflows** — Recent conversation history (last 10 messages) injected into workflow params for relative reference resolution
 - **Anthropic streaming text extraction** — Fixed text extraction for Anthropic's content block format (list of dicts instead of plain strings)
-- **Ollama float-to-int coercion** — Added Pydantic `BeforeValidator` on integer fields so Ollama models sending floats (e.g. `4.5` for `job_fit`) are silently truncated
+- **Ollama float-to-int coercion** — Added Pydantic `BeforeValidator` on integer fields for Ollama models sending floats
 - **JSearch timeout and retry** — Increased JSearch API timeout to 30s with automatic retry on timeout
-- **Improved system prompt** — Added "Communication — CRITICAL" section requiring the agent to acknowledge, provide progress updates, summarize, and invite follow-up
+- **Improved system prompt** — Added "Communication — CRITICAL" section requiring progress updates and follow-up invitations
+- **JOB_MUTATING_TOOLS updated** — ChatPanel now tracks `edit_job`, `remove_job`, and all todo tools for live job list refresh
+
+### Fixed
+- **Job search workflow crash in micro_agents_v1** — `_add_search_results` was called with `yield from` but is a regular function; changed to a direct call
+- **JSearch 429 rate-limit errors** — Added retry with exponential backoff (up to 3 retries) and 1-second inter-query delay in the micro_agents_v1 job search workflow
+- **Active Jobs DB API endpoint path** — Corrected the endpoint URL for the Active Jobs DB provider
+- **micro_agents_v1 resume parser graceful degradation** — Extractor failures no longer abort the full parse; remaining extractors' results preserved
+- **micro_agents_v1 pending events not flushed** — Events now yielded and cleared after workflow execution so `search_result_added` events reach the UI
+- **micro_agents_v1 pending events cleared on error** — `_pending_events` cleared in `finally` block to prevent stale event leaks
+- **micro_agents_v1 non-numeric job_id crash** — `_load_job_context()` catches `ValueError`/`TypeError` from `int(job_id)` and falls through to resolver
+- **micro_agents_v1 NotImplementedError crash** — Executor catches `NotImplementedError` per-workflow and returns clean failure result
+- **micro_agents_v1 truncated resume in claim validation** — `ValidateClaimsSig` receives full un-truncated resume
+- **micro_agents_v1 JSON resume fed to text parser** — Parsed resume dicts now converted to structured plain text instead of `json.dumps()`
+- **Standardised profile section placeholder** — Canonical `SECTION_PLACEHOLDER` constant and `is_section_unfilled()` helper in `user_profile.py`; legacy placeholders still recognised
+
+### Performance
+- **micro_agents_v1 per-run tool cache** — `WorkflowExecutor` caches `list_jobs`, `read_user_profile`, and `read_resume` results within a pipeline run; invalidates on mutating tool calls
 
 ### Removed
-- **`LangChainJobSearchAgent`** — Removed the job search sub-agent class and emptied `backend/agent/job_search_agent.py`. The `run_job_search` and `add_search_result` tools remain in `AgentTools`.
-- **`JobSearchSubAgentTools`** — Removed the `AgentTools` subclass; `add_search_result` moved to the base `AgentTools`.
-- **LangChain class names** — `LangChainAgent`, `LangChainOnboardingAgent`, `LangChainResumeParser` renamed to `Agent`, `OnboardingAgent`, `ResumeParser`. Old names available via backwards-compat shim in `langchain_agent.py`.
+- **LangChain dependency** — Removed all 6 LangChain packages and their ~12 transitive dependencies; replaced by LiteLLM
+- **Job enrichment** — Removed `backend/job_enrichment.py` and automatic enrichment when adding jobs to tracker
+- **Scraper and todo extractor modules** — Removed `backend/scraper.py` and `backend/todo_extractor.py`; scraping and extraction now handled exclusively by the agent
+- **Extract todos endpoint** — Removed `POST /api/jobs/:id/todos/extract` and "Extract from posting" button from Job Detail Panel
+- **Job search sub-agent** — Removed `LangChainJobSearchAgent` and `JobSearchSubAgentTools`; search is now handled by the main agent and micro_agents_v1 job_search workflow
+- **Ollama tool-call recovery** — Removed the LangChain-specific `_recover_ollama_tool_calls()` workaround (LiteLLM handles Ollama tool calling natively)
+- **Adzuna integration** — Removed Adzuna App ID/Key config fields; replaced by unified RapidAPI key for all job search providers
+- **LangChain migration guide** — Removed `docs/LANGCHAIN_MIGRATION.md` (no longer relevant after LiteLLM migration)
 
 ## [0.10.0] - 2026-02-26
 
