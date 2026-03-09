@@ -85,6 +85,20 @@ def update_config():
                 if value is not None and not is_masked_value(value):
                     config["integrations"][key] = value
 
+        if "agent" in data:
+            if "agent" not in config:
+                config["agent"] = {"design": "default", "freeform_llm": {"provider": "", "api_key": "", "model": ""}, "orchestrated_llm": {"provider": "", "api_key": "", "model": ""}}
+            agent_data = data["agent"]
+            if "design" in agent_data and agent_data["design"] is not None:
+                config["agent"]["design"] = agent_data["design"]
+            for sub in ("freeform_llm", "orchestrated_llm"):
+                if sub in agent_data:
+                    if sub not in config["agent"]:
+                        config["agent"][sub] = {"provider": "", "api_key": "", "model": ""}
+                    for key, value in agent_data[sub].items():
+                        if value is not None and not is_masked_value(value):
+                            config["agent"][sub][key] = value
+
         if "logging" in data:
             for key, value in data["logging"].items():
                 if value is not None and not is_masked_value(value):

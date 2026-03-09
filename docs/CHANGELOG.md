@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Agent mode selector in Settings UI** — Users can switch between "Freeform" (default agent, best for SOTA models) and "Orchestrated" (micro_agents_v1, structured pipeline for cheaper/local models) via a visual toggle in Settings
+- **Hot-swappable agent design** — Agent mode changes take effect immediately without server restart; `get_agent_classes()` resolves the active design at request time
+- **Per-mode model overrides** — Each agent mode can have its own provider, API key, and model configured in Settings; falls back to the main LLM config when not set
+
 ### Refactored
 - **Agent base classes are now DSPy modules** — Added combined `_AgentModuleMeta` metaclass to `backend/agent/base.py` enabling dual `ABC` + `dspy.Module` inheritance; `MicroAgentsV1Agent`, `MicroAgentsV1OnboardingAgent`, and `MicroAgentsV1ResumeParser` now call `dspy.Module.__init__()` and expose sub-modules via `named_sub_modules()` / `named_parameters()` / `save()` / `load()`; default design agents are unaffected
 

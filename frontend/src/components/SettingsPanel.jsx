@@ -106,6 +106,13 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
   const [jsearchApiKey, setJsearchApiKey] = useState('');
   const [adzunaAppId, setAdzunaAppId] = useState('');
   const [adzunaAppKey, setAdzunaAppKey] = useState('');
+  const [agentMode, setAgentMode] = useState('default');
+  const [freeformProvider, setFreeformProvider] = useState('');
+  const [freeformApiKey, setFreeformApiKey] = useState('');
+  const [freeformModel, setFreeformModel] = useState('');
+  const [orchestratedProvider, setOrchestratedProvider] = useState('');
+  const [orchestratedApiKey, setOrchestratedApiKey] = useState('');
+  const [orchestratedModel, setOrchestratedModel] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -134,6 +141,13 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
       setJsearchApiKey(data.integrations?.jsearch_api_key || '');
       setAdzunaAppId(data.integrations?.adzuna_app_id || '');
       setAdzunaAppKey(data.integrations?.adzuna_app_key || '');
+      setAgentMode(data.agent?.design || 'default');
+      setFreeformProvider(data.agent?.freeform_llm?.provider || '');
+      setFreeformApiKey(data.agent?.freeform_llm?.api_key || '');
+      setFreeformModel(data.agent?.freeform_llm?.model || '');
+      setOrchestratedProvider(data.agent?.orchestrated_llm?.provider || '');
+      setOrchestratedApiKey(data.agent?.orchestrated_llm?.api_key || '');
+      setOrchestratedModel(data.agent?.orchestrated_llm?.model || '');
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -171,6 +185,19 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
           provider: searchLlmProvider,
           api_key: searchLlmApiKey,
           model: searchLlmModel,
+        },
+        agent: {
+          design: agentMode,
+          freeform_llm: {
+            provider: freeformProvider,
+            api_key: freeformApiKey,
+            model: freeformModel,
+          },
+          orchestrated_llm: {
+            provider: orchestratedProvider,
+            api_key: orchestratedApiKey,
+            model: orchestratedModel,
+          },
         },
         integrations: {
           search_api_key: searchApiKey,
@@ -358,6 +385,133 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                   >
                     {testing ? 'Testing...' : 'Test Connection'}
                   </button>
+                </div>
+              </div>
+
+              {/* Agent Mode */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Agent Mode</h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAgentMode('default')}
+                      className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                        agentMode === 'default'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="font-medium text-gray-900">Freeform</div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Agent has full control over its reasoning. Best with powerful SOTA models (Claude, GPT-4o, Gemini Pro).
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAgentMode('micro_agents_v1')}
+                      className={`p-4 rounded-lg border-2 text-left transition-colors ${
+                        agentMode === 'micro_agents_v1'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="font-medium text-gray-900">Orchestrated</div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Structured pipeline guides the agent step by step. Works well with cheaper or local models (GPT-4o-mini, Gemini Flash, Ollama).
+                      </p>
+                    </button>
+                  </div>
+
+                  {/* Per-mode model overrides */}
+                  <details className="mt-2">
+                    <summary className="text-sm font-medium text-gray-700 cursor-pointer select-none">
+                      Per-mode model overrides <span className="text-xs font-normal text-gray-500">(Optional)</span>
+                    </summary>
+                    <div className="mt-3 space-y-5">
+                      <p className="text-sm text-gray-600">
+                        Optionally set a different provider/model for each mode. When switching modes, the override for that mode will be used automatically. Leave blank to use the main AI Assistant configuration above.
+                      </p>
+
+                      {/* Freeform overrides */}
+                      <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="text-sm font-medium text-gray-800">Freeform mode</div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                          <select
+                            value={freeformProvider}
+                            onChange={(e) => setFreeformProvider(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          >
+                            <option value="">Same as above</option>
+                            {providers.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                          <input
+                            type="password"
+                            value={freeformApiKey}
+                            onChange={(e) => setFreeformApiKey(e.target.value)}
+                            placeholder="Leave blank to use the same key as above"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Model</label>
+                          <ModelCombobox
+                            provider={freeformProvider || llmProvider}
+                            apiKey={freeformApiKey || llmApiKey}
+                            value={freeformModel}
+                            onChange={setFreeformModel}
+                            placeholder="Leave blank to use the provider default"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Orchestrated overrides */}
+                      <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="text-sm font-medium text-gray-800">Orchestrated mode</div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                          <select
+                            value={orchestratedProvider}
+                            onChange={(e) => setOrchestratedProvider(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          >
+                            <option value="">Same as above</option>
+                            {providers.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                          <input
+                            type="password"
+                            value={orchestratedApiKey}
+                            onChange={(e) => setOrchestratedApiKey(e.target.value)}
+                            placeholder="Leave blank to use the same key as above"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Model</label>
+                          <ModelCombobox
+                            provider={orchestratedProvider || llmProvider}
+                            apiKey={orchestratedApiKey || llmApiKey}
+                            value={orchestratedModel}
+                            onChange={setOrchestratedModel}
+                            placeholder="Leave blank to use the provider default"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </details>
                 </div>
               </div>
 

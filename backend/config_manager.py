@@ -38,7 +38,17 @@ DEFAULT_CONFIG = {
         "model": ""
     },
     "agent": {
-        "design": "default"
+        "design": "default",
+        "freeform_llm": {
+            "provider": "",
+            "api_key": "",
+            "model": ""
+        },
+        "orchestrated_llm": {
+            "provider": "",
+            "api_key": "",
+            "model": ""
+        }
     },
     "integrations": {
         "search_api_key": "",
@@ -205,6 +215,28 @@ def get_search_llm_config() -> Dict[str, Optional[str]]:
     }
 
 
+def get_active_mode_llm_config() -> Dict[str, Optional[str]]:
+    """Get LLM configuration for the currently active agent mode.
+
+    Checks the per-mode override (``agent.freeform_llm`` or
+    ``agent.orchestrated_llm``) first, then falls back to the main ``llm``
+    config for any empty fields.
+    """
+    from backend.agent import DESIGN_MODES
+
+    design = get_config_value("agent.design", "default") or "default"
+    mode = DESIGN_MODES.get(design, design)  # "freeform" or "orchestrated"
+
+    main_config = get_llm_config()
+
+    prefix = f"agent.{mode}_llm"
+    return {
+        "provider": get_config_value(f"{prefix}.provider", main_config["provider"]),
+        "api_key": get_config_value(f"{prefix}.api_key", main_config["api_key"]),
+        "model": get_config_value(f"{prefix}.model", main_config["model"]),
+    }
+
+
 def get_integration_config() -> Dict[str, Optional[str]]:
     """
     Get integration API keys (search, job boards, etc.).
@@ -249,6 +281,12 @@ def config_to_dict() -> Dict[str, Any]:
 
     if "search_llm" in masked_config and "api_key" in masked_config["search_llm"]:
         masked_config["search_llm"]["api_key"] = mask_value(masked_config["search_llm"]["api_key"])
+
+    # Mask per-mode LLM API keys
+    if "agent" in masked_config:
+        for sub in ("freeform_llm", "orchestrated_llm"):
+            if sub in masked_config["agent"] and "api_key" in masked_config["agent"][sub]:
+                masked_config["agent"][sub]["api_key"] = mask_value(masked_config["agent"][sub]["api_key"])
 
     if "integrations" in masked_config:
         for key in ["search_api_key", "adzuna_app_key", "jsearch_api_key"]:

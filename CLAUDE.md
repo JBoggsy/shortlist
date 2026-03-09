@@ -121,7 +121,7 @@ lsof -ti:5000 | xargs kill -9 2>/dev/null
 - `backend/models/search_result.py` — `SearchResult` model for per-conversation job search results (fields: company, title, url, salary, location, remote_type, source, description, requirements, nice_to_haves, job_fit, fit_reason, added_to_tracker, tracker_job_id)
 - `backend/models/application_todo.py` — `ApplicationTodo` model for per-job application steps (fields: job_id, category, title, description, completed, sort_order)
 - `backend/models/job_document.py` — `JobDocument` model for versioned per-job documents (cover letters, resumes). Fields: `id`, `job_id`, `doc_type`, `content`, `version`, `edit_summary`, `created_at`. Class methods: `get_latest()`, `get_history()`, `next_version()`.
-- `backend/agent/__init__.py` — Agent design selector. Reads `agent.design` from config, dynamically imports the matching sub-package (`backend/agent/{design_name}/`), and re-exports its classes as `ActiveAgent`, `ActiveOnboardingAgent`, `ActiveResumeParser`. Falls back to the ABCs from `base.py` if the design cannot be loaded. Routes import `Active*` classes from here.
+- `backend/agent/__init__.py` — Agent design selector and hot-swap support. Provides `get_agent_classes(design_name=None)` which resolves the active design at **call time** (not import time) from `agent.design` in config, enabling mode switching without server restart. Supports both raw design names (`default`, `micro_agents_v1`) and mode aliases (`freeform`, `orchestrated`). Loaded designs are cached in `_design_cache`. For backwards compatibility, still exports `ActiveAgent`, `ActiveOnboardingAgent`, `ActiveResumeParser` (resolved at import time). Also exports `DESIGN_MODES` and `MODE_TO_DESIGN` mappings. Routes use `get_agent_classes()` at request time.
 - `backend/agent/base.py` — Abstract base classes defining the agent interfaces: `Agent` (main chat), `OnboardingAgent` (profile interview), `ResumeParser` (resume JSON extraction). These ABCs use a combined `_AgentModuleMeta` metaclass to inherit from both `ABC` and `dspy.Module`, enabling sub-module discovery (`named_sub_modules()`, `named_parameters()`) and parameter save/load while preserving abstract method enforcement. Non-DSPy agent implementations (e.g. `DefaultAgent`) work unchanged — they simply don't call `dspy.Module.__init__()`. The constructor signatures (accepting `LLMConfig`) and abstract methods (`run()`, `parse()`) that concrete agent implementations must satisfy.
 - `backend/agent/{design_name}/` — Each agent design/strategy is a sub-package whose `__init__.py` exports `{DesignName}Agent`, `{DesignName}OnboardingAgent`, `{DesignName}ResumeParser` (PascalCase of the folder name). See `backend/agent/README.md` for instructions on creating a new design.
 - `backend/agent/default/` — **Default design**: monolithic ReAct loop. `DefaultAgent` (main chat), `DefaultOnboardingAgent` (onboarding interview), `DefaultResumeParser` (single-shot JSON extraction). Uses `litellm.completion()` with streaming and OpenAI-format tool calling. System prompts in `default/prompts.py`.
@@ -238,7 +238,17 @@ Configuration structure in `config.json`:
     "model": ""
   },
   "agent": {
-    "design": "default"
+    "design": "default",
+    "freeform_llm": {
+      "provider": "",
+      "api_key": "",
+      "model": ""
+    },
+    "orchestrated_llm": {
+      "provider": "",
+      "api_key": "",
+      "model": ""
+    }
   },
   "integrations": {
     "search_api_key": "tvly-...",
@@ -265,7 +275,7 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - `SEARCH_LLM_PROVIDER` — optional, defaults to `LLM_PROVIDER`
 - `SEARCH_LLM_API_KEY` — optional, defaults to `LLM_API_KEY`
 - `SEARCH_LLM_MODEL` — optional, defaults to `LLM_MODEL` (use a cheaper model to save costs on job searches)
-- `AGENT_DESIGN` — agent design/strategy to use (default: `default`); corresponds to a sub-package in `backend/agent/`
+- `AGENT_DESIGN` — agent design/strategy to use (default: `default`); supports raw names (`default`, `micro_agents_v1`) or mode aliases (`freeform`, `orchestrated`); hot-swappable via Settings UI without server restart
 - `SEARCH_API_KEY` — Tavily API key for web search tool
 - `ADZUNA_APP_ID` — Adzuna API application ID (for job search)
 - `ADZUNA_APP_KEY` — Adzuna API application key (for job search)

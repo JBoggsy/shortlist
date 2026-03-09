@@ -3,9 +3,9 @@ import logging
 
 from flask import Blueprint, Response, current_app, request, stream_with_context
 
-from backend.agent import ActiveAgent as Agent, ActiveOnboardingAgent as OnboardingAgent
+from backend.agent import get_agent_classes
 from backend.agent.user_profile import is_onboarding_in_progress, set_onboarding_in_progress
-from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_integration_config
+from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_integration_config, get_active_mode_llm_config
 from backend.database import db
 from backend.llm.llm_factory import create_llm_config
 from backend.models.chat import Conversation, Message
@@ -79,7 +79,7 @@ def send_message(convo_id):
         llm_messages.append({"role": msg.role, "content": msg.content})
 
     # Get config dynamically from config manager (not Flask's static config)
-    llm_config = get_llm_config()
+    llm_config = get_active_mode_llm_config()
     integration_config = get_integration_config()
 
     # Check if LLM is configured
@@ -129,7 +129,8 @@ def send_message(convo_id):
                 "X-Accel-Buffering": "no",
             },
         )
-    agent = Agent(
+    AgentCls, _, _ = get_agent_classes()
+    agent = AgentCls(
         llm_config,
         search_api_key=integration_config["search_api_key"],
         adzuna_app_id=integration_config["adzuna_app_id"],
@@ -277,7 +278,8 @@ def send_onboarding_message(convo_id):
 
     try:
         llm_config = _get_onboarding_llm_config()
-        agent = OnboardingAgent(llm_config)
+        _, OnboardingAgentCls, _ = get_agent_classes()
+        agent = OnboardingAgentCls(llm_config)
     except Exception as e:
         logger.error(f"Failed to create onboarding model: {e}")
         error_message = f"Failed to initialize LLM: {str(e)}"
@@ -375,7 +377,8 @@ def kick_onboarding():
 
     try:
         llm_config = _get_onboarding_llm_config()
-        agent = OnboardingAgent(llm_config)
+        _, OnboardingAgentCls, _ = get_agent_classes()
+        agent = OnboardingAgentCls(llm_config)
     except Exception as e:
         logger.error(f"Failed to create onboarding model: {e}")
         error_message = f"Failed to initialize LLM: {str(e)}"
