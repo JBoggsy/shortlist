@@ -16,6 +16,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 
+import dspy
+
 from backend.agent.base import Agent
 from backend.agent.tools import AgentTools
 from backend.agent.user_profile import read_profile

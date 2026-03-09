@@ -119,9 +119,9 @@ class SkillsExtractor(dspy.Module):
         result = self(section_text=section_text)
         output: SkillsCredentialsOutput = result.extracted
         total_skills = (
-            len(output.skills.languages)
-            + len(output.skills.frameworks)
-            + len(output.skills.tools)
+            len(output.skills.technical)
+            + len(output.skills.domain)
+            + len(output.skills.interpersonal)
             + len(output.skills.other)
         )
         logger.info(

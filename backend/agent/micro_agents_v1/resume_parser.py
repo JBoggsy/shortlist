@@ -15,6 +15,8 @@ from __future__ import annotations
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+import dspy
+
 from backend.agent.base import ResumeParser
 from backend.llm.llm_factory import LLMConfig
 
