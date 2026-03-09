@@ -301,10 +301,7 @@ def health_check():
 
     # Check optional integrations
     search_configured = bool(integration_config.get('search_api_key'))
-    job_search_configured = bool(
-        integration_config.get('jsearch_api_key') or
-        (integration_config.get('adzuna_app_id') and integration_config.get('adzuna_app_key'))
-    )
+    job_search_configured = bool(integration_config.get('rapidapi_key'))
 
     health_status = {
         "status": "healthy" if llm_configured else "needs_configuration",

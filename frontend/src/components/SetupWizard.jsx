@@ -81,17 +81,16 @@ const INTEGRATION_KEYS = [
   },
   {
     id: "jsearch",
-    label: "JSearch API Key (RapidAPI)",
+    label: "RapidAPI Key",
     badge: null,
     placeholder: "Your RapidAPI key",
-    description: "Enables searching job boards (Indeed, LinkedIn, etc.) directly from the AI assistant.",
+    description: "Enables searching job boards from the AI assistant. One key works for JSearch, Active Jobs DB, and LinkedIn Job Search.",
     freeNote: "Free tier available on RapidAPI",
     url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch",
     steps: [
       "Go to rapidapi.com and sign up for a free account",
-      "Open the JSearch API page (link below)",
-      "Click 'Subscribe to Test' and choose the free tier",
-      "Copy your 'X-RapidAPI-Key' from the code examples panel",
+      "Subscribe to the job search APIs you want (JSearch, Active Jobs DB, LinkedIn Job Search)",
+      "Copy your 'X-RapidAPI-Key' from any API's code examples panel",
     ],
   },
 ];
@@ -152,7 +151,7 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
           llm: { provider: selectedProvider, api_key: apiKey, model },
           integrations: {
             search_api_key: tavilyKey,
-            jsearch_api_key: jsearchKey,
+            rapidapi_key: jsearchKey,
           },
         };
         await updateConfig(configPayload);

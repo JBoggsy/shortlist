@@ -32,10 +32,7 @@ class Agent(ABC, dspy.Module, metaclass=_AgentModuleMeta):
     Constructor args (expected by routes):
         llm_config:       LLMConfig instance
         search_api_key:   Tavily API key for web search
-        adzuna_app_id:    Adzuna application ID
-        adzuna_app_key:   Adzuna application key
-        adzuna_country:   Adzuna country code (default "us")
-        jsearch_api_key:  RapidAPI key for JSearch
+        rapidapi_key:     RapidAPI key (for JSearch, Active Jobs DB, LinkedIn Jobs)
         conversation_id:  Current conversation ID (for DB writes)
 
     Subclasses must implement run().
@@ -46,10 +43,7 @@ class Agent(ABC, dspy.Module, metaclass=_AgentModuleMeta):
         self,
         llm_config: LLMConfig,
         search_api_key: str = "",
-        adzuna_app_id: str = "",
-        adzuna_app_key: str = "",
-        adzuna_country: str = "us",
-        jsearch_api_key: str = "",
+        rapidapi_key: str = "",
         conversation_id: int | None = None,
     ):
         ...

@@ -12,7 +12,7 @@ Shortlist helps you organize your job search. Track applications through the hir
 - **AI-Powered Assistant**: Chat with an AI that can research jobs, scrape URLs, search job boards, and add jobs automatically
 - **Multi-LLM Support**: Choose from Anthropic Claude, OpenAI GPT, Google Gemini, or run locally with Ollama
 - **Web Search Integration**: Built-in web search (via Tavily) for finding job postings and company information
-- **Job Board Integration**: Search Adzuna and JSearch job boards directly from the chat
+- **Job Board Integration**: Search JSearch, Active Jobs DB, and LinkedIn job boards directly from the chat
 - **User Profile System**: Personalized onboarding interview to understand your job preferences and goals
 - **Resume Upload**: Upload your resume (PDF or DOCX) so the AI assistant can reference it for job fit evaluation and recommendations. An AI agent automatically cleans up PDF extraction artifacts and structures your resume into a rich, browsable format.
 - **Rich Job Details**: Track salary ranges, location, remote type, requirements, contact info, and more
@@ -96,8 +96,7 @@ The easiest way to configure the AI assistant is through the Settings panel:
 
 **Optional integrations** (enables additional features):
 - **Tavily Search API (Recommended)**: Enables web search tool
-- **JSearch API** (RapidAPI): Enables job board search (recommended)
-- **Adzuna API**: Alternative job board search
+- **RapidAPI Key**: Enables job board search (JSearch, Active Jobs DB, LinkedIn Job Search)
 
 > See the [Installation Guide](docs/INSTALLATION.md) for instructions on obtaining API keys.
 
@@ -213,5 +212,5 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 ## Acknowledgments
 
 - [Tavily](https://tavily.com/) for web search API
-- [Adzuna](https://www.adzuna.com/) and [JSearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) for job search APIs
+- [JSearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch), [Active Jobs DB](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/active-jobs-db), and [LinkedIn Job Search](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/linkedin-job-search-api) for job search APIs
 - Built with [Flask](https://flask.palletsprojects.com/), [React](https://react.dev/), and [Tailwind CSS](https://tailwindcss.com/)

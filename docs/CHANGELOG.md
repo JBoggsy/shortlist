@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Job search workflow crash in micro_agents_v1** — `_add_search_results` was called with `yield from` but is a regular function returning `int`, not a generator; changed to a direct call and corrected the return type annotation
 - **JSearch 429 rate-limit errors during job search** — Added retry with exponential backoff (up to 3 retries) on 429 responses in the JSearch API client, and a 1-second inter-query delay in the micro_agents_v1 job search workflow to avoid overwhelming the API
 
+### Changed
+- **Replaced Adzuna with Active Jobs DB + LinkedIn Job Search** — Job search now uses three RapidAPI-based providers (JSearch, Active Jobs DB from Fantastic.jobs, LinkedIn Job Search from Fantastic.jobs), all sharing a single RapidAPI key. Removed Adzuna App ID/Key config fields. Renamed `jsearch_api_key` to `rapidapi_key` (backward-compatible with existing configs). Settings UI simplified to a single "RapidAPI Key" field. Provider failures are handled gracefully — if any provider returns 403 (not subscribed) or 429 (rate limited), the others continue.
+
 ### Added
 - **Agent mode selector in Settings UI** — Users can switch between "Freeform" (default agent, best for SOTA models) and "Orchestrated" (micro_agents_v1, structured pipeline for cheaper/local models) via a visual toggle in Settings
 - **Hot-swappable agent design** — Agent mode changes take effect immediately without server restart; `get_agent_classes()` resolves the active design at request time

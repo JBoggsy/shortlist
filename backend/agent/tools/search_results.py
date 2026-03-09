@@ -37,7 +37,7 @@ class AddSearchResultInput(BaseModel):
     salary_max: CoercedOptionalInt = Field(default=None, description="Maximum salary")
     location: Optional[str] = Field(default=None, description="Job location")
     remote_type: Optional[str] = Field(default=None, description="Remote type: remote, hybrid, or onsite")
-    source: Optional[str] = Field(default=None, description="Where the job was found (jsearch, adzuna, web)")
+    source: Optional[str] = Field(default=None, description="Where the job was found (jsearch, activejobs, linkedin, web)")
     description: Optional[str] = Field(default=None, description="Brief job description summary")
     requirements: Optional[str] = Field(default=None, description="Key requirements, newline-separated")
     nice_to_haves: Optional[str] = Field(default=None, description="Nice-to-have qualifications, newline-separated")

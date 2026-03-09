@@ -59,22 +59,15 @@ class AgentTools(
 
     Constructor args:
         search_api_key:    Tavily API key
-        adzuna_app_id:     Adzuna app ID
-        adzuna_app_key:    Adzuna app key
-        adzuna_country:    Adzuna country code (default "us")
-        jsearch_api_key:   RapidAPI JSearch key
+        rapidapi_key:      RapidAPI key (for JSearch, Active Jobs DB, LinkedIn Jobs)
         conversation_id:   Current conversation ID
         event_callback:    Callable for SSE events (e.g. search_result_added)
     """
 
-    def __init__(self, search_api_key="", adzuna_app_id="", adzuna_app_key="",
-                 adzuna_country="us", jsearch_api_key="",
+    def __init__(self, search_api_key="", rapidapi_key="",
                  conversation_id=None, event_callback=None):
         self.search_api_key = search_api_key
-        self.adzuna_app_id = adzuna_app_id
-        self.adzuna_app_key = adzuna_app_key
-        self.adzuna_country = adzuna_country
-        self.jsearch_api_key = jsearch_api_key
+        self.rapidapi_key = rapidapi_key
         self.conversation_id = conversation_id
         self.event_callback = event_callback
 

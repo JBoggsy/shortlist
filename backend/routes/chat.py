@@ -133,10 +133,7 @@ def send_message(convo_id):
     agent = AgentCls(
         llm_config,
         search_api_key=integration_config["search_api_key"],
-        adzuna_app_id=integration_config["adzuna_app_id"],
-        adzuna_app_key=integration_config["adzuna_app_key"],
-        adzuna_country=integration_config["adzuna_country"],
-        jsearch_api_key=integration_config["jsearch_api_key"],
+        rapidapi_key=integration_config["rapidapi_key"],
         conversation_id=convo_id,
     )
 

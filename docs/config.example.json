@@ -11,10 +11,7 @@
   },
   "integrations": {
     "search_api_key": "",
-    "adzuna_app_id": "",
-    "adzuna_app_key": "",
-    "adzuna_country": "us",
-    "jsearch_api_key": ""
+    "rapidapi_key": ""
   },
   "logging": {
     "level": "INFO"

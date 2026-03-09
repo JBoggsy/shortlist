@@ -12,7 +12,7 @@ Available as a downloadable desktop app (via Tauri — the primary distribution 
 
 - **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite, LiteLLM, DSPy
 - **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars) — unified via LiteLLM `completion()` API
-- **Agent tools:** Tavily search API, cloudscraper + BeautifulSoup web scraping (with Tavily Extract fallback), JSearch/Adzuna job search
+- **Agent tools:** Tavily search API, cloudscraper + BeautifulSoup web scraping (with Tavily Extract fallback), RapidAPI job search (JSearch, Active Jobs DB, LinkedIn Job Search)
 - **Agent framework:** DSPy (declarative self-improving language programs) — used by the `micro_agents_v1` design for structured reasoning stages and ReAct workflows
 - **Frontend:** React 19, Vite, Tailwind CSS 4
 - **Desktop wrapper:** Tauri v2 (sidecar approach — Flask as child process, React in native webview)
@@ -141,8 +141,8 @@ lsof -ti:5000 | xargs kill -9 2>/dev/null
 - `frontend/src/components/ChatPanel.jsx` — Slide-out AI assistant chat panel with SSE streaming; manages search results state and renders SearchResultsPanel alongside chat when results exist
 - `frontend/src/components/SearchResultsPanel.jsx` — Slide-out panel displaying job search results with collapsible cards, star ratings, fit reasons, "Add to Tracker" buttons; appears to the right of ChatPanel during/after job searches
 - `frontend/src/components/ProfilePanel.jsx` — Slide-out user profile viewer/editor panel with resume upload section (PDF/DOCX)
-- `frontend/src/components/SettingsPanel.jsx` — Slide-out settings panel for configuring LLM provider, API keys, and onboarding agent; includes `ApiKeyGuide` sub-component that renders expandable step-by-step instructions + direct links for each key field (Anthropic, OpenAI, Gemini, Tavily, JSearch, Adzuna); Ollama renders nothing (no key needed)
-- `frontend/src/components/SetupWizard.jsx` — First-time setup wizard (centered modal, 5 steps: welcome → provider selection → API key entry with inline how-to guide + test connection → integration keys (Tavily + JSearch) with inline how-to guides → done); auto-opens for new users instead of Settings panel; calls `onComplete()` to launch onboarding chat or `onClose()` to dismiss; `pendingOnboarding` stays true on dismiss so the Settings manual-save path still triggers onboarding
+- `frontend/src/components/SettingsPanel.jsx` — Slide-out settings panel for configuring LLM provider, API keys, and onboarding agent; includes `ApiKeyGuide` sub-component that renders expandable step-by-step instructions + direct links for each key field (Anthropic, OpenAI, Gemini, Tavily, RapidAPI); Ollama renders nothing (no key needed)
+- `frontend/src/components/SetupWizard.jsx` — First-time setup wizard (centered modal, 5 steps: welcome → provider selection → API key entry with inline how-to guide + test connection → integration keys (Tavily + RapidAPI) with inline how-to guides → done); auto-opens for new users instead of Settings panel; calls `onComplete()` to launch onboarding chat or `onClose()` to dismiss; `pendingOnboarding` stays true on dismiss so the Settings manual-save path still triggers onboarding
 - `frontend/src/components/ModelCombobox.jsx` — Searchable combobox for model selection; fetches available models from provider API, with client-side cache (5-min TTL) and graceful fallback to free-text input on error
 - `frontend/src/components/HelpPanel.jsx` — Slide-out help panel with Getting Started, Job Tracking, AI Chat, API Key Guides, and Troubleshooting sections
 - `frontend/src/components/UpdateBanner.jsx` — Auto-update notification banner (Tauri desktop only); shows version info, download progress, and restart button
@@ -216,7 +216,7 @@ Users configure the app through the **Settings UI** (accessed via the gear icon 
 - Select LLM provider (Anthropic, OpenAI, Gemini, Ollama)
 - Enter API keys
 - Override default models
-- Configure optional integrations (Tavily search, JSearch/Adzuna job search)
+- Configure optional integrations (Tavily search, RapidAPI job search)
 - Test their connection before saving
 
 Configuration structure in `config.json`:
@@ -252,10 +252,7 @@ Configuration structure in `config.json`:
   },
   "integrations": {
     "search_api_key": "tvly-...",
-    "jsearch_api_key": "",
-    "adzuna_app_id": "",
-    "adzuna_app_key": "",
-    "adzuna_country": "us"
+    "rapidapi_key": ""
   },
   "logging": {
     "level": "INFO"
@@ -277,10 +274,7 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - `SEARCH_LLM_MODEL` — optional, defaults to `LLM_MODEL` (use a cheaper model to save costs on job searches)
 - `AGENT_DESIGN` — agent design/strategy to use (default: `default`); supports raw names (`default`, `micro_agents_v1`) or mode aliases (`freeform`, `orchestrated`); hot-swappable via Settings UI without server restart
 - `SEARCH_API_KEY` — Tavily API key for web search tool
-- `ADZUNA_APP_ID` — Adzuna API application ID (for job search)
-- `ADZUNA_APP_KEY` — Adzuna API application key (for job search)
-- `ADZUNA_COUNTRY` — Adzuna country code (default: `us`)
-- `JSEARCH_API_KEY` — RapidAPI key for JSearch API (for job search); preferred over Adzuna when both are configured
+- `INTEGRATIONS_RAPIDAPI_KEY` — RapidAPI key for job search APIs (JSearch, Active Jobs DB, LinkedIn Job Search); also accepts legacy `JSEARCH_API_KEY`
 - `DATA_DIR` — directory for all data files (db, config, logs, profile); defaults to project root if unset
 
 ### Logging

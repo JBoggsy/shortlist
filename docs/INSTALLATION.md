@@ -147,22 +147,17 @@ The AI assistant can search the web for job information — this is one of its m
 
 ### Getting Job Search API Keys (Optional)
 
-For enhanced job searching, you can set up one of these:
+For enhanced job searching, you can set up a RapidAPI key that works with multiple job search providers:
 
-**JSearch (Recommended if you want job search):**
+**RapidAPI Key (for JSearch, Active Jobs DB, LinkedIn Job Search):**
 1. Go to [rapidapi.com](https://rapidapi.com/)
 2. Sign up for a free account
-3. Search for "JSearch" API
-4. Subscribe to the free tier
-5. Go to "Endpoints" and copy your API key from the code examples
-6. Save it somewhere safe
-
-**Adzuna (Alternative):**
-1. Go to [developer.adzuna.com](https://developer.adzuna.com/)
-2. Click "Register"
-3. Fill out the form
-4. Check your email for your App ID and App Key
-5. Save both somewhere safe
+3. Subscribe to the job search APIs you want:
+   - [JSearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch) — aggregates Indeed, LinkedIn, Glassdoor, etc.
+   - [Active Jobs DB](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/active-jobs-db) — ATS/career-site jobs from 170k+ companies
+   - [LinkedIn Job Search](https://rapidapi.com/fantastic-jobs-fantastic-jobs-default/api/linkedin-job-search-api) — LinkedIn job postings
+4. Copy your RapidAPI key from any API's code examples panel (same key works for all)
+5. Save it somewhere safe
 
 ---
 

@@ -52,10 +52,7 @@ DEFAULT_CONFIG = {
     },
     "integrations": {
         "search_api_key": "",
-        "adzuna_app_id": "",
-        "adzuna_app_key": "",
-        "adzuna_country": "us",
-        "jsearch_api_key": ""
+        "rapidapi_key": ""
     },
     "logging": {
         "level": "INFO"
@@ -244,12 +241,14 @@ def get_integration_config() -> Dict[str, Optional[str]]:
     Returns:
         Dictionary with all integration API keys
     """
+    # Support legacy jsearch_api_key field as fallback for rapidapi_key
+    rapidapi_key = (
+        get_config_value("integrations.rapidapi_key")
+        or get_config_value("integrations.jsearch_api_key")
+    )
     return {
         "search_api_key": get_config_value("integrations.search_api_key"),
-        "adzuna_app_id": get_config_value("integrations.adzuna_app_id"),
-        "adzuna_app_key": get_config_value("integrations.adzuna_app_key"),
-        "adzuna_country": get_config_value("integrations.adzuna_country", "us"),
-        "jsearch_api_key": get_config_value("integrations.jsearch_api_key")
+        "rapidapi_key": rapidapi_key,
     }
 
 
@@ -289,7 +288,7 @@ def config_to_dict() -> Dict[str, Any]:
                 masked_config["agent"][sub]["api_key"] = mask_value(masked_config["agent"][sub]["api_key"])
 
     if "integrations" in masked_config:
-        for key in ["search_api_key", "adzuna_app_key", "jsearch_api_key"]:
+        for key in ["search_api_key", "rapidapi_key", "jsearch_api_key"]:
             if key in masked_config["integrations"]:
                 masked_config["integrations"][key] = mask_value(masked_config["integrations"][key])
 

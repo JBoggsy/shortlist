@@ -71,10 +71,7 @@ class DefaultAgent(Agent):
         self,
         llm_config: LLMConfig,
         search_api_key: str = "",
-        adzuna_app_id: str = "",
-        adzuna_app_key: str = "",
-        adzuna_country: str = "us",
-        jsearch_api_key: str = "",
+        rapidapi_key: str = "",
         conversation_id: int | None = None,
     ):
         self.llm_config = llm_config
@@ -85,10 +82,7 @@ class DefaultAgent(Agent):
 
         self.tools = AgentTools(
             search_api_key=search_api_key,
-            adzuna_app_id=adzuna_app_id,
-            adzuna_app_key=adzuna_app_key,
-            adzuna_country=adzuna_country,
-            jsearch_api_key=jsearch_api_key,
+            rapidapi_key=rapidapi_key,
             conversation_id=conversation_id,
             event_callback=self._on_tool_event,
         )

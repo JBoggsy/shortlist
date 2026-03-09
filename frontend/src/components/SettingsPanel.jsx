@@ -41,22 +41,12 @@ const API_KEY_GUIDES = {
     ],
   },
   jsearch: {
-    label: "RapidAPI (JSearch)",
+    label: "RapidAPI",
     url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch",
     steps: [
       "Go to rapidapi.com and sign up for a free account",
-      "Open the JSearch API page (link above)",
-      "Click 'Subscribe to Test' and choose the free tier",
-      "Copy your 'X-RapidAPI-Key' shown in the code examples panel",
-    ],
-  },
-  adzuna: {
-    label: "Adzuna",
-    url: "https://developer.adzuna.com/",
-    steps: [
-      "Go to developer.adzuna.com and sign up for a free account",
-      "Go to 'Application Overview' in your dashboard",
-      "Copy both the App ID and App Key shown there",
+      "Subscribe to the APIs you want — JSearch, Active Jobs DB, and/or LinkedIn Job Search",
+      "Copy your 'X-RapidAPI-Key' shown in any API's code examples panel (same key works for all)",
     ],
   },
 };
@@ -104,8 +94,6 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
   const [searchLlmModel, setSearchLlmModel] = useState('');
   const [searchApiKey, setSearchApiKey] = useState('');
   const [jsearchApiKey, setJsearchApiKey] = useState('');
-  const [adzunaAppId, setAdzunaAppId] = useState('');
-  const [adzunaAppKey, setAdzunaAppKey] = useState('');
   const [agentMode, setAgentMode] = useState('default');
   const [freeformProvider, setFreeformProvider] = useState('');
   const [freeformApiKey, setFreeformApiKey] = useState('');
@@ -138,9 +126,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
       setSearchLlmApiKey(data.search_llm?.api_key || '');
       setSearchLlmModel(data.search_llm?.model || '');
       setSearchApiKey(data.integrations?.search_api_key || '');
-      setJsearchApiKey(data.integrations?.jsearch_api_key || '');
-      setAdzunaAppId(data.integrations?.adzuna_app_id || '');
-      setAdzunaAppKey(data.integrations?.adzuna_app_key || '');
+      setJsearchApiKey(data.integrations?.rapidapi_key || data.integrations?.jsearch_api_key || '');
       setAgentMode(data.agent?.design || 'default');
       setFreeformProvider(data.agent?.freeform_llm?.provider || '');
       setFreeformApiKey(data.agent?.freeform_llm?.api_key || '');
@@ -201,9 +187,7 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
         },
         integrations: {
           search_api_key: searchApiKey,
-          jsearch_api_key: jsearchApiKey,
-          adzuna_app_id: adzunaAppId,
-          adzuna_app_key: adzunaAppKey,
+          rapidapi_key: jsearchApiKey,
         },
       };
 
@@ -656,10 +640,10 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                     <ApiKeyGuide guideKey="tavily" />
                   </div>
 
-                  {/* JSearch */}
+                  {/* RapidAPI Key (for job search providers) */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      JSearch API Key (RapidAPI)
+                      RapidAPI Key
                     </label>
                     <input
                       type="password"
@@ -669,42 +653,9 @@ export default function SettingsPanel({ isOpen, onClose, onSaved }) {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
                     />
                     <p className="mt-1 text-xs text-gray-500">
-                      Enables searching job boards (Indeed, LinkedIn, etc.) directly from the AI assistant. Preferred over Adzuna.
+                      Enables searching job boards from the AI assistant. One key works for all subscribed providers: JSearch (Indeed, LinkedIn), Active Jobs DB (170k+ company career sites), and LinkedIn Job Search.
                     </p>
                     <ApiKeyGuide guideKey="jsearch" />
-                  </div>
-
-                  {/* Adzuna */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Adzuna App ID
-                      </label>
-                      <input
-                        type="text"
-                        value={adzunaAppId}
-                        onChange={(e) => setAdzunaAppId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        Alternative job board search — use either JSearch or Adzuna, not both
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Adzuna App Key
-                      </label>
-                      <input
-                        type="password"
-                        value={adzunaAppKey}
-                        onChange={(e) => setAdzunaAppKey(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        Alternative job board search API
-                      </p>
-                      <ApiKeyGuide guideKey="adzuna" />
-                    </div>
                   </div>
                 </div>
               </div>

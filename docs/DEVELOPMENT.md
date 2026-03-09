@@ -45,8 +45,7 @@ The Shortlist is built as a full-stack web application with a clear separation b
 
 ### Agent Tools
 - **Tavily API**: Web search integration
-- **Adzuna API**: Job board search (optional)
-- **JSearch API**: Job board search via RapidAPI (optional, preferred over Adzuna)
+- **RapidAPI** (JSearch, Active Jobs DB, LinkedIn Job Search): Job board search (optional)
 - **cloudscraper + BeautifulSoup**: Web scraping with Cloudflare bypass and HTML parsing (falls back to Tavily Extract API on failure)
 
 ### Frontend
@@ -213,7 +212,7 @@ shortlist/
 
 **`frontend/src/components/ProfilePanel.jsx`**: Slide-out user profile viewer/editor panel with resume upload section (PDF/DOCX). Users can upload, preview (Structured/Raw toggle), replace, or remove their resume. Auto-triggers LLM parsing on upload; includes a Re-parse button. `StructuredResumeView` sub-component renders parsed JSON as a rich formatted view. Also supports manual profile markdown editing.
 
-**`frontend/src/components/SettingsPanel.jsx`**: Slide-out settings panel for configuring LLM provider, API keys, and integrations. Includes "Test Connection" functionality and saves to config.json. Contains `ApiKeyGuide` sub-component that renders expandable step-by-step instructions and a direct link for each key field (Anthropic, OpenAI, Gemini, Tavily, JSearch, Adzuna); renders nothing for Ollama (no key required).
+**`frontend/src/components/SettingsPanel.jsx`**: Slide-out settings panel for configuring LLM provider, API keys, and integrations. Includes "Test Connection" functionality and saves to config.json. Contains `ApiKeyGuide` sub-component that renders expandable step-by-step instructions and a direct link for each key field (Anthropic, OpenAI, Gemini, Tavily, RapidAPI); renders nothing for Ollama (no key required).
 
 **`frontend/src/components/ModelCombobox.jsx`**: Searchable combobox for selecting an LLM model. Fetches available models from the provider's API with a client-side cache (5-minute TTL). Falls back to free-text input if the API call fails or no API key is entered yet.
 
@@ -291,10 +290,7 @@ Configuration is managed through `config.json` (auto-created on first run). You 
   },
   "integrations": {
     "search_api_key": "",
-    "jsearch_api_key": "",
-    "adzuna_app_id": "",
-    "adzuna_app_key": "",
-    "adzuna_country": "us"
+    "rapidapi_key": ""
   },
   "logging": {
     "level": "INFO"
@@ -518,10 +514,7 @@ The `POST /api/resume/parse` endpoint uses `ResumeParser` to send the raw extrac
   },
   "integrations": {
     "search_api_key": "",
-    "adzuna_app_id": "",
-    "adzuna_app_key": "",
-    "adzuna_country": "us",
-    "jsearch_api_key": ""
+    "rapidapi_key": ""
   },
   "logging": {
     "level": "INFO"
@@ -693,7 +686,7 @@ Defined in `backend/agent/tools.py`:
 | Tool | Description | Key Parameters |
 |------|-------------|----------------|
 | `web_search` | Search the web via Tavily API | `query`, `num_results` (opt) |
-| `job_search` | Search job boards via JSearch/Adzuna | `query`, `location` (opt), `remote_only` (opt), `salary_min`/`salary_max` (opt), `provider` (opt) |
+| `job_search` | Search job boards via RapidAPI (JSearch, Active Jobs DB, LinkedIn) | `query`, `location` (opt), `remote_only` (opt), `salary_min`/`salary_max` (opt), `provider` (opt) |
 | `scrape_url` | Fetch and parse a web page | `url` |
 | `create_job` | Add a job to the database | `company`, `title` (required); plus all optional job fields |
 | `list_jobs` | List and filter tracked jobs | `status` (opt), `company` (opt), `title` (opt), `url` (opt), `limit` (opt) |

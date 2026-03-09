@@ -140,7 +140,7 @@ export default function HelpPanel({ isOpen, onClose }) {
                 <ul className="space-y-1.5 text-gray-600">
                   <li><strong>URL scraping</strong> — Always available. Paste any job posting URL and the assistant will read it.</li>
                   <li><strong>Web search</strong> — Requires a <strong>Tavily API key</strong> in Settings. Searches the live web for jobs and company info.</li>
-                  <li><strong>Job board search</strong> — Requires a <strong>JSearch</strong> or <strong>Adzuna API key</strong>. Searches real job listings by title, location, and more.</li>
+                  <li><strong>Job board search</strong> — Requires a <strong>RapidAPI key</strong>. Searches real job listings from JSearch, Active Jobs DB, and LinkedIn.</li>
                   <li><strong>Job management</strong> — Always available. The assistant can create, list, and update jobs in your database.</li>
                   <li><strong>Resume reading</strong> — Always available when a resume is uploaded. The assistant can read your resume to evaluate job fit and tailor recommendations.</li>
                 </ul>
@@ -182,8 +182,7 @@ export default function HelpPanel({ isOpen, onClose }) {
                 <ul className="space-y-1.5 text-sm">
                   {[
                     { name: "Tavily — recommended, required for web search", url: "https://app.tavily.com/" },
-                    { name: "JSearch via RapidAPI — needed for job board search", url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" },
-                    { name: "Adzuna — job board search, alternative to JSearch", url: "https://developer.adzuna.com/" },
+                    { name: "RapidAPI — needed for job board search (JSearch, Active Jobs DB, LinkedIn)", url: "https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" },
                   ].map(({ name, url }) => (
                     <li key={url} className="flex items-center gap-2">
                       <span className="text-blue-400 flex-shrink-0">›</span>
@@ -214,7 +213,7 @@ export default function HelpPanel({ isOpen, onClose }) {
                 },
                 {
                   problem: "Job search not finding results",
-                  fix: "Job board search requires a JSearch (RapidAPI) or Adzuna API key. Add one in Settings → Integrations.",
+                  fix: "Job board search requires a RapidAPI key. Add one in Settings → Integrations and subscribe to JSearch, Active Jobs DB, or LinkedIn Job Search on RapidAPI.",
                 },
                 {
                   problem: "Web search not working",

@@ -40,9 +40,8 @@ Each class must extend the corresponding ABC from `base.py`:
 from backend.agent.base import Agent, OnboardingAgent, ResumeParser
 
 class MyDesignAgent(Agent):
-    def __init__(self, llm_config, search_api_key="", adzuna_app_id="",
-                 adzuna_app_key="", adzuna_country="us",
-                 jsearch_api_key="", conversation_id=None):
+    def __init__(self, llm_config, search_api_key="",
+                 rapidapi_key="", conversation_id=None):
         self.llm_config = llm_config
         # ... store other args ...
 
@@ -76,7 +75,7 @@ class MyDesignResumeParser(ResumeParser):
 
 | ABC               | Constructor args                                                                 | Abstract method          |
 |-------------------|----------------------------------------------------------------------------------|--------------------------|
-| `Agent`           | `llm_config`, `search_api_key`, `adzuna_app_id`, `adzuna_app_key`, `adzuna_country`, `jsearch_api_key`, `conversation_id` | `run(messages) → Generator[dict]` |
+| `Agent`           | `llm_config`, `search_api_key`, `rapidapi_key`, `conversation_id` | `run(messages) → Generator[dict]` |
 | `OnboardingAgent` | `llm_config`                                                                     | `run(messages) → Generator[dict]` |
 | `ResumeParser`    | `llm_config`                                                                     | `parse(raw_text) → dict`          |
 

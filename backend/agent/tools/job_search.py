@@ -1,4 +1,10 @@
-"""job_search tool — job board API search (JSearch/Adzuna)."""
+"""job_search tool — job board API search via RapidAPI providers.
+
+Supports three RapidAPI-based providers (all share the same API key):
+  - JSearch: aggregated job listings from Google, Indeed, LinkedIn, etc.
+  - Active Jobs DB (Fantastic.jobs): ATS/career-site jobs from 170k+ companies
+  - LinkedIn Job Search (Fantastic.jobs): LinkedIn job postings
+"""
 
 import logging
 import time
@@ -19,7 +25,7 @@ class JobSearchInput(BaseModel):
     salary_min: Optional[int] = Field(default=None, description="Minimum salary")
     salary_max: Optional[int] = Field(default=None, description="Maximum salary")
     num_results: int = Field(default=10, description="Number of results (max 20)")
-    provider: Optional[str] = Field(default=None, description="Provider: 'both' (default), 'jsearch', or 'adzuna'")
+    provider: Optional[str] = Field(default=None, description="Provider: 'all' (default), 'jsearch', 'activejobs', or 'linkedin'")
     date_posted: Optional[str] = Field(default=None, description="Recency filter: 'today', '3days', 'week', 'month'")
     employment_type: Optional[str] = Field(default=None, description="'fulltime', 'parttime', 'contract', 'temporary'")
     sort_by: Optional[str] = Field(default=None, description="'relevance' or 'date'")
@@ -33,12 +39,12 @@ _JSEARCH_EMPLOYMENT_MAP = {
     "temporary": "INTERN",
 }
 
-# Maps our date_posted values to Adzuna's max_days_old
-_ADZUNA_DATE_MAP = {
-    "today": 1,
-    "3days": 3,
-    "week": 7,
-    "month": 30,
+# Maps our employment_type to Fantastic.jobs API format
+_FANTASTIC_EMPLOYMENT_MAP = {
+    "fulltime": "FULL_TIME",
+    "parttime": "PART_TIME",
+    "contract": "CONTRACTOR",
+    "temporary": "TEMPORARY",
 }
 
 
@@ -59,7 +65,97 @@ def _normalize_result(result):
     }
 
 
+def _rapidapi_request(url, api_key, host, params, *, max_retries=3, timeout=30):
+    """Make a RapidAPI GET request with retry on 429 and timeouts."""
+    headers = {
+        "X-RapidAPI-Key": api_key,
+        "X-RapidAPI-Host": host,
+    }
+    resp = None
+    for attempt in range(max_retries + 1):
+        try:
+            resp = requests.get(url, headers=headers, params=params, timeout=timeout)
+            if resp.status_code == 429:
+                if attempt < max_retries:
+                    wait = 2 ** attempt  # 1s, 2s, 4s
+                    logger.warning(
+                        "%s 429 rate-limited (attempt %d/%d), retrying in %ds…",
+                        host, attempt + 1, max_retries, wait,
+                    )
+                    time.sleep(wait)
+                    continue
+            resp.raise_for_status()
+            return resp
+        except requests.exceptions.ReadTimeout:
+            if attempt < max_retries:
+                logger.warning("%s timeout (attempt %d/%d), retrying…",
+                               host, attempt + 1, max_retries)
+                time.sleep(1)
+                continue
+            raise
+    # All retries exhausted — raise for the last response
+    if resp is not None:
+        resp.raise_for_status()
+    raise requests.exceptions.ConnectionError(f"Failed after {max_retries + 1} attempts to {host}")
+
+
+def _parse_fantastic_jobs(jobs, source_name, num_results):
+    """Parse results from Fantastic.jobs APIs (Active Jobs DB / LinkedIn Job Search).
+
+    Both APIs share the same response schema.
+    """
+    results = []
+    for job in jobs:
+        url = job.get("url") or ""
+        if not url:
+            continue
+
+        # Build location from derived fields
+        cities = job.get("cities_derived") or []
+        regions = job.get("regions_derived") or []
+        countries = job.get("countries_derived") or []
+        loc_parts = []
+        if cities and isinstance(cities[0], str):
+            loc_parts.append(cities[0])
+        if regions and isinstance(regions[0], str):
+            loc_parts.append(regions[0])
+        elif countries and isinstance(countries[0], str):
+            loc_parts.append(countries[0])
+        loc = ", ".join(loc_parts) if loc_parts else None
+
+        posted = job.get("date_posted") or ""
+        posted_date = posted[:10] if len(posted) >= 10 else None
+
+        # Salary from raw or AI fields
+        salary_raw = job.get("salary_raw") or {}
+        sal_min = salary_raw.get("minValue") if isinstance(salary_raw, dict) else None
+        sal_max = salary_raw.get("maxValue") if isinstance(salary_raw, dict) else None
+
+        is_remote = job.get("remote_derived") or job.get("location_type") == "TELECOMMUTE"
+
+        emp_types = job.get("employment_type") or []
+        emp_type = emp_types[0].lower() if emp_types else None
+
+        results.append(_normalize_result({
+            "title": job.get("title"),
+            "company": job.get("organization"),
+            "location": loc,
+            "url": url,
+            "description": (job.get("description_text") or "")[:500],
+            "salary_min": sal_min,
+            "salary_max": sal_max,
+            "remote": is_remote if is_remote else None,
+            "employment_type": emp_type,
+            "posted_date": posted_date,
+            "source": source_name,
+        }))
+
+    return results[:num_results]
+
+
 class JobSearchMixin:
+
+    # -- JSearch --------------------------------------------------------
 
     def _search_jsearch(self, query, location=None, remote_only=False,
                         salary_min=None, salary_max=None, num_results=10,
@@ -80,37 +176,10 @@ class JobSearchMixin:
         if employment_type and employment_type in _JSEARCH_EMPLOYMENT_MAP:
             params["employment_types"] = _JSEARCH_EMPLOYMENT_MAP[employment_type]
 
-        headers = {
-            "X-RapidAPI-Key": self.jsearch_api_key,
-            "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
-        }
-
-        # Retry on timeout or 429 rate-limit with exponential backoff
-        for attempt in range(4):
-            try:
-                resp = requests.get(
-                    "https://jsearch.p.rapidapi.com/search",
-                    headers=headers,
-                    params=params,
-                    timeout=30,
-                )
-                if resp.status_code == 429:
-                    if attempt < 3:
-                        wait = 2 ** attempt  # 1s, 2s, 4s
-                        logger.warning(
-                            "JSearch 429 rate-limited (attempt %d), retrying in %ds…",
-                            attempt + 1, wait,
-                        )
-                        time.sleep(wait)
-                        continue
-                resp.raise_for_status()
-                break
-            except requests.exceptions.ReadTimeout:
-                if attempt < 3:
-                    logger.warning("JSearch timeout (attempt %d), retrying…", attempt + 1)
-                    time.sleep(1)
-                    continue
-                raise
+        resp = _rapidapi_request(
+            "https://jsearch.p.rapidapi.com/search",
+            self.rapidapi_key, "jsearch.p.rapidapi.com", params,
+        )
         data = resp.json().get("data", [])
 
         results = []
@@ -119,13 +188,11 @@ class JobSearchMixin:
             if not url:
                 continue
 
-            # Build location string
             city = job.get("job_city") or ""
             state = job.get("job_state") or ""
             loc_parts = [p for p in (city, state) if p]
             loc = ", ".join(loc_parts) if loc_parts else None
 
-            # Posted date
             posted = job.get("job_posted_at_datetime_utc") or ""
             posted_date = posted[:10] if len(posted) >= 10 else None
 
@@ -145,75 +212,74 @@ class JobSearchMixin:
 
         return results[:num_results]
 
-    def _search_adzuna(self, query, location=None, remote_only=False,
-                       salary_min=None, salary_max=None, num_results=10,
-                       date_posted=None, employment_type=None, sort_by=None):
-        """Query the Adzuna job search API."""
-        country = getattr(self, "adzuna_country", "us") or "us"
+    # -- Active Jobs DB (Fantastic.jobs) --------------------------------
 
+    def _search_active_jobs_db(self, query, location=None, remote_only=False,
+                               salary_min=None, salary_max=None, num_results=10,
+                               date_posted=None, employment_type=None, sort_by=None):
+        """Query the Active Jobs DB (Fantastic.jobs) API on RapidAPI."""
         params = {
-            "app_id": self.adzuna_app_id,
-            "app_key": self.adzuna_app_key,
-            "what": query,
-            "results_per_page": min(num_results, 20),
+            "title_filter": f'"{query}"',
+            "limit": str(min(num_results, 100)),
+            "description_type": "text",
         }
         if location:
-            params["where"] = location
-        if salary_min is not None:
-            params["salary_min"] = salary_min
-        if salary_max is not None:
-            params["salary_max"] = salary_max
-        if date_posted and date_posted in _ADZUNA_DATE_MAP:
-            params["max_days_old"] = _ADZUNA_DATE_MAP[date_posted]
-        if employment_type:
-            if employment_type == "fulltime":
-                params["full_time"] = 1
-            elif employment_type == "parttime":
-                params["part_time"] = 1
-            elif employment_type == "contract":
-                params["contract"] = 1
-        if sort_by and sort_by in ("relevance", "date"):
-            params["sort_by"] = sort_by
+            params["location_filter"] = f'"{location}"'
+        if remote_only:
+            params["remote"] = "true"
+        if employment_type and employment_type in _FANTASTIC_EMPLOYMENT_MAP:
+            params["ai_employment_type_filter"] = _FANTASTIC_EMPLOYMENT_MAP[employment_type]
 
-        resp = requests.get(
-            f"https://api.adzuna.com/v1/api/jobs/{country}/search/1",
-            params=params,
-            timeout=15,
+        resp = _rapidapi_request(
+            "https://active-jobs-db.p.rapidapi.com/active-jobs",
+            self.rapidapi_key, "active-jobs-db.p.rapidapi.com", params,
         )
-        resp.raise_for_status()
-        data = resp.json().get("results", [])
+        data = resp.json()
+        jobs = data if isinstance(data, list) else data.get("data", data.get("results", []))
+        return _parse_fantastic_jobs(jobs, "activejobs", num_results)
 
-        results = []
-        for job in data:
-            url = job.get("redirect_url") or ""
-            if not url:
-                continue
+    # -- LinkedIn Job Search (Fantastic.jobs) ---------------------------
 
-            # Posted date
-            created = job.get("created") or ""
-            posted_date = created[:10] if len(created) >= 10 else None
+    def _search_linkedin_jobs(self, query, location=None, remote_only=False,
+                              salary_min=None, salary_max=None, num_results=10,
+                              date_posted=None, employment_type=None, sort_by=None):
+        """Query the LinkedIn Job Search (Fantastic.jobs) API on RapidAPI."""
+        params = {
+            "title_filter": f'"{query}"',
+            "limit": str(min(num_results, 100)),
+            "description_type": "text",
+        }
+        if location:
+            params["location_filter"] = f'"{location}"'
+        if remote_only:
+            params["remote"] = "true"
+        if employment_type and employment_type in _FANTASTIC_EMPLOYMENT_MAP:
+            params["type_filter"] = _FANTASTIC_EMPLOYMENT_MAP[employment_type]
 
-            results.append(_normalize_result({
-                "title": job.get("title"),
-                "company": (job.get("company") or {}).get("display_name"),
-                "location": (job.get("location") or {}).get("display_name"),
-                "url": url,
-                "description": (job.get("description") or "")[:500],
-                "salary_min": job.get("salary_min"),
-                "salary_max": job.get("salary_max"),
-                "remote": None,
-                "employment_type": None,
-                "posted_date": posted_date,
-                "source": "adzuna",
-            }))
+        resp = _rapidapi_request(
+            "https://linkedin-job-search-api.p.rapidapi.com/active-jb-7d",
+            self.rapidapi_key, "linkedin-job-search-api.p.rapidapi.com", params,
+        )
+        data = resp.json()
+        jobs = data if isinstance(data, list) else data.get("data", data.get("results", []))
+        return _parse_fantastic_jobs(jobs, "linkedin", num_results)
 
-        return results[:num_results]
+    # -- Provider registry ----------------------------------------------
+
+    _PROVIDERS = {
+        "jsearch":    ("_search_jsearch",        "JSearch"),
+        "activejobs": ("_search_active_jobs_db", "Active Jobs DB"),
+        "linkedin":   ("_search_linkedin_jobs",  "LinkedIn Jobs"),
+    }
 
     @agent_tool(
         description=(
-            "Search job board APIs (JSearch, Adzuna) for real job listings. "
-            "Returns structured results with title, company, location, application URL, "
-            "salary range, and more. Configure API keys in Settings to enable providers."
+            "Search job board APIs for real job listings. "
+            "Uses RapidAPI-based providers: JSearch (Indeed/LinkedIn aggregator), "
+            "Active Jobs DB (ATS/career-site jobs from 170k+ companies), and "
+            "LinkedIn Job Search. Returns structured results with title, company, "
+            "location, application URL, salary range, and more. "
+            "Configure a RapidAPI key in Settings to enable."
         ),
         args_schema=JobSearchInput,
     )
@@ -223,25 +289,15 @@ class JobSearchMixin:
                    sort_by=None):
         num_results = min(num_results, 20)
 
-        has_jsearch = bool(self.jsearch_api_key)
-        has_adzuna = bool(self.adzuna_app_id and self.adzuna_app_key)
+        if not self.rapidapi_key:
+            return {"error": "No RapidAPI key configured. Set a RapidAPI key in Settings → Integrations."}
 
         # Determine which providers to query
-        if provider == "jsearch":
-            if not has_jsearch:
-                return {"error": "JSearch API key not configured. Set JSEARCH_API_KEY or configure it in Settings."}
-            use_jsearch, use_adzuna = True, False
-        elif provider == "adzuna":
-            if not has_adzuna:
-                return {"error": "Adzuna API keys not configured. Set ADZUNA_APP_ID and ADZUNA_APP_KEY or configure them in Settings."}
-            use_jsearch, use_adzuna = False, True
+        if provider and provider in self._PROVIDERS:
+            providers_to_use = [provider]
         else:
-            # Default: use all configured providers
-            use_jsearch = has_jsearch
-            use_adzuna = has_adzuna
-
-        if not use_jsearch and not use_adzuna:
-            return {"error": "No job search API keys configured. Set up JSearch (JSEARCH_API_KEY) or Adzuna (ADZUNA_APP_ID + ADZUNA_APP_KEY) in Settings."}
+            # Default: use all three providers
+            providers_to_use = list(self._PROVIDERS.keys())
 
         search_kwargs = dict(
             query=query, location=location, remote_only=remote_only,
@@ -254,30 +310,20 @@ class JobSearchMixin:
         warnings = []
         provider_used = []
 
-        if use_jsearch:
+        for prov in providers_to_use:
+            method_name, display_name = self._PROVIDERS[prov]
+            method = getattr(self, method_name)
             try:
-                jsearch_results = self._search_jsearch(**search_kwargs)
-                all_results.extend(jsearch_results)
-                provider_used.append("jsearch")
+                results = method(**search_kwargs)
+                all_results.extend(results)
+                provider_used.append(prov)
             except Exception as e:
-                logger.exception("JSearch API error")
-                if not use_adzuna:
-                    return {"error": f"JSearch API error: {e}"}
-                warnings.append(f"JSearch failed: {e}")
-
-        if use_adzuna:
-            try:
-                adzuna_results = self._search_adzuna(**search_kwargs)
-                all_results.extend(adzuna_results)
-                provider_used.append("adzuna")
-            except Exception as e:
-                logger.exception("Adzuna API error")
-                if not use_jsearch or not provider_used:
-                    return {"error": f"Adzuna API error: {e}"}
-                warnings.append(f"Adzuna failed: {e}")
+                logger.exception("%s API error", display_name)
+                warnings.append(f"{display_name} failed: {e}")
 
         if not provider_used:
-            return {"error": "All job search providers failed. Check your API keys and try again."}
+            errors_str = "; ".join(warnings) if warnings else "Unknown error"
+            return {"error": f"All job search providers failed: {errors_str}"}
 
         # Deduplicate by (company, title) — keep first occurrence
         seen = set()
@@ -292,7 +338,7 @@ class JobSearchMixin:
 
         result = {
             "results": deduped,
-            "provider": provider_used[0] if len(provider_used) == 1 else "both",
+            "provider": ",".join(provider_used),
             "total": len(deduped),
         }
         if warnings:
