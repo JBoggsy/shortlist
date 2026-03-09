@@ -1,6 +1,7 @@
 """job_search tool — job board API search (JSearch/Adzuna)."""
 
 import logging
+import time
 from typing import Optional
 
 import requests
@@ -84,8 +85,8 @@ class JobSearchMixin:
             "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
         }
 
-        # Retry once on timeout — JSearch can be slow
-        for attempt in range(2):
+        # Retry on timeout or 429 rate-limit with exponential backoff
+        for attempt in range(4):
             try:
                 resp = requests.get(
                     "https://jsearch.p.rapidapi.com/search",
@@ -93,11 +94,21 @@ class JobSearchMixin:
                     params=params,
                     timeout=30,
                 )
+                if resp.status_code == 429:
+                    if attempt < 3:
+                        wait = 2 ** attempt  # 1s, 2s, 4s
+                        logger.warning(
+                            "JSearch 429 rate-limited (attempt %d), retrying in %ds…",
+                            attempt + 1, wait,
+                        )
+                        time.sleep(wait)
+                        continue
                 resp.raise_for_status()
                 break
             except requests.exceptions.ReadTimeout:
-                if attempt == 0:
-                    logger.warning("JSearch timeout on attempt 1, retrying…")
+                if attempt < 3:
+                    logger.warning("JSearch timeout (attempt %d), retrying…", attempt + 1)
+                    time.sleep(1)
                     continue
                 raise
         data = resp.json().get("data", [])

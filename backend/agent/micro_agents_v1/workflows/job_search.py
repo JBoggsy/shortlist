@@ -13,12 +13,16 @@ Pipeline:
 6. A DSPy module verifies/fixes the URL of preliminarily qualifying jobs
    to be the most direct listing link.
 7. Qualifying jobs are added as search results via ``add_search_result``.
+
+Rate-limit note: a 1-second delay is inserted between consecutive
+job_search API calls to avoid 429 errors from JSearch/RapidAPI.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import Generator
 from typing import Optional
 from urllib.parse import urlparse
@@ -399,6 +403,10 @@ class JobSearchWorkflow(BaseWorkflow):
         all_results: list[dict] = []
 
         for i, q in enumerate(queries, 1):
+            # Throttle to avoid 429 rate-limit errors from JSearch/RapidAPI
+            if i > 1:
+                time.sleep(1)
+
             yield {
                 "event": "text_delta",
                 "data": {
