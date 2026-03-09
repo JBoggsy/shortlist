@@ -97,6 +97,12 @@ class ExtractProfileUpdatesSig(dspy.Signature):
 class UpdateProfileWorkflow(BaseWorkflow):
     """Interactively update the user's job search profile."""
 
+    OUTPUTS = {
+        "applied": "list[str] — section names that were updated",
+        "failed": "list[str] — sections that failed to update",
+        "count": "int — number of sections successfully updated",
+    }
+
     def run(self) -> Generator[dict, None, WorkflowResult]:
         user_message = self.outcome_description or self.params.get("user_message", "")
 

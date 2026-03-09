@@ -143,6 +143,13 @@ class PolishLetterSig(dspy.Signature):
 class WriteCoverLetterWorkflow(BaseWorkflow):
     """Structured single-shot cover letter drafting for a target job."""
 
+    OUTPUTS = {
+        "cover_letter": "str — the final cover letter text",
+        "job": "dict — the target job record",
+        "outline": "dict — structure and narrative plan used for drafting",
+        "key_points": "list[str] — main selling points highlighted in the letter",
+    }
+
     # -- Helpers ------------------------------------------------------------
 
     # Job/user context loading delegated to shared helpers in _dspy_utils.py.

@@ -90,6 +90,12 @@ class CompareJobsSig(dspy.Signature):
 class CompareJobsWorkflow(BaseWorkflow):
     """Compare multiple jobs or search results side-by-side."""
 
+    OUTPUTS = {
+        "jobs_compared": "list[str] — labels of compared jobs (e.g. 'Title at Company')",
+        "comparisons": "list[dict] — per-job structured comparison (compensation, location, fit, pros/cons)",
+        "recommendation": "str — overall recommendation",
+    }
+
     def _gather_jobs(
         self, user_message: str, conversation_context: str,
     ) -> Generator[dict, None, list[dict]]:

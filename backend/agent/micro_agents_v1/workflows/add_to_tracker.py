@@ -80,6 +80,12 @@ def _promote_search_result(tools: AgentTools, sr: dict) -> dict:
 class AddToTrackerWorkflow(BaseWorkflow):
     """Identify referenced search results and add them to the job tracker."""
 
+    OUTPUTS = {
+        "added_jobs": "list[dict] — each dict has job_id, company, title for created jobs",
+        "skipped": "list[dict] — results that were already tracked",
+        "count": "int — number of jobs added",
+    }
+
     def run(self) -> Generator[dict, None, WorkflowResult]:
         yield {
             "event": "text_delta",

@@ -167,6 +167,14 @@ class ValidateClaimsSig(dspy.Signature):
 class SpecializeResumeWorkflow(BaseWorkflow):
     """Structured single-shot resume specialisation for a target job."""
 
+    OUTPUTS = {
+        "resume": "str — the full specialised resume text",
+        "job": "dict — the target job record",
+        "changes": "list[str] — per-section change descriptions",
+        "flagged_claims": "list — claims that couldn't be verified against the profile",
+        "version_info": "str — version label (e.g. 'v2')",
+    }
+
     # -- Helpers ------------------------------------------------------------
     # Job/user context loading delegated to shared helpers in _dspy_utils.py.
 

@@ -321,6 +321,14 @@ class AssemblePrepGuideSig(dspy.Signature):
 class PrepInterviewWorkflow(BaseWorkflow):
     """Generate interview preparation materials for a specific job."""
 
+    OUTPUTS = {
+        "job": "dict — the target job record",
+        "key_themes": "list[str] — main interview themes identified",
+        "candidate_strengths": "list[str] — relevant strengths from the user's profile",
+        "gap_notes": "list[str] — weakness mitigation strategies",
+        "checklist": "list[str] — day-of checklist items",
+    }
+
     # -- Helpers ------------------------------------------------------------
     # Job/user context loading delegated to shared helpers in _dspy_utils.py.
 

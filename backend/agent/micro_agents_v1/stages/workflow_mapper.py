@@ -68,14 +68,16 @@ class MapWorkflowsSig(dspy.Signature):
     """Map each outcome to the most appropriate workflow.
 
     You are given a list of outcomes (each with an ID and description) and
-    a list of available workflow names.  For every outcome, choose the
-    single best workflow and extract any parameters the workflow will need.
+    a list of available workflows with their descriptions.  For every
+    outcome, choose the single best workflow and extract any parameters
+    the workflow will need.
 
     Guidelines:
     - Every outcome must receive exactly one workflow assignment.
-    - Prefer a specialised workflow when the outcome clearly matches its
-      purpose.  Fall back to "general" only when no specialised workflow
-      fits.
+    - Use workflow descriptions to understand each workflow's purpose.
+      Prefer a specialised workflow when the outcome clearly matches its
+      description.  Fall back to "general" only when no specialised
+      workflow fits.
     - Extract concrete parameter values from the user message where
       possible.  For parameters that depend on earlier outcomes, add
       them to ``deferred_params`` as a mapping from the parameter name
@@ -90,7 +92,10 @@ class MapWorkflowsSig(dspy.Signature):
         )
     )
     available_workflows: str = dspy.InputField(
-        desc="Comma-separated list of registered workflow names"
+        desc=(
+            "JSON list of available workflows, each with 'name', "
+            "'description', and 'outputs' fields"
+        )
     )
     assignments: list[_RawAssignment] = dspy.OutputField(
         desc="One workflow assignment per outcome"
@@ -149,7 +154,7 @@ class WorkflowMapper(dspy.Module):
         self,
         outcomes: list[Outcome],
         user_message: str,
-        available_workflows: list[str],
+        available_workflows: list[dict],
     ) -> list[WorkflowAssignment]:
         """Map each outcome to a workflow.
 
@@ -159,18 +164,20 @@ class WorkflowMapper(dspy.Module):
         Args:
             outcomes: Outcomes from the Outcome Planner.
             user_message: The latest user message.
-            available_workflows: Registry keys of workflows the executor
-                can dispatch.
+            available_workflows: Workflow metadata dicts (with ``name``,
+                ``description``, and ``outputs`` keys) from the registry.
 
         Returns:
             A list of :class:`WorkflowAssignment` instances, one per outcome.
         """
+        import json
+
         outcome_map = {o.id: o for o in outcomes}
 
         result = self(
             user_message=user_message,
             outcomes=self._format_outcomes(outcomes),
-            available_workflows=", ".join(available_workflows),
+            available_workflows=json.dumps(available_workflows, indent=2),
         )
 
         assignments: list[WorkflowAssignment] = []

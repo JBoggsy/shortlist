@@ -110,6 +110,23 @@ def available_workflow_names() -> list[str]:
     return list(_WORKFLOW_REGISTRY.keys())
 
 
+def available_workflows_with_metadata() -> list[dict]:
+    """Return registered workflows with descriptions and output schemas.
+
+    Each entry has:
+    - ``name``: the registry key
+    - ``description``: first line of the class docstring
+    - ``outputs``: dict mapping output field names to descriptions
+      (from the class ``OUTPUTS`` attribute, if defined)
+    """
+    result = []
+    for name, cls in _WORKFLOW_REGISTRY.items():
+        desc = (cls.__doc__ or "").strip().split("\n")[0]
+        outputs = getattr(cls, "OUTPUTS", {})
+        result.append({"name": name, "description": desc, "outputs": outputs})
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Auto-import workflow modules so their @register_workflow decorators fire.
 # ---------------------------------------------------------------------------

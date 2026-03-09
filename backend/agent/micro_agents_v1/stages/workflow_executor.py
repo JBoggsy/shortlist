@@ -302,6 +302,24 @@ class WorkflowExecutor:
                 f"Parameter: {param_name}"
             )
 
+            # Enrich context with the output schema of upstream workflows
+            # so the extractor knows what fields to look for.
+            dep_schema_parts = []
+            for oid in dep_ids:
+                if oid in self._assignment_map:
+                    dep_a = self._assignment_map[oid]
+                    dep_wf_cls = get_workflow(dep_a.workflow_name)
+                    dep_outputs = getattr(dep_wf_cls, "OUTPUTS", {})
+                    if dep_outputs:
+                        fields = ", ".join(
+                            f"{k} ({v})" for k, v in dep_outputs.items()
+                        )
+                        dep_schema_parts.append(
+                            f"Outcome {oid} ({dep_a.workflow_name}) outputs: {fields}"
+                        )
+            if dep_schema_parts:
+                context += "\n\nUpstream output schemas:\n" + "\n".join(dep_schema_parts)
+
             params[param_name] = self.param_extractor.extract(
                 param_name=param_name,
                 param_context=context,
@@ -332,6 +350,12 @@ class WorkflowExecutor:
         # Wrap tools in a per-run cache to avoid redundant DB queries
         # (e.g. multiple workflows calling list_jobs).
         cached_tools = _CachedTools(self.tools)
+
+        # Build a lookup of assignments by outcome ID so deferred-param
+        # resolution can reference upstream workflow metadata.
+        self._assignment_map: dict[int, WorkflowAssignment] = {
+            a.outcome.id: a for a in ordered
+        }
 
         logger.info(
             "WorkflowExecutor: %d assignment(s), topo order: %s",

@@ -346,6 +346,12 @@ def _check_url_liveness(url: str) -> tuple[bool, str]:
 class JobSearchWorkflow(BaseWorkflow):
     """Search job boards, evaluate fit, and return curated results."""
 
+    OUTPUTS = {
+        "added": "int — number of qualifying jobs added as search results",
+        "total_searched": "int — total unique results found across all queries",
+        "queries_run": "int — number of search queries executed",
+    }
+
     #: Default number of jobs sent to the evaluator LLM in one call.
     #: Override at runtime via ``self.params["eval_batch_size"]``.
     EVAL_BATCH_SIZE: int = 15

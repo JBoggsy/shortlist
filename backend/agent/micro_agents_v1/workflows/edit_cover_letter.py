@@ -200,6 +200,13 @@ class ReviseLetterSig(dspy.Signature):
 class EditCoverLetterWorkflow(BaseWorkflow):
     """Single-shot cover letter critique and revision."""
 
+    OUTPUTS = {
+        "cover_letter": "str — the revised cover letter text",
+        "job": "dict — the target job record",
+        "version_info": "str — version label (e.g. 'v3')",
+        "changes_applied": "list[str] — descriptions of changes made",
+    }
+
     # -- Helpers ------------------------------------------------------------
     # Job/user context loading delegated to shared helpers in _dspy_utils.py.
 

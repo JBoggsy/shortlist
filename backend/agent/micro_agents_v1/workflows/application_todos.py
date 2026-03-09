@@ -158,6 +158,13 @@ class ExtractTodoActionsSig(dspy.Signature):
 class ApplicationTodosWorkflow(BaseWorkflow):
     """Manage application task lists for a specific job."""
 
+    OUTPUTS = {
+        "job": "dict — the target job record",
+        "intent": "str — classified action (generate/list/toggle/add/remove)",
+        "added_todos": "list[dict] — newly created todos (if any)",
+        "final_todos": "list[dict] — full current todo list after changes",
+    }
+
     def _resolve_job(self, user_message: str, conversation_context: str) -> Generator[dict, None, dict | None]:
         """Resolve the target job, yielding progress events. Returns job dict or None."""
         # Check if job_id was provided directly in params

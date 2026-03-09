@@ -63,6 +63,10 @@ class GeneralTaskSig(dspy.Signature):
 class GeneralWorkflow(BaseWorkflow):
     """Fallback workflow: uses a DSPy ReAct loop with the full tool-set."""
 
+    OUTPUTS = {
+        "answer": "str — the full text answer produced by the ReAct loop",
+    }
+
     def __init__(
         self,
         outcome_id: int,

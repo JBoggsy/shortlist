@@ -24,6 +24,12 @@ logger = logging.getLogger(__name__)
 class RemoveJobsWorkflow(BaseWorkflow):
     """Identify referenced job(s) and remove them from the tracker."""
 
+    OUTPUTS = {
+        "removed_jobs": "list[dict] — each with job_id, company, title",
+        "failed": "list[dict] — removals that failed",
+        "count": "int — number successfully removed",
+    }
+
     def run(self) -> Generator[dict, None, WorkflowResult]:
         user_message = self.outcome_description or self.params.get("user_message", "")
         conversation_context = self.params.get("conversation_context", "")

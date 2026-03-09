@@ -95,6 +95,11 @@ _INT_FIELDS = {"salary_min", "salary_max", "job_fit"}
 class EditJobWorkflow(BaseWorkflow):
     """Identify referenced job, extract field updates, and apply them."""
 
+    OUTPUTS = {
+        "job": "dict — the updated job record",
+        "changes": "list[dict] — each with field, old_value, new_value",
+    }
+
     def run(self) -> Generator[dict, None, WorkflowResult]:
         user_message = self.outcome_description or self.params.get("user_message", "")
         conversation_context = self.params.get("conversation_context", "")

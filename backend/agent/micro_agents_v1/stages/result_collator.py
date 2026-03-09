@@ -19,7 +19,8 @@ import litellm
 
 from backend.llm.llm_factory import LLMConfig
 
-from ..workflows.registry import WorkflowResult
+from ..stages.workflow_mapper import WorkflowAssignment
+from ..workflows.registry import WorkflowResult, get_workflow
 
 logger = logging.getLogger(__name__)
 
@@ -57,20 +58,41 @@ class ResultCollator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _format_results(results: list[WorkflowResult]) -> str:
-        """Serialise workflow results to a JSON string for the LLM."""
-        return json.dumps(
-            [
-                {
-                    "outcome_id": r.outcome_id,
-                    "success": r.success,
-                    "data": r.data,
-                    "summary": r.summary,
-                }
-                for r in results
-            ],
-            indent=2,
-        )
+    def _format_results(
+        results: list[WorkflowResult],
+        assignments: list[WorkflowAssignment] | None = None,
+    ) -> str:
+        """Serialise workflow results to a JSON string for the LLM.
+
+        When *assignments* is provided, each result is annotated with the
+        workflow name and its declared output schema so the LLM knows
+        exactly what each field in ``data`` represents.
+        """
+        assignment_map: dict[int, WorkflowAssignment] = {}
+        if assignments:
+            assignment_map = {a.outcome.id: a for a in assignments}
+
+        entries = []
+        for r in results:
+            entry: dict = {
+                "outcome_id": r.outcome_id,
+                "success": r.success,
+                "data": r.data,
+                "summary": r.summary,
+            }
+            a = assignment_map.get(r.outcome_id)
+            if a:
+                entry["workflow"] = a.workflow_name
+                try:
+                    wf_cls = get_workflow(a.workflow_name)
+                    outputs = getattr(wf_cls, "OUTPUTS", {})
+                    if outputs:
+                        entry["output_schema"] = outputs
+                except KeyError:
+                    pass
+            entries.append(entry)
+
+        return json.dumps(entries, indent=2)
 
     def _completion_kwargs(self) -> dict:
         """Build kwargs for ``litellm.completion()``."""
@@ -93,6 +115,7 @@ class ResultCollator:
         self,
         results: list[WorkflowResult],
         user_message: str,
+        assignments: list[WorkflowAssignment] | None = None,
     ) -> Generator[dict, None, None]:
         """Synthesise workflow results into a streamed user response.
 
@@ -103,6 +126,9 @@ class ResultCollator:
             results: Completed :class:`WorkflowResult` objects from
                 the Workflow Executor.
             user_message: The user's original message.
+            assignments: Optional workflow assignments — when provided,
+                each result is annotated with its workflow name and
+                output schema for better collation.
 
         Yields:
             SSE event dicts with ``event: text_delta``.
@@ -113,7 +139,7 @@ class ResultCollator:
             user_message[:120],
         )
 
-        formatted = self._format_results(results)
+        formatted = self._format_results(results, assignments)
 
         messages = [
             {"role": "system", "content": _COLLATION_SYSTEM_PROMPT},
