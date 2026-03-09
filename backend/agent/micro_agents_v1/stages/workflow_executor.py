@@ -154,6 +154,73 @@ class DeferredParamExtractor(dspy.Module):
 
 
 # ---------------------------------------------------------------------------
+# Per-run tool cache
+# ---------------------------------------------------------------------------
+
+# Read-only tools whose results don't change within a single pipeline run.
+# Caching these avoids redundant DB queries when multiple workflows (e.g.
+# write_cover_letter + specialize_resume) each call list_jobs.
+_CACHEABLE_TOOLS = frozenset({
+    "list_jobs",
+    "read_user_profile",
+    "read_resume",
+})
+
+
+class _CachedTools:
+    """Thin proxy around ``AgentTools`` that caches read-only tool results.
+
+    Only tools listed in ``_CACHEABLE_TOOLS`` are cached.  The cache key
+    is ``(tool_name, sorted_args_tuple)``; mutating tools (``create_job``,
+    ``edit_job``, ``update_user_profile``, etc.) pass through and
+    invalidate the cache for any tool whose results they may have changed.
+    """
+
+    # Tools that mutate job data → invalidate list_jobs cache
+    _JOB_MUTATING = frozenset({
+        "create_job", "edit_job", "remove_job",
+    })
+    # Tools that mutate profile → invalidate read_user_profile cache
+    _PROFILE_MUTATING = frozenset({
+        "update_user_profile",
+    })
+
+    def __init__(self, inner: AgentTools):
+        self._inner = inner
+        self._cache: dict[tuple, object] = {}
+
+    def execute(self, tool_name: str, arguments: dict | None = None):
+        arguments = arguments or {}
+
+        # Invalidate affected caches on mutation
+        if tool_name in self._JOB_MUTATING:
+            self._evict("list_jobs")
+        elif tool_name in self._PROFILE_MUTATING:
+            self._evict("read_user_profile")
+
+        if tool_name in _CACHEABLE_TOOLS:
+            key = (tool_name, tuple(sorted(arguments.items())))
+            if key in self._cache:
+                return self._cache[key]
+            result = self._inner.execute(tool_name, arguments)
+            # Only cache successful responses
+            if "error" not in result:
+                self._cache[key] = result
+            return result
+
+        return self._inner.execute(tool_name, arguments)
+
+    def _evict(self, tool_name: str):
+        self._cache = {
+            k: v for k, v in self._cache.items() if k[0] != tool_name
+        }
+
+    # Proxy everything else to the inner AgentTools instance
+    def __getattr__(self, name: str):
+        return getattr(self._inner, name)
+
+
+# ---------------------------------------------------------------------------
 # Workflow Executor
 # ---------------------------------------------------------------------------
 
@@ -262,6 +329,10 @@ class WorkflowExecutor:
         completed: dict[int, WorkflowResult] = {}
         results: list[WorkflowResult] = []
 
+        # Wrap tools in a per-run cache to avoid redundant DB queries
+        # (e.g. multiple workflows calling list_jobs).
+        cached_tools = _CachedTools(self.tools)
+
         logger.info(
             "WorkflowExecutor: %d assignment(s), topo order: %s",
             len(ordered),
@@ -272,15 +343,15 @@ class WorkflowExecutor:
             outcome_id = assignment.outcome.id
             wf_name = assignment.workflow_name
 
+            # Show a concise description of what's happening — no internal
+            # details (workflow names, outcome IDs, params, deferred_params).
+            step_label = assignment.outcome.description
+            if len(ordered) > 1:
+                step_idx = ordered.index(assignment) + 1
+                step_label = f"Step {step_idx}/{len(ordered)}: {step_label}"
             yield {
                 "event": "text_delta",
-                "data": {
-                    "content": (
-                        f"**Running workflow** `{wf_name}` "
-                        f"for outcome {outcome_id}: "
-                        f"{assignment.outcome.description}\n\n"
-                    )
-                },
+                "data": {"content": f"**{step_label}**\n\n"},
             }
 
             # Resolve deferred parameters using upstream results
@@ -290,15 +361,6 @@ class WorkflowExecutor:
                     outcome_id,
                     assignment.deferred_params,
                 )
-                yield {
-                    "event": "text_delta",
-                    "data": {
-                        "content": (
-                            f"_Resolving deferred params: "
-                            f"{list(assignment.deferred_params.keys())}..._\n"
-                        )
-                    },
-                }
                 params = self._resolve_deferred_params(assignment, completed)
             else:
                 params = dict(assignment.params)
@@ -327,14 +389,27 @@ class WorkflowExecutor:
             workflow = workflow_cls(
                 outcome_id=outcome_id,
                 params=params,
-                tools=self.tools,
+                tools=cached_tools,
                 llm_config=self.llm_config,
                 outcome_description=assignment.outcome.description,
             )
 
             # Execute — the workflow is a generator that yields SSE events
             # and returns a WorkflowResult via StopIteration.value
-            result = yield from workflow.run()
+            try:
+                result = yield from workflow.run()
+            except NotImplementedError:
+                logger.warning(
+                    "Workflow %r for outcome %d is not yet implemented",
+                    wf_name, outcome_id,
+                )
+                msg = f"The `{wf_name}` workflow is not yet implemented.\n"
+                yield {"event": "text_delta", "data": {"content": msg}}
+                result = WorkflowResult(
+                    outcome_id=outcome_id,
+                    success=False,
+                    summary=f"Workflow '{wf_name}' is not yet implemented.",
+                )
 
             logger.info(
                 "Workflow %r for outcome %d finished — success=%s",

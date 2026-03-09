@@ -99,8 +99,8 @@ class MicroAgentsV1Agent(Agent):
 
         try:
             # --- Stage 1: Outcome Planning ---
-            yield {"event": "text_delta", "data": {"content": "Planning approach...\n\n"}}
-            full_text += "Planning approach...\n\n"
+            yield {"event": "text_delta", "data": {"content": "Thinking...\n\n"}}
+            full_text += "Thinking...\n\n"
 
             outcomes = self.outcome_planner.plan(
                 user_message=user_message,
@@ -108,47 +108,36 @@ class MicroAgentsV1Agent(Agent):
                 user_profile=user_profile,
             )
 
-            # Stream the planned outcomes to the user for visibility
-            outcome_summary = "**Planned outcomes:**\n"
-            for o in outcomes:
-                deps = f" (depends on: {o.depends_on})" if o.depends_on else ""
-                outcome_summary += f"  {o.id}. {o.description}{deps}\n"
-            outcome_summary += "\n"
-            yield {"event": "text_delta", "data": {"content": outcome_summary}}
-            full_text += outcome_summary
+            logger.debug(
+                "Planned outcomes: %s",
+                [(o.id, o.description, o.depends_on) for o in outcomes],
+            )
 
             # --- Stage 2: Workflow Mapping ---
-            yield {"event": "text_delta", "data": {"content": "Mapping to workflows...\n\n"}}
-            full_text += "Mapping to workflows...\n\n"
-
             assignments = self.workflow_mapper.map(
                 outcomes=outcomes,
                 user_message=user_message,
                 available_workflows=self._available_workflow_names(),
             )
 
-            # Stream the workflow assignments for visibility
-            mapping_summary = "**Workflow assignments:**\n"
-            for a in assignments:
-                deferred = ""
-                if a.deferred_params:
-                    deferred = f"  deferred: {a.deferred_params}"
-                mapping_summary += (
-                    f"  {a.outcome.id}. [{a.workflow_name}] "
-                    f"{a.outcome.description}\n"
-                    f"     params: {a.params}{deferred}\n"
-                )
-            mapping_summary += "\n"
-            yield {"event": "text_delta", "data": {"content": mapping_summary}}
-            full_text += mapping_summary
+            logger.debug(
+                "Workflow assignments: %s",
+                [
+                    (a.outcome.id, a.workflow_name, a.params, a.deferred_params)
+                    for a in assignments
+                ],
+            )
 
             # --- Stage 3: Workflow Execution ---
             results = yield from self.workflow_executor.execute(assignments)
 
-            # --- Stage 4: Result Collation ---
-            yield {"event": "text_delta", "data": {"content": "Summarising results...\n\n"}}
-            full_text += "Summarising results...\n\n"
+            # Flush any tool-emitted events that queued during execution
+            # (e.g. search_result_added events for the UI results panel)
+            for event in self._pending_events:
+                yield event
+            self._pending_events.clear()
 
+            # --- Stage 4: Result Collation ---
             for event in self.result_collator.collate(results, user_message):
                 if event["event"] == "text_delta":
                     full_text += event["data"]["content"]

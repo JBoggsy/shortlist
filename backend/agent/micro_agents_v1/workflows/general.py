@@ -8,11 +8,15 @@ needed, and produces a textual answer.
 This is intentionally simple — it mirrors the behaviour of a standard
 ReAct agent loop, just scoped to a single outcome rather than the whole
 user request.
+
+Tool calls are streamed to the user in real-time via SSE ``tool_start``
+and ``tool_result`` events — see :func:`run_dspy_module_streaming`.
 """
 
 from __future__ import annotations
 
 import logging
+import queue
 from collections.abc import Generator
 
 import dspy
@@ -20,7 +24,7 @@ import dspy
 from backend.agent.tools import AgentTools
 from backend.llm.llm_factory import LLMConfig
 
-from ._dspy_utils import build_dspy_tools, build_lm
+from ._dspy_utils import build_dspy_tools, build_lm, run_dspy_module_streaming
 from .registry import BaseWorkflow, WorkflowResult, register_workflow
 
 logger = logging.getLogger(__name__)
@@ -69,8 +73,13 @@ class GeneralWorkflow(BaseWorkflow):
     ):
         super().__init__(outcome_id, params, tools, llm_config, outcome_description)
 
-        # Build DSPy tools once
-        self._dspy_tools = build_dspy_tools(tools)
+        # Event queue shared with tool shims — tool_start / tool_result
+        # events are pushed here as DSPy calls each tool and drained by
+        # run_dspy_module_streaming() in run().
+        self._event_queue: queue.Queue = queue.Queue()
+
+        # Build DSPy tools with event emission enabled
+        self._dspy_tools = build_dspy_tools(tools, event_queue=self._event_queue)
 
         # Create the ReAct module
         self._react = dspy.ReAct(
@@ -84,12 +93,12 @@ class GeneralWorkflow(BaseWorkflow):
     # ------------------------------------------------------------------
 
     def run(self) -> Generator[dict, None, WorkflowResult]:
-        """Execute the ReAct loop for this outcome."""
-        yield {
-            "event": "text_delta",
-            "data": {"content": f"Working on outcome {self.outcome_id}...\n"},
-        }
+        """Execute the ReAct loop for this outcome.
 
+        Tool calls are streamed in real-time: the DSPy ReAct module runs
+        in a background thread while the generator drains ``tool_start``
+        and ``tool_result`` events from a shared queue.
+        """
         task = self.outcome_description or self.params.get("task", self.params.get("description", ""))
         context = ""
         if self.params:
@@ -98,8 +107,16 @@ class GeneralWorkflow(BaseWorkflow):
             )
 
         try:
-            with dspy.context(lm=build_lm(self.llm_config)):
-                prediction = self._react(task=task, context=context)
+            lm = build_lm(self.llm_config)
+
+            def _run_react():
+                with dspy.context(lm=lm):
+                    return self._react(task=task, context=context)
+
+            prediction = yield from run_dspy_module_streaming(
+                _run_react,
+                self._event_queue,
+            )
 
             answer = prediction.answer
 
