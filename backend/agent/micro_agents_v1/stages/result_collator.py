@@ -4,8 +4,9 @@ Given a list of :class:`WorkflowResult` objects and the original user
 message, the collator produces a coherent, user-facing response that
 summarises what was accomplished across all workflow executions.
 
-This module is a DSPy module so it can be optimised via DSPy's prompt
-tuning and few-shot bootstrapping.
+Uses ``litellm.completion()`` with ``stream=True`` so that the response
+is streamed token-by-token to the user rather than appearing all at once
+after a long pause.
 """
 
 from __future__ import annotations
@@ -14,64 +15,42 @@ import json
 import logging
 from collections.abc import Generator
 
-import dspy
+import litellm
 
 from backend.llm.llm_factory import LLMConfig
 
-from ..workflows._dspy_utils import build_lm
 from ..workflows.registry import WorkflowResult
 
 logger = logging.getLogger(__name__)
 
+_COLLATION_SYSTEM_PROMPT = """\
+You are the final stage of an agentic pipeline.  Earlier stages have
+already decomposed the user's request into outcomes, mapped them to
+workflows, and executed those workflows.  You now have the results.
 
-# ---------------------------------------------------------------------------
-# DSPy signature & module
-# ---------------------------------------------------------------------------
-
-
-class CollateResultsSig(dspy.Signature):
-    """Synthesise workflow results into a coherent user-facing response.
-
-    You are the final stage of an agentic pipeline.  Earlier stages have
-    already decomposed the user's request into outcomes, mapped them to
-    workflows, and executed those workflows.  You now have the results.
-
-    Your job is to produce a single, natural-language response that:
-    - Directly addresses the user's original message.
-    - Summarises what was accomplished (or what failed and why).
-    - Presents information clearly — use bullet points, headers, or other
-      markdown formatting when it improves readability.
-    - Omits internal pipeline details (outcome IDs, workflow names, etc.)
-      unless they are meaningful to the user.
-    - Is concise but complete — don't omit important results, but don't
-      pad with unnecessary filler either.
-    - If any outcomes failed, acknowledge the failure and explain what
-      went wrong in user-friendly terms.
-    """
-
-    user_message: str = dspy.InputField(desc="The user's original message")
-    workflow_results: str = dspy.InputField(
-        desc=(
-            "JSON list of workflow results, each with 'outcome_id', "
-            "'success', 'data', and 'summary' fields"
-        )
-    )
-    response: str = dspy.OutputField(
-        desc="A coherent, user-facing response summarising the results"
-    )
+Your job is to produce a single, natural-language response that:
+- Directly addresses the user's original message.
+- Summarises what was accomplished (or what failed and why).
+- Presents information clearly — use bullet points, headers, or other
+  markdown formatting when it improves readability.
+- Omits internal pipeline details (outcome IDs, workflow names, etc.)
+  unless they are meaningful to the user.
+- Is concise but complete — don't omit important results, but don't
+  pad with unnecessary filler either.
+- If any outcomes failed, acknowledge the failure and explain what
+  went wrong in user-friendly terms.
+"""
 
 
-class ResultCollator(dspy.Module):
-    """DSPy module that synthesises workflow results into a final response.
+class ResultCollator:
+    """Synthesise workflow results into a streamed final response.
 
-    Uses ``dspy.ChainOfThought`` so the LLM reasons about how best to
-    present the combined results before producing the response text.
+    Uses ``litellm.completion()`` with streaming so users see tokens
+    incrementally instead of waiting for the full response.
     """
 
     def __init__(self, llm_config: LLMConfig):
-        super().__init__()
         self.llm_config = llm_config
-        self.collator = dspy.ChainOfThought(CollateResultsSig)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -93,21 +72,18 @@ class ResultCollator(dspy.Module):
             indent=2,
         )
 
-    # ------------------------------------------------------------------
-    # DSPy forward
-    # ------------------------------------------------------------------
-
-    def forward(
-        self,
-        user_message: str,
-        workflow_results: str,
-    ) -> dspy.Prediction:
-        """DSPy forward pass — invokes the chain-of-thought collator."""
-        with dspy.context(lm=build_lm(self.llm_config)):
-            return self.collator(
-                user_message=user_message,
-                workflow_results=workflow_results,
-            )
+    def _completion_kwargs(self) -> dict:
+        """Build kwargs for ``litellm.completion()``."""
+        kwargs: dict = {
+            "model": self.llm_config.model,
+            "max_tokens": self.llm_config.max_tokens,
+            "stream": True,
+        }
+        if self.llm_config.api_key:
+            kwargs["api_key"] = self.llm_config.api_key
+        if self.llm_config.api_base:
+            kwargs["api_base"] = self.llm_config.api_base
+        return kwargs
 
     # ------------------------------------------------------------------
     # Public API
@@ -120,9 +96,8 @@ class ResultCollator(dspy.Module):
     ) -> Generator[dict, None, None]:
         """Synthesise workflow results into a streamed user response.
 
-        This is the primary public API.  It formats the results, calls
-        ``forward()``, and yields SSE ``text_delta`` events containing
-        the final response.
+        Yields SSE ``text_delta`` events token-by-token as the LLM
+        generates them.
 
         Args:
             results: Completed :class:`WorkflowResult` objects from
@@ -138,13 +113,25 @@ class ResultCollator(dspy.Module):
             user_message[:120],
         )
 
-        prediction = self(
-            user_message=user_message,
-            workflow_results=self._format_results(results),
+        formatted = self._format_results(results)
+
+        messages = [
+            {"role": "system", "content": _COLLATION_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"**User's original message:**\n{user_message}\n\n"
+                    f"**Workflow results:**\n{formatted}"
+                ),
+            },
+        ]
+
+        response = litellm.completion(
+            messages=messages,
+            **self._completion_kwargs(),
         )
 
-        response: str = prediction.response
-
-        logger.debug("ResultCollator response length: %d chars", len(response))
-
-        yield {"event": "text_delta", "data": {"content": response}}
+        for chunk in response:
+            delta = chunk.choices[0].delta
+            if delta.content:
+                yield {"event": "text_delta", "data": {"content": delta.content}}
