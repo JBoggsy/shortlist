@@ -54,10 +54,13 @@ focused DSPy modules ("micro-agents") that can be optimized independently.
               └─────────────────────┘
 ```
 
-The top-level agent (`MicroAgentsV1Agent`) is itself a DSPy module, composing
-the stages above as sub-modules. This makes the entire pipeline eligible for
-DSPy optimization (prompt tuning, few-shot bootstrapping, etc.) while keeping
-each stage independently testable and swappable.
+The top-level agent (`MicroAgentsV1Agent`) is a DSPy module (via a combined
+`ABCMeta`/`ProgramMeta` metaclass in `base.py`), composing the stages above as
+sub-modules.  This exposes the full module tree for introspection via
+`named_sub_modules()` and `named_parameters()`, and enables save/load of
+optimised parameters.  Individual leaf modules (OutcomePlanner, WorkflowMapper,
+resolvers, resume stages) can be optimised independently with DSPy optimisers
+like `BootstrapFewShot` or `MIPROv2`.
 
 ---
 

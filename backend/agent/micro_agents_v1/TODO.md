@@ -49,27 +49,11 @@ returns a generic `error` SSE event, which is confusing for users.
 
 ### Architecture
 
-- [ ] **`MicroAgentsV1Agent` is not a `dspy.Module`**
-  The README states the top-level agent is a DSPy module enabling
-  end-to-end optimization.  Currently it inherits from the `Agent` ABC
-  and composes stages imperatively.  Making it a `dspy.Module` that
-  exposes sub-modules would unlock DSPy optimizer support (e.g.
-  `BootstrapFewShot`, `MIPROv2`) across the whole pipeline.
+- [x] **`MicroAgentsV1Agent` is not a `dspy.Module`** — Added combined `_AgentModuleMeta` metaclass to `base.py` enabling dual ABC + `dspy.Module` inheritance; all three top-level agents now call `dspy.Module.__init__()` and expose sub-modules via `named_sub_modules()` / `named_parameters()`
 
-- [ ] **Pass workflow descriptions to `WorkflowMapper`**
-  The mapper only receives workflow names as a comma-separated string
-  (`"general, job_search, add_to_tracker, ..."`).  The LLM must infer
-  each workflow's purpose from its name alone.  Pass a richer format
-  (e.g. JSON with `name` + short `description`) so routing decisions
-  are more reliable.
+- [x] **Pass workflow descriptions to `WorkflowMapper`** — mapper now receives JSON with `name`, `description`, and `outputs` fields via `available_workflows_with_metadata()`; each workflow class declares an `OUTPUTS` dict; output schemas also surfaced in `DeferredParamExtractor` context and `ResultCollator` result formatting
 
-- [ ] **Pass conversation context to workflows**
-  `agent.py` never includes recent conversation history in workflow
-  `params`.  As a result `conversation_context` is always an empty
-  string in `JobResolver` and `SearchResultResolver`, limiting their
-  ability to resolve relative references ("the first one", "the job we
-  were just discussing").  Extract the last N messages and include them
-  in the params dict before dispatching.
+- [x] **Pass conversation context to workflows** — `agent.py` now injects the last 10 messages as `conversation_context` into each workflow assignment's `params` dict before dispatch, enabling `JobResolver` and `SearchResultResolver` to handle relative references.
 
 - [x] **Extract shared `_load_job_context` / `_load_user_context` helpers** — extracted `load_job_context()` and `load_user_context()` free functions into `_dspy_utils.py`; replaced per-workflow copies in `write_cover_letter.py`, `specialize_resume.py`, `prep_interview.py`, and `edit_cover_letter.py`; fixed `edit_cover_letter.py` missing `int(job_id)` error handling and hardcoded constants; `_load_full_user_context()` replaced with `load_user_context(tools, max_chars=None)`.
 

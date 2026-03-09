@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Refactored
+- **Agent base classes are now DSPy modules** — Added combined `_AgentModuleMeta` metaclass to `backend/agent/base.py` enabling dual `ABC` + `dspy.Module` inheritance; `MicroAgentsV1Agent`, `MicroAgentsV1OnboardingAgent`, and `MicroAgentsV1ResumeParser` now call `dspy.Module.__init__()` and expose sub-modules via `named_sub_modules()` / `named_parameters()` / `save()` / `load()`; default design agents are unaffected
+
+### Improved
+- **Workflow metadata passed to WorkflowMapper** — Mapper now receives JSON with `name`, `description`, and `outputs` fields (via `available_workflows_with_metadata()`) instead of bare comma-separated names, enabling more accurate routing decisions; each workflow class declares an `OUTPUTS` dict; output schemas also surfaced in `DeferredParamExtractor` context and `ResultCollator` result formatting
+- **Conversation context now passed to micro_agents_v1 workflows** — Recent conversation history (last 10 messages) is injected into workflow params, enabling `JobResolver` and `SearchResultResolver` to handle relative references like "the first one" or "the job we just discussed"
+
 ### Added
 - **Pluggable agent design system** — Agent implementations are now selectable via `agent.design` in config; new designs are sub-packages of `backend/agent/` with auto-discovery
 - **Default agent design** — Monolithic ReAct loop implementation (`backend/agent/default/`) with `DefaultAgent`, `DefaultOnboardingAgent`, `DefaultResumeParser`
