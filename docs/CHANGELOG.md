@@ -14,6 +14,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DSPy dependency** — Added `dspy>=3.1.3` for declarative LLM programming (ChainOfThought, ReAct modules) used by the micro_agents_v1 design
 - **Agent job CRUD tools** — Implemented `create_job`, `list_jobs`, `edit_job`, and `remove_job` agent tools with full database access, input validation, and live job list refresh
 - **Agent todo tools** — Added `list_job_todos`, `add_job_todo`, `edit_job_todo`, and `remove_job_todo` agent tools so the AI assistant can manage per-job application todo items (documents, questions, assessments, etc.)
+- **Micro Agents v1 write-cover-letter workflow** — Implemented `WriteCoverLetterWorkflow` (`backend/agent/micro_agents_v1/workflows/write_cover_letter.py`) with job resolution via `JobResolver`, profile/resume context loading, outline+narrative generation, parallel section drafting, draft unification, grammar/style polishing, and versioned persistence through `save_job_document`
+- **Micro Agents v1 specialize-resume workflow** — Implemented `SpecializeResumeWorkflow` (`backend/agent/micro_agents_v1/workflows/specialize_resume.py`) with job resolution via `JobResolver`, resume source preference (`get_job_document` resume fallback to uploaded resume), section-by-section critique and revision, unification editing pass, strict claim validation against profile/request, and versioned persistence through `save_job_document`
+- **Micro Agents v1 onboarding agent** — Implemented `MicroAgentsV1OnboardingAgent` using a DSPy `ReAct` module with `OnboardingTurnSig` signature for interactive profile-building interviews; restricted to profile/resume tools, with structured section tracking and `is_complete` output field for reliable completion detection
+
+### Changed
+- **micro_agents_v1 interview prep company brief uses live web research** — `CompanyBriefSig` now runs as a `dspy.ReAct` module with `web_search` and `scrape_url` tools instead of relying solely on LLM training data
+- **micro_agents_v1 suppress verbose pipeline internals** — replaced raw outcome lists, workflow assignment dumps, and "Mapping to workflows…" with a single "Thinking…" indicator; executor now shows clean step labels; detailed internals moved to DEBUG logging
+- **micro_agents_v1 result collation streams token-by-token** — `ResultCollator` now uses `litellm.completion(stream=True)` instead of DSPy `ChainOfThought`, so the final synthesised response streams incrementally via SSE `text_delta` events
+- **micro_agents_v1 real-time tool streaming for all ReAct modules** — `build_dspy_tools` now accepts an optional `event_queue` to emit `tool_start`/`tool_result` SSE events; new `run_dspy_module_streaming()` helper runs DSPy modules in a background thread while draining tool events in real-time. Applied to all three ReAct call sites: `GeneralWorkflow`, `PrepInterviewWorkflow` company brief (parallel event draining during `ThreadPoolExecutor`), and `MicroAgentsV1OnboardingAgent`
+
+### Performance
+- **micro_agents_v1 per-run tool cache** — `WorkflowExecutor` now wraps tools in a `_CachedTools` proxy that caches `list_jobs`, `read_user_profile`, and `read_resume` results within a pipeline run; automatically invalidates on mutating tool calls
+- **micro_agents_v1 kwargs-unwrap hardened** — `build_dspy_tools` now checks whether a tool genuinely declares a `kwargs` parameter before unwrapping, and verifies the value is a dict
+
+### Refactored
+- **micro_agents_v1 deduplicated `ResumeSection` model** — `ResumeSection(title, content)` is now the shared base in `section_segmenter.py`; `SegmentedResumeSection` extends it with `section_type` and `heading`; `specialize_resume.py` imports from `resume_stages` instead of defining its own copy
+- **micro_agents_v1 extracted shared context loaders** — `load_job_context()` and `load_user_context()` in `_dspy_utils.py` replace four near-identical per-workflow copies; fixes `edit_cover_letter.py` missing `int(job_id)` error handling and hardcoded magic numbers
+
+### Fixed
+- **micro_agents_v1 resume parser graceful degradation** — extractor failures no longer abort the full parse; remaining extractors' results are preserved using empty fallbacks
+- **micro_agents_v1 pending events cleared on error** — `OnboardingAgent` now clears `_pending_events` in a `finally` block so stale events don't leak into subsequent turns
+- **micro_agents_v1 non-numeric job_id crash** — `_load_job_context()` in all three job workflows now catches `ValueError`/`TypeError` from `int(job_id)` and falls through to resolver-based lookup
+- **micro_agents_v1 dead-code guard** — removed unreachable `if not sections:` check in `WriteCoverLetterWorkflow`
+- **micro_agents_v1 Optional type hint** — corrected `ResumeAssembler.__init__` parameter to `Optional["LLMConfig"] = None`
+- **CLAUDE.md docs sync** — updated `micro_agents_v1` description to reflect the implemented `resume_stages/` pipeline
+- **micro_agents_v1 pending events not flushed** — `agent.py` now yields and clears `_pending_events` after workflow execution so `search_result_added` events reach the UI
+- **micro_agents_v1 NotImplementedError crash** — executor now catches `NotImplementedError` per-workflow and returns a clean failure result instead of crashing the full pipeline
+- **micro_agents_v1 truncated resume in claim validation** — `ValidateClaimsSig` now receives the full un-truncated resume via `_load_full_user_context()` to prevent false hallucination flags
+- **micro_agents_v1 JSON resume fed to text parser** — `_load_resume_text()` now converts parsed resume dicts to structured plain text via `_parsed_resume_to_text()` instead of `json.dumps()`
+- **Standardised profile section placeholder** — defined canonical `SECTION_PLACEHOLDER` constant and `is_section_unfilled()` helper in `user_profile.py`; all profile template sections now use the same placeholder; onboarding agent uses the helper instead of a narrow regex; legacy placeholders from older templates are still recognised; duplicate `PROFILE_SECTIONS` list in `update_profile.py` replaced with import
 
 ### Removed
 - **Job enrichment** — Removed `backend/job_enrichment.py` and all automatic enrichment when adding jobs to tracker

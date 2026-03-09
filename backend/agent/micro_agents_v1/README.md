@@ -45,7 +45,7 @@ focused DSPy modules ("micro-agents") that can be optimized independently.
                         ▼
               ┌─────────────────────┐
               │  Result Collator    │
-              │  (DSPy module)      │
+              │  (LiteLLM stream)   │
               └─────────┬───────────┘
                         ▼
               ┌─────────────────────┐
@@ -156,6 +156,8 @@ The **General workflow** serves as the universal fallback. It runs a
 conventional ReAct loop: the LLM reasons about the outcome, selects tools,
 observes results, and iterates until the outcome is met. Any outcome that
 doesn't match a specialised workflow lands here, so the agent is never stuck.
+Tool calls within the General workflow are streamed in real-time via a shared
+event queue — see `run_dspy_module_streaming()` in `_dspy_utils.py`.
 
 ### Registered Workflows
 
@@ -209,16 +211,52 @@ model swapped — without touching the workflow logic that invokes them.
 The agent streams SSE events to the frontend throughout the entire process, not
 just during the final response. Specifically:
 
-- **Outcome planning** emits a brief status message ("Planning approach...") so
-  the user sees immediate activity.
+- **Outcome planning** emits a brief "Thinking..." indicator so the user sees
+  immediate activity.
 - **Workflow execution** emits `tool_start`/`tool_result` events for each tool
   call and `text_delta` events for progress narration ("Searching for jobs in
-  San Francisco...", "Found 12 listings, evaluating fit...").
-- **Result collation** streams the final summary as `text_delta` events,
-  followed by a `done` event.
+  San Francisco...", "Found 12 listings, evaluating fit..."). DSPy `ReAct`
+  modules (General workflow, interview prep company brief, onboarding agent)
+  stream tool events in real-time via `run_dspy_module_streaming()` — the
+  module runs in a background thread while tool shims push events to a shared
+  queue that the generator drains.
+- **Result collation** streams the final summary token-by-token via
+  `litellm.completion(stream=True)` as `text_delta` events, followed by a
+  `done` event.
 
 The goal is that the user never stares at a blank screen — there is always
 visible forward progress.
+
+---
+
+## Onboarding Agent
+
+The `MicroAgentsV1OnboardingAgent` conducts the same 10-section profile
+interview as the default design, but structured as a DSPy module for
+optimisation.
+
+**Architecture:** A single `dspy.ReAct` module with `OnboardingTurnSig` runs
+per conversational turn. It receives the conversation history, current profile,
+resume text, and a structured summary of which profile sections are filled vs.
+remaining. It outputs a conversational `response` and an `is_complete` boolean.
+
+**Tool subset:** Only three tools are exposed — `read_user_profile`,
+`update_user_profile`, and `read_resume` — reducing noise compared to the
+full tool-set.
+
+**Section tracking:** A helper (`_section_status`) inspects the profile body
+and classifies each of the 10 sections as filled or placeholder-default. This
+is passed as structured input so the LLM doesn't need to infer coverage from
+raw markdown.
+
+**Completion detection:** Uses the `is_complete` output field on the DSPy
+signature rather than parsing a magic string marker. When `True`, the agent
+calls `set_onboarded(True)` and emits the `onboarding_complete` SSE event.
+
+**SSE events:** Emits `tool_start`/`tool_result` events in real-time via
+`run_dspy_module_streaming()`, `text_delta` (response text), tool-emitted
+events via the `_pending_events` callback, `onboarding_complete` (when done),
+and `done`.
 
 ---
 
