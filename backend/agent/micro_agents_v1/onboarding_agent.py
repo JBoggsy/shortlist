@@ -160,6 +160,7 @@ class MicroAgentsV1OnboardingAgent(OnboardingAgent):
     """Onboarding interview agent — DSPy ReAct module per turn."""
 
     def __init__(self, llm_config: LLMConfig):
+        dspy.Module.__init__(self)
         self.llm_config = llm_config
         self._pending_events: list[dict] = []
 

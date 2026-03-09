@@ -56,13 +56,20 @@ class MicroAgentsV1ResumeParser(ResumeParser):
     """Pipeline resume parser using DSPy modules."""
 
     def __init__(self, llm_config: LLMConfig):
+        dspy.Module.__init__(self)
         self.llm_config = llm_config
+
+        # Store sub-modules as attributes for DSPy discovery
+        self.segmenter = SectionSegmenter(llm_config)
+        self.contact_extractor = ContactExtractor(llm_config)
+        self.experience_extractor = ExperienceEducationExtractor(llm_config)
+        self.skills_extractor = SkillsExtractor(llm_config)
+        self.assembler = ResumeAssembler(llm_config=llm_config)
 
     def parse(self, raw_text: str) -> dict:
         # --- Stage 1: Segment raw text into classified sections ---
         logger.info("Resume parser: Stage 1 — segmenting sections")
-        segmenter = SectionSegmenter(self.llm_config)
-        sections = segmenter.segment(raw_text)
+        sections = self.segmenter.segment(raw_text)
 
         # Group section content by extractor
         contact_text = self._collect_text(sections, _CONTACT_TYPES)
@@ -83,8 +90,7 @@ class MicroAgentsV1ResumeParser(ResumeParser):
 
         # --- Stage 3: Assemble final dict ---
         logger.info("Resume parser: Stage 3 — assembling final output")
-        assembler = ResumeAssembler(llm_config=self.llm_config)
-        result = assembler.assemble(contact_out, experience_out, skills_out)
+        result = self.assembler.assemble(contact_out, experience_out, skills_out)
 
         logger.info("Resume parser: complete — %d top-level keys", len(result))
         return result
@@ -106,17 +112,13 @@ class MicroAgentsV1ResumeParser(ResumeParser):
         skills_text: str,
     ) -> tuple[ContactSummaryOutput, ExperienceEducationOutput, SkillsCredentialsOutput]:
         """Run the three Stage-2 extractors in parallel using threads."""
-        contact_extractor = ContactExtractor(self.llm_config)
-        experience_extractor = ExperienceEducationExtractor(self.llm_config)
-        skills_extractor = SkillsExtractor(self.llm_config)
-
         results: dict[str, object] = {}
 
         with ThreadPoolExecutor(max_workers=3) as pool:
             futures = {
-                pool.submit(contact_extractor.extract, contact_text): "contact",
-                pool.submit(experience_extractor.extract, experience_text): "experience",
-                pool.submit(skills_extractor.extract, skills_text): "skills",
+                pool.submit(self.contact_extractor.extract, contact_text): "contact",
+                pool.submit(self.experience_extractor.extract, experience_text): "experience",
+                pool.submit(self.skills_extractor.extract, skills_text): "skills",
             }
             for future in as_completed(futures):
                 name = futures[future]

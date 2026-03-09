@@ -8,13 +8,25 @@ Consumers:
     - backend/routes/resume.py imports ResumeParser
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Generator
+
+import dspy
 
 from backend.llm.llm_factory import LLMConfig
 
 
-class Agent(ABC):
+class _AgentModuleMeta(ABCMeta, type(dspy.Module)):
+    """Metaclass combining ABCMeta and DSPy's ProgramMeta.
+
+    Allows agent base classes to be both ABCs (with abstract method
+    enforcement) and DSPy Modules (with sub-module discovery,
+    named_parameters, save/load).
+    """
+    pass
+
+
+class Agent(ABC, dspy.Module, metaclass=_AgentModuleMeta):
     """Main chat agent.
 
     Constructor args (expected by routes):
@@ -61,7 +73,7 @@ class Agent(ABC):
         ...
 
 
-class OnboardingAgent(ABC):
+class OnboardingAgent(ABC, dspy.Module, metaclass=_AgentModuleMeta):
     """Onboarding interview agent.
 
     Constructor args (expected by routes):
@@ -85,7 +97,7 @@ class OnboardingAgent(ABC):
         ...
 
 
-class ResumeParser(ABC):
+class ResumeParser(ABC, dspy.Module, metaclass=_AgentModuleMeta):
     """Resume parsing agent (non-streaming).
 
     Constructor args (expected by routes):
