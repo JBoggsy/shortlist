@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Job search workflow crash in micro_agents_v1** — `_add_search_results` was called with `yield from` but is a regular function returning `int`, not a generator; changed to a direct call and corrected the return type annotation
+
 ### Added
 - **Agent mode selector in Settings UI** — Users can switch between "Freeform" (default agent, best for SOTA models) and "Orchestrated" (micro_agents_v1, structured pipeline for cheaper/local models) via a visual toggle in Settings
 - **Hot-swappable agent design** — Agent mode changes take effect immediately without server restart; `get_agent_classes()` resolves the active design at request time

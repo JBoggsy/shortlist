@@ -711,7 +711,7 @@ class JobSearchWorkflow(BaseWorkflow):
 
     def _add_search_results(
         self, jobs: list[dict],
-    ) -> Generator[dict, None, int]:
+    ) -> int:
         """Add qualifying jobs as search results via the tool."""
         added = 0
         for job in jobs:
@@ -864,7 +864,7 @@ class JobSearchWorkflow(BaseWorkflow):
             "event": "text_delta",
             "data": {"content": f"\nAdding {len(verified)} job(s) to search results...\n"},
         }
-        added_count = yield from self._add_search_results(verified)
+        added_count = self._add_search_results(verified)
 
         summary = (
             f"Found {added_count} qualifying job(s) from "
