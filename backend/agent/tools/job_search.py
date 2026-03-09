@@ -231,7 +231,7 @@ class JobSearchMixin:
             params["ai_employment_type_filter"] = _FANTASTIC_EMPLOYMENT_MAP[employment_type]
 
         resp = _rapidapi_request(
-            "https://active-jobs-db.p.rapidapi.com/active-jobs",
+            "https://active-jobs-db.p.rapidapi.com/active-ats-7d",
             self.rapidapi_key, "active-jobs-db.p.rapidapi.com", params,
         )
         data = resp.json()
