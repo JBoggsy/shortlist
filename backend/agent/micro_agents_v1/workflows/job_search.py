@@ -96,11 +96,14 @@ class SearchQuery(BaseModel):
 
     query: str = Field(
         description=(
-            "The search keyword string. Must be concrete and specific — "
-            "never use abstract phrases like 'early-stage startups' or "
-            "'top tech companies'. Instead expand to specific job titles, "
-            "skills, or company-type keywords the API will understand "
-            "(e.g. 'Python backend engineer', 'ML engineer startup')."
+            "SHORT job-search query string — 2 to 5 words max. Use a "
+            "simple job title or a job title plus ONE qualifier. Do NOT "
+            "pack multiple skills or buzzwords into one query; that "
+            "produces overly specific searches with zero results. "
+            "GOOD: 'ML Research Engineer', 'Applied Scientist', "
+            "'Computer Vision Engineer', 'Data Scientist NLP'. "
+            "BAD: 'AI Research Scientist computer vision world models PhD', "
+            "'ML Engineer reinforcement learning robotics startup'."
         )
     )
     location: Optional[str] = Field(
@@ -131,10 +134,24 @@ class GenerateSearchQueriesSig(dspy.Signature):
     """Generate diverse job-search API queries from the user's request.
 
     You produce 4-10 query parameter sets that, taken together, cast a
-    wide net over the user's intent.  Each query is a concrete API call
-    — all terms must be specific and literal.
+    wide net over the user's intent.  Each query hits a different angle
+    (title synonym, adjacent role, broader category).
 
-    Expansion rules (CRITICAL):
+    QUERY LENGTH RULES (CRITICAL — read carefully):
+    - Each query string MUST be 2-5 words.  Typically just a job title,
+      or a job title plus ONE modifier.
+    - NEVER cram multiple skills, buzzwords, or qualifiers into one
+      query.  Job-search APIs treat multi-word strings as exact-match
+      phrases — the more words you add, the fewer results you get.
+    - GOOD examples: "ML Research Engineer", "Applied Scientist",
+      "Computer Vision Engineer", "Data Scientist", "AI Engineer",
+      "Research Scientist ML", "NLP Engineer".
+    - BAD examples: "AI Research Scientist computer vision world models
+      PhD", "Machine Learning Engineer reinforcement learning agents".
+    - Achieve breadth by using DIFFERENT short queries, NOT by stuffing
+      keywords into fewer queries.
+
+    Expansion rules:
     - **Geography:** Vague regions MUST be expanded into multiple queries
       with specific cities/states.  "The south" → separate queries for
       Atlanta GA, Charlotte NC, Nashville TN, Austin TX, Miami FL, etc.
@@ -142,15 +159,10 @@ class GenerateSearchQueriesSig(dspy.Signature):
       "The Midwest" → Chicago IL, Minneapolis MN, Detroit MI, etc.
     - **Company descriptions:** Never search for abstract descriptions.
       "Early-stage startups" → vary the job-title keywords instead
-      (e.g. "founding engineer", "engineer seed stage", "software
-      engineer series A").  "FAANG" → no special treatment needed, just
-      use relevant job titles.
+      (e.g. "founding engineer", "software engineer startup").
     - **Role variations:** Broaden with synonyms and related titles.
-      "Data scientist" → also try "ML engineer", "machine learning",
-      "applied scientist", "data engineer" if appropriate.
-    - **Keyword diversity:** Vary the query strings across queries so
-      results don't all overlap.  Mix job titles, key skills, and
-      domain terms.
+      "Data scientist" → also try "ML engineer", "applied scientist",
+      "data analyst" as separate short queries.
     """
 
     user_request: str = dspy.InputField(
