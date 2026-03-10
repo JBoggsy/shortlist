@@ -15,11 +15,13 @@ import {
   fetchSearchResults,
   addSearchResultToTracker,
 } from "../api";
+import { useAppContext } from "../contexts/AppContext";
 
 // Tool names that modify job data — when these complete, notify parent to refresh
-const JOB_MUTATING_TOOLS = new Set(["create_job", "edit_job", "remove_job", "add_job_todo", "edit_job_todo", "remove_job_todo"]);
+const JOB_MUTATING_TOOLS = new Set(["create_job", "edit_job", "remove_job", "add_job_todo", "edit_job_todo", "remove_job_todo", "save_job_document"]);
 
 function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, onJobsChanged, onError }) {
+  const { notifyDocumentSaved } = useAppContext();
   const [conversations, setConversations] = useState([]);
   const [currentConversation, setCurrentConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -238,6 +240,13 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
     }
   }
 
+  // Handle document_saved SSE events (emitted by the save_job_document tool)
+  function handleDocumentEvent(event) {
+    if (event.event === "document_saved") {
+      notifyDocumentSaved(event.data);
+    }
+  }
+
   async function handleAddToTracker(resultId) {
     if (!currentConversation) return;
     const data = await addSearchResultToTracker(currentConversation.id, resultId);
@@ -299,6 +308,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
       await streamer(convo.id, userMessage.content, (event) => {
         // Handle search-related events
         handleSearchEvent(event);
+        handleDocumentEvent(event);
 
         if (event.event === "text_delta") {
           fullText += event.data.content;

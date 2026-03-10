@@ -68,10 +68,21 @@ class JobDocumentsMixin:
             "save_job_document: job_id=%d doc_type=%s version=%d",
             job_id, doc_type, doc.version,
         )
-        return {
+
+        result = {
             "document": doc.to_dict(),
             "job": {"id": job.id, "company": job.company, "title": job.title},
         }
+
+        # Emit SSE event so the frontend document editor refreshes in real time
+        if self.event_bus:
+            self.event_bus.emit("document_saved", {
+                "document": doc.to_dict(),
+                "job_id": job_id,
+                "doc_type": doc_type,
+            })
+
+        return result
 
     @agent_tool(
         description="Get the latest cover letter or tailored resume saved for a job application.",
