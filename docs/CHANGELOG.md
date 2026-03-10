@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-03-10
+
 ### Added
 - **Page-based UI architecture** — Migrated from slide-out panels to dedicated pages using React Router. New pages: `HomePage` (dashboard with stats), `JobTrackerPage`, `JobDetailPage`, `DocumentEditorPage`, `SettingsPage`, `ProfilePage`, `HelpPage`. Only ChatPanel remains as an overlay. Shared state moved to `AppContext`.
 - **Rich text document editor** — New `DocumentEditorPage` with Tiptap 2 rich text editor for side-by-side document editing alongside the AI chat panel. Features: formatting toolbar (bold, italic, headings, lists, blockquote, undo/redo), version history sidebar with view/restore, Ctrl+S save shortcut, copy-to-clipboard.
@@ -17,7 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Code splitting** — `DocumentEditorPage` (Tiptap) is lazy-loaded via `React.lazy()` + `Suspense` to keep the main bundle small.
 
 ### Changed
-- **EventBus SSE migration** — Replaced ad-hoc SSE streaming (`yield` statements, `_pending_events` buffers, `event_callback` callbacks) with a unified `EventBus` pattern. All SSE events now flow through a thread-safe queue. Agent `run()` methods spawn worker threads and drain the bus. `AgentTools.execute()` auto-emits `tool_start`/`tool_result`/`tool_error` events. Workflow `run()` methods converted from generators to plain methods returning `WorkflowResult`. Deleted `run_dspy_module_streaming()`. Net ~165 lines removed.
+- **EventBus SSE migration** — Replaced ad-hoc SSE streaming (`yield` statements, `_pending_events` buffers, `event_callback` callbacks) with a unified `EventBus` pattern. All SSE events now flow through a thread-safe queue. Agent `run()` methods spawn worker threads and drain the bus. `AgentTools.execute()` auto-emits `tool_start`/`tool_result`/`tool_error` events. Workflow `run()` methods converted from generators to plain methods returning `WorkflowResult`. Deleted `run_dspy_module_streaming()`. Net ~400 lines removed.
+- **Profile-aware result collation** — The micro_agents_v1 result collator now receives the user's profile so it can reference their preferences and background without asking redundant questions.
+
+### Fixed
+- **Job search queries too specific** — Constrained micro_agents_v1 job search queries to 2-5 words for better API results; overly specific multi-word queries were producing zero results from job search APIs.
+- **RapidAPI error responses not detected** — Added `_check_rapidapi_error()` to detect HTTP 200 responses that contain error messages (e.g. unsubscribed) instead of actual data; added logging for job search provider queries and result counts.
 
 ### Removed
 - **Slide-out panels** — Deleted `SettingsPanel.jsx`, `ProfilePanel.jsx`, `HelpPanel.jsx`, `JobDetailPanel.jsx`, and `pages/JobList.jsx`; replaced by dedicated page components.
