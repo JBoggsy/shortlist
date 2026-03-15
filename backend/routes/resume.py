@@ -10,6 +10,7 @@ from backend.resume_parser import (
     get_resume_text,
     delete_resume,
     get_parsed_resume,
+    save_parsed_resume,
     delete_parsed_resume,
     MAX_FILE_SIZE,
 )
@@ -138,6 +139,7 @@ def parse_resume_with_llm():
     try:
         parser = ResumeParser(config)
         parsed = parser.parse(raw_text)
+        save_parsed_resume(parsed)
         logger.info("Resume parsed successfully via LLM")
         return {"parsed": parsed}
     except RuntimeError as e:
