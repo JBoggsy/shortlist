@@ -497,6 +497,86 @@ export default function SettingsPage({ onSaved }) {
           {saving ? "Saving..." : "Save Settings"}
         </button>
       </div>
+
+      {/* Telemetry */}
+      <TelemetrySection />
     </div>
+  );
+}
+
+
+function TelemetrySection() {
+  const [stats, setStats] = useState(null);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    fetch(`${getApiBase()}/api/telemetry/stats`)
+      .then((r) => r.json())
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  function getApiBase() {
+    if (window.__TAURI_INTERNALS__) {
+      return `http://localhost:${window.__FLASK_PORT__ || 5000}`;
+    }
+    return "";
+  }
+
+  async function handleExport(mode) {
+    setExporting(true);
+    try {
+      const res = await fetch(`${getApiBase()}/api/telemetry/export?mode=${mode}`);
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `shortlist_telemetry_${mode}.db`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently ignore
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  if (!stats?.exists) return null;
+
+  const sizeKB = Math.round((stats.size_bytes || 0) / 1024);
+  const totalRows = (stats.runs || 0) + (stats.module_traces || 0) + (stats.tool_calls || 0) +
+    (stats.workflow_traces || 0) + (stats.llm_calls || 0) + (stats.user_signals || 0);
+
+  return (
+    <section className="border-t pt-6 mt-2">
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">Telemetry</h2>
+      <p className="text-sm text-gray-600 mb-3">
+        Usage data is collected locally to help improve AI assistant quality. No data is sent externally.
+      </p>
+      <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+        <span>{stats.runs || 0} runs</span>
+        <span className="text-gray-300">|</span>
+        <span>{totalRows} total records</span>
+        <span className="text-gray-300">|</span>
+        <span>{sizeKB} KB</span>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => handleExport("full")}
+          disabled={exporting}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+        >
+          Export Full
+        </button>
+        <button
+          onClick={() => handleExport("anonymized")}
+          disabled={exporting}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+        >
+          Export Anonymized
+        </button>
+      </div>
+    </section>
   );
 }

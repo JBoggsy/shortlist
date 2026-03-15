@@ -222,10 +222,59 @@ def add_search_result_to_tracker(convo_id, result_id):
     logger.info("add_to_tracker: job id=%d company=%s title=%s",
                 job.id, result.company, result.title)
 
+    # Record implicit signal
+    try:
+        from backend.telemetry.collector import get_collector
+        collector = get_collector()
+        if collector is not None:
+            collector.record_signal(
+                signal_type="add_to_tracker",
+                conversation_id=convo_id,
+                data={
+                    "search_result_id": result_id,
+                    "job_id": job.id,
+                    "company": result.company,
+                    "title": result.title,
+                },
+            )
+    except Exception:
+        logger.debug("Telemetry: failed to record add_to_tracker signal", exc_info=True)
+
     return {
         "result": result.to_dict(),
         "job": job.to_dict(),
     }, 201
+
+
+@chat_bp.route("/conversations/<int:convo_id>/messages/<int:msg_id>/feedback", methods=["POST"])
+def message_feedback(convo_id, msg_id):
+    """Record user feedback (thumbs up/down) on an assistant message."""
+    msg = db.session.get(Message, msg_id)
+    if not msg or msg.conversation_id != convo_id:
+        return {"error": "Message not found"}, 404
+
+    data = request.get_json(silent=True) or {}
+    signal = data.get("signal")
+    if signal not in ("thumbs_up", "thumbs_down"):
+        return {"error": "signal must be 'thumbs_up' or 'thumbs_down'"}, 400
+
+    try:
+        from backend.telemetry.collector import get_collector
+        collector = get_collector()
+        if collector is not None:
+            collector.record_signal(
+                signal_type=signal,
+                run_id=None,
+                conversation_id=convo_id,
+                data={
+                    "message_id": msg_id,
+                    "comment": data.get("comment", ""),
+                },
+            )
+    except Exception:
+        logger.debug("Telemetry: failed to record feedback", exc_info=True)
+
+    return "", 204
 
 
 def _get_onboarding_llm_config():

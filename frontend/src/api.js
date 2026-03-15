@@ -162,6 +162,20 @@ async function _readSSE(res, onEvent, signal) {
   }
 }
 
+// Message Feedback API
+
+export async function sendMessageFeedback(conversationId, messageId, signal, comment = "") {
+  const res = await fetch(
+    `${CHAT_BASE}/conversations/${conversationId}/messages/${messageId}/feedback`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signal, comment }),
+    }
+  );
+  if (!res.ok) throw new Error("Failed to send feedback");
+}
+
 // Search Results API
 
 export async function fetchSearchResults(conversationId) {
