@@ -1,8 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { marked } from "marked";
 import { fetchJobs, fetchJobDocument, fetchDocumentHistory, saveJobDocument } from "../api";
 import DocumentEditor from "../components/DocumentEditor";
 import { useAppContext } from "../contexts/AppContext";
+
+// Convert content to HTML for the Tiptap editor.
+// Agent workflows produce markdown; the editor expects HTML.
+// If the content already looks like HTML (starts with a tag), pass it through unchanged.
+function normalizeToHtml(content) {
+  if (!content) return "";
+  const trimmed = content.trimStart();
+  if (trimmed.startsWith("<")) return content;
+  return marked.parse(content, { async: false });
+}
 
 const DOC_TYPE_LABELS = {
   cover_letter: "Cover Letter",
@@ -40,7 +51,7 @@ export default function DocumentEditorPage() {
         fetchJobDocument(Number(id), docType)
           .then((doc) => {
             setDocument(doc);
-            currentContentRef.current = doc.content || "";
+            currentContentRef.current = normalizeToHtml(doc.content || "");
             setHasChanges(false);
           })
           .catch(() => {});
@@ -67,7 +78,7 @@ export default function DocumentEditorPage() {
       try {
         const doc = await fetchJobDocument(Number(id), docType);
         setDocument(doc);
-        currentContentRef.current = doc.content || "";
+        currentContentRef.current = normalizeToHtml(doc.content || "");
       } catch {
         // No document exists yet — start fresh
         setDocument(null);
@@ -110,7 +121,7 @@ export default function DocumentEditorPage() {
 
   async function handleViewVersion(version) {
     setDocument(version);
-    currentContentRef.current = version.content || "";
+    currentContentRef.current = normalizeToHtml(version.content || "");
     setHasChanges(false);
     setShowVersions(false);
   }
@@ -120,7 +131,7 @@ export default function DocumentEditorPage() {
     try {
       const saved = await saveJobDocument(Number(id), docType, version.content, `Restored from v${version.version}`);
       setDocument(saved);
-      currentContentRef.current = saved.content || "";
+      currentContentRef.current = normalizeToHtml(saved.content || "");
       setHasChanges(false);
       const history = await fetchDocumentHistory(Number(id), docType);
       setVersions(history);
@@ -220,7 +231,7 @@ export default function DocumentEditorPage() {
         {/* Editor */}
         <div className="flex-1 flex flex-col bg-white rounded-b-lg shadow-sm overflow-hidden">
           <DocumentEditor
-            content={document?.content || ""}
+            content={normalizeToHtml(document?.content || "")}
             onUpdate={handleEditorUpdate}
             placeholder={`Start writing your ${docLabel.toLowerCase()}...`}
           />
