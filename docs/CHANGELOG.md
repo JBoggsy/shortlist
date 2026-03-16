@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Chat panel stuck in streaming state after close/reopen** — Fixed bug where closing the AI chat panel mid-stream and reopening it would show the Stop button permanently even after the agent finished. Added `finally` block to guarantee `isStreaming` is always reset, plus a recovery mechanism on panel reopen that detects stale streaming state and reloads the conversation from the database.
+## [0.12.0] - 2026-03-16
 
 ### Added
 - **Telemetry system for DSPy optimization** — New `backend/telemetry/` package that passively captures agent traces, tool calls, workflow results, LLM metrics, and user feedback during normal app usage. Data stored in separate `telemetry.db` SQLite file. Features: TracedModule mixin for DSPy modules, auto-traced workflows via `__init_subclass__`, LiteLLM callback for token/cost tracking, contextvar-based run/trace propagation, background batch writer, export utilities (full, anonymized, DSPy examples, JSONL), configurable retention with compaction, and telemetry stats/export in Settings UI. Thumbs up/down feedback buttons on assistant messages. All telemetry is error-isolated and can be disabled via `telemetry.enabled` config.
+
+### Fixed
+- **Chat panel stuck in streaming state after close/reopen** — Fixed bug where closing the AI chat panel mid-stream and reopening it would show the Stop button permanently even after the agent finished. Added `finally` block to guarantee `isStreaming` is always reset, plus a recovery mechanism on panel reopen that detects stale streaming state and reloads the conversation from the database.
+- **Parsed resume not persisted to disk** — Fixed bug where the LLM resume parse endpoint returned structured data but did not save it to disk, causing the parsed resume to be lost on reload.
+
+### Changed
+- **User data consolidated into `user_data/` directory** — All user data files (app.db, telemetry.db, config.json, user_profile.md, resumes/, logs/) now live under a single `user_data/` directory for cleaner project root and easier gitignore management.
 
 ## [0.11.1] - 2026-03-10
 
