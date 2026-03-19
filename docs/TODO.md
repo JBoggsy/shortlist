@@ -18,6 +18,11 @@
 - [x] Job search sub-agent for better result coverage (v0.9.0)
 - [x] Main agent delegates job searches to specialized sub-agent via `run_job_search` tool (v0.9.0)
 
+## Bugs
+
+- [ ] **Outcome Planner over-decomposition** — for requests like "tailor my resume for X job", the OutcomePlanner produces redundant outcomes (e.g. "identify job" + "tailor resume") even though `specialize_resume` already resolves the job internally via `load_job_context()`. Causes unnecessary job search API calls, ~5 min wasted, and a confusing "Jobs Found" panel. Fix: strengthen `PlanOutcomesSig` prompt to avoid decomposition when the target workflow handles resolution internally, or teach the WorkflowMapper to recognize and skip redundant outcomes.
+- [ ] **Skills section wall of text in tailored resumes** — the specialize_resume pipeline produces a Skills section as a single unformatted paragraph instead of using structured markdown with bold category labels and proper grouping (e.g. `**Languages:** Python, C++`)
+
 ## Features
 
 - [x] **Job application preparation (phase 2)** — Document editor with Tiptap, agent co-editing via SSE, version history
