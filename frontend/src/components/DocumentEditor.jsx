@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useEffect } from "react";
 
@@ -114,6 +115,10 @@ export default function DocumentEditor({ content, onUpdate, placeholder }) {
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Link.configure({
+        openOnClick: true,
+        HTMLAttributes: { target: "_blank", rel: "noopener noreferrer" },
+      }),
       Placeholder.configure({
         placeholder: placeholder || "Start writing...",
       }),

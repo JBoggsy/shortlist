@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { fetchJobs, fetchJobDocument, fetchDocumentHistory, saveJobDocument } from "../api";
 import DocumentEditor from "../components/DocumentEditor";
 import { useAppContext } from "../contexts/AppContext";
+import { ensureHtml } from "../utils/markdownToHtml";
 
 const DOC_TYPE_LABELS = {
   cover_letter: "Cover Letter",
@@ -24,6 +25,7 @@ export default function DocumentEditorPage() {
   const [copied, setCopied] = useState(false);
 
   const currentContentRef = useRef("");
+  const savedContentRef = useRef("");
   const docType = type || "cover_letter";
   const docLabel = DOC_TYPE_LABELS[docType] || docType;
 
@@ -39,9 +41,13 @@ export default function DocumentEditorPage() {
         // Agent saved a new version — reload document + history
         fetchJobDocument(Number(id), docType)
           .then((doc) => {
-            setDocument(doc);
-            currentContentRef.current = doc.content || "";
-            setHasChanges(false);
+            if (doc) {
+              const html = ensureHtml(doc.content || "");
+              setDocument({ ...doc, content: html });
+              currentContentRef.current = html;
+              savedContentRef.current = html;
+              setHasChanges(false);
+            }
           })
           .catch(() => {});
         fetchDocumentHistory(Number(id), docType)
@@ -66,10 +72,19 @@ export default function DocumentEditorPage() {
       // Load document
       try {
         const doc = await fetchJobDocument(Number(id), docType);
-        setDocument(doc);
-        currentContentRef.current = doc.content || "";
+        if (doc) {
+          const html = ensureHtml(doc.content || "");
+          setDocument({ ...doc, content: html });
+          currentContentRef.current = html;
+          savedContentRef.current = html;
+        } else {
+          // No document exists yet — start fresh
+          setDocument(null);
+          currentContentRef.current = "";
+          savedContentRef.current = "";
+        }
       } catch {
-        // No document exists yet — start fresh
+        // Error fetching — start fresh
         setDocument(null);
         currentContentRef.current = "";
       }
@@ -88,7 +103,7 @@ export default function DocumentEditorPage() {
 
   const handleEditorUpdate = useCallback((html) => {
     currentContentRef.current = html;
-    setHasChanges(true);
+    setHasChanges(html !== savedContentRef.current);
   }, []);
 
   async function handleSave() {
@@ -97,6 +112,7 @@ export default function DocumentEditorPage() {
     try {
       const saved = await saveJobDocument(Number(id), docType, currentContentRef.current, "Manual edit");
       setDocument(saved);
+      savedContentRef.current = currentContentRef.current;
       setHasChanges(false);
       // Refresh version history
       try {
@@ -109,8 +125,10 @@ export default function DocumentEditorPage() {
   }
 
   async function handleViewVersion(version) {
-    setDocument(version);
-    currentContentRef.current = version.content || "";
+    const html = ensureHtml(version.content || "");
+    setDocument({ ...version, content: html });
+    currentContentRef.current = html;
+    savedContentRef.current = html;
     setHasChanges(false);
     setShowVersions(false);
   }
@@ -119,8 +137,10 @@ export default function DocumentEditorPage() {
     setSaving(true);
     try {
       const saved = await saveJobDocument(Number(id), docType, version.content, `Restored from v${version.version}`);
-      setDocument(saved);
-      currentContentRef.current = saved.content || "";
+      const html = ensureHtml(saved.content || "");
+      setDocument({ ...saved, content: html });
+      currentContentRef.current = html;
+      savedContentRef.current = html;
       setHasChanges(false);
       const history = await fetchDocumentHistory(Number(id), docType);
       setVersions(history);
