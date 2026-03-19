@@ -325,7 +325,10 @@ class JobSearchMixin:
         warnings = []
         provider_used = []
 
-        for prov in providers_to_use:
+        for i, prov in enumerate(providers_to_use):
+            # Stagger provider calls to reduce 429 rate-limit risk
+            if i > 0:
+                time.sleep(0.5)
             method_name, display_name = self._PROVIDERS[prov]
             method = getattr(self, method_name)
             try:
