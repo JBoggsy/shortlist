@@ -197,7 +197,7 @@ def test_connection():
                 error_type = "auth_error"
             elif provider == "ollama" and ("not found" in lower_msg or "404" in lower_msg):
                 # Ollama is reachable but the model isn't installed
-                resolved_model = model or DEFAULT_MODELS.get("ollama", "llama3.1")
+                resolved_model = model or DEFAULT_MODELS.get("ollama")
                 error_message = (
                     f"Ollama is running, but the model '{resolved_model}' "
                     f"was not found. Run `ollama pull {resolved_model}` or "
@@ -299,7 +299,7 @@ def get_providers():
         JSON response with provider information
     """
     # Determine best available Ollama model dynamically
-    ollama_default = pick_best_ollama_model() or DEFAULT_MODELS.get("ollama", "llama3.1")
+    ollama_default = pick_best_ollama_model() or DEFAULT_MODELS.get("ollama")
 
     providers = [
         {
