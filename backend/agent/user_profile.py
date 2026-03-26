@@ -93,6 +93,51 @@ def is_section_unfilled(content: str) -> bool:
 
 _SECTION_RE_TEMPLATE = r"^## {name}\n(.*?)(?=^## |\Z)"
 
+# Pattern to split on any ## heading line
+_ANY_SECTION_RE = re.compile(r"^## (.+)$", re.MULTILINE)
+
+
+def _parse_body_sections(body: str) -> tuple[str, dict[str, str], list[str]]:
+    """Parse a profile *body* into (preamble, sections_dict, section_order).
+
+    *preamble* is everything before the first ``## `` heading (e.g. the
+    ``# User Profile`` line).  *sections_dict* maps each heading name to its
+    body text (stripped).  *section_order* preserves the order headings appear.
+    """
+    matches = list(_ANY_SECTION_RE.finditer(body))
+    if not matches:
+        return body, {}, []
+
+    preamble = body[: matches[0].start()]
+    sections: dict[str, str] = {}
+    order: list[str] = []
+
+    for i, m in enumerate(matches):
+        name = m.group(1).strip()
+        start = m.end()  # position right after the heading line
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+        content = body[start:end].strip()
+        # If the same heading appears more than once keep the version that
+        # has real content (not the placeholder).
+        if name in sections:
+            if is_section_unfilled(sections[name]) and not is_section_unfilled(content):
+                sections[name] = content
+            # else keep the earlier (presumably filled) version
+        else:
+            sections[name] = content
+            order.append(name)
+
+    return preamble, sections, order
+
+
+def _assemble_body(preamble: str, sections: dict[str, str], order: list[str]) -> str:
+    """Reassemble a profile body from *preamble* and ordered *sections*."""
+    parts = [preamble.rstrip("\n")]
+    for name in order:
+        content = sections.get(name, SECTION_PLACEHOLDER)
+        parts.append(f"## {name}\n{content}\n")
+    return "\n".join(parts) + "\n"
+
 
 def get_profile_path() -> str:
     """Return the absolute path to the user profile markdown file."""
@@ -183,18 +228,30 @@ def read_profile_section(section_name: str) -> str | None:
 
 
 def write_profile_section(section_name: str, content: str) -> None:
-    """Replace a single ## section in the profile body, preserving all other sections."""
+    """Replace one or more ``##`` sections in the profile body.
+
+    If *content* contains embedded ``## Header`` lines (e.g. the LLM included
+    multiple sections in one tool call), each embedded section is parsed and
+    the corresponding section in the profile is updated.  This prevents
+    duplicate headings that previously occurred when the replacement text was
+    naively inserted into a single section slot.
+    """
     body = read_profile()
-    new_section_text = f"## {section_name}\n{content.strip()}\n\n"
-    pattern = re.compile(
-        _SECTION_RE_TEMPLATE.format(name=re.escape(section_name)),
-        re.MULTILINE | re.DOTALL,
-    )
-    if pattern.search(body):
-        new_body = pattern.sub(new_section_text, body)
-    else:
-        # Section missing — append it
-        new_body = body.rstrip("\n") + f"\n\n## {section_name}\n{content.strip()}\n"
+    preamble, sections, order = _parse_body_sections(body)
+
+    # Build a synthetic block so _parse_body_sections can split it
+    incoming_block = f"## {section_name}\n{content.strip()}\n"
+    _, incoming_sections, incoming_order = _parse_body_sections(incoming_block)
+
+    # Merge incoming sections into the existing profile
+    for name in incoming_order:
+        if name in sections:
+            sections[name] = incoming_sections[name]
+        else:
+            sections[name] = incoming_sections[name]
+            order.append(name)
+
+    new_body = _assemble_body(preamble, sections, order)
     write_profile(new_body)
 
 

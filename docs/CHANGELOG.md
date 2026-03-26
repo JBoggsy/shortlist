@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Profile corruption from duplicate sections after repeated `update_user_profile` calls** — Rewrote `write_profile_section()` in `backend/agent/user_profile.py` to parse both the existing profile and incoming content into structured section maps, then merge and reassemble. This prevents duplicate `## ` headings when the LLM includes embedded section headers in a single tool call, and also self-heals already-corrupted profiles by keeping filled content over placeholder duplicates. Fixes [#2](https://github.com/JBoggsy/shortlist/issues/2).
 - **Parallel Ollama tool calls failing with concatenated names** — Fixed `_accumulate_tool_calls` in `backend/agent/default/agent.py` to handle Ollama's streaming behavior where all parallel tool calls arrive with `index=0` but distinct `id` values. The function now detects index collisions via differing call IDs and allocates a new virtual index, preventing names and arguments from being merged across separate calls. Also changed `name` accumulation from `+=` to `=` since tool names are never delivered as fragments. This fixes onboarding and chat failures where parallel `update_user_profile` calls were silently dropped or resulted in "Unknown tool" errors. Fixes [#1](https://github.com/JBoggsy/shortlist/issues/1).
 
 ## [0.12.0] - 2026-03-16
