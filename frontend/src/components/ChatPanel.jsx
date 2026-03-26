@@ -538,16 +538,16 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
                             </div>
                           </div>
                         ) : seg.type === "tool" ? (
-                          <div key={j} className="ml-2 mb-2">
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <div key={j} className="ml-2 mb-2 min-w-0">
+                            <div className="flex items-center gap-2 text-xs text-gray-500 min-w-0">
                               {seg.status === "running" ? (
-                                <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                <span className="inline-block w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                               ) : seg.status === "completed" ? (
-                                <span className="text-green-500">&#10003;</span>
+                                <span className="text-green-500 flex-shrink-0">&#10003;</span>
                               ) : (
-                                <span className="text-amber-500">&#9888;</span>
+                                <span className="text-amber-500 flex-shrink-0">&#9888;</span>
                               )}
-                              <span className="font-mono">{seg.name}</span>
+                              <span className="font-mono truncate">{seg.name}</span>
                               {seg.error && (
                                 <button
                                   onClick={() => setExpandedErrors((prev) => {
@@ -556,7 +556,7 @@ function ChatPanel({ isOpen, onClose, onboarding = false, onOnboardingComplete, 
                                     else next.add(seg.id);
                                     return next;
                                   })}
-                                  className="text-gray-400 hover:text-gray-600 underline"
+                                  className="text-gray-400 hover:text-gray-600 underline flex-shrink-0"
                                 >
                                   {expandedErrors.has(seg.id) ? "Hide details" : "Details"}
                                 </button>
