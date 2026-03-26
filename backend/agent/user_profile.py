@@ -92,6 +92,7 @@ def is_section_unfilled(content: str) -> bool:
     return normalised in _LEGACY_PLACEHOLDERS
 
 _SECTION_RE_TEMPLATE = r"^## {name}\n(.*?)(?=^## |\Z)"
+_SECTION_HEADER_RE = re.compile(r"^## .+$", re.MULTILINE)
 
 
 def get_profile_path() -> str:
@@ -182,8 +183,62 @@ def read_profile_section(section_name: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+def _deduplicate_sections(body: str) -> str:
+    """Remove duplicate ``## Section`` headers from the profile body.
+
+    When the same ``## Header`` appears more than once, the first occurrence
+    with non-placeholder content is kept.  If every occurrence is a placeholder,
+    the first one is kept.
+
+    Everything before the first ``## `` header (the preamble, e.g.
+    ``# User Profile``) is always preserved.
+    """
+    matches = list(_SECTION_HEADER_RE.finditer(body))
+    if not matches:
+        return body
+
+    preamble = body[: matches[0].start()]
+
+    # Build (header, start, end, content_text) for each section block.
+    parts: list[tuple[str, int, int, str]] = []
+    for i, m in enumerate(matches):
+        start = m.start()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+        header = m.group(0).strip()
+        section_content = body[m.end() : end].strip()
+        parts.append((header, start, end, section_content))
+
+    # Keep the best version of each section (first non-placeholder wins).
+    best: dict[str, int] = {}   # header -> index into *parts*
+    order: list[str] = []       # first-seen order
+    for idx, (header, _start, _end, section_content) in enumerate(parts):
+        if header not in best:
+            best[header] = idx
+            order.append(header)
+        else:
+            existing_idx = best[header]
+            existing_content = parts[existing_idx][3]
+            if is_section_unfilled(existing_content) and not is_section_unfilled(
+                section_content
+            ):
+                best[header] = idx
+
+    result = preamble
+    for header in order:
+        idx = best[header]
+        _, start, end, _ = parts[idx]
+        result += body[start:end]
+    return result
+
+
 def write_profile_section(section_name: str, content: str) -> None:
-    """Replace a single ## section in the profile body, preserving all other sections."""
+    """Replace a single ## section in the profile body, preserving all other sections.
+
+    If the *content* happens to contain additional ``## Section`` headers
+    (e.g. because the LLM bundled several updates into one call), the
+    resulting body is deduplicated so that each section header appears
+    exactly once.
+    """
     body = read_profile()
     new_section_text = f"## {section_name}\n{content.strip()}\n\n"
     pattern = re.compile(
@@ -195,6 +250,7 @@ def write_profile_section(section_name: str, content: str) -> None:
     else:
         # Section missing — append it
         new_body = body.rstrip("\n") + f"\n\n## {section_name}\n{content.strip()}\n"
+    new_body = _deduplicate_sections(new_body)
     write_profile(new_body)
 
 
