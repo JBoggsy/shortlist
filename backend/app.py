@@ -1,8 +1,9 @@
 import logging
 import os
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 
 from backend.config import Config
 from backend.data_dir import get_data_dir
@@ -41,6 +42,31 @@ def _setup_logging(log_level_name):
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
+def _register_error_handlers(app):
+    """Register global JSON error handlers so the API never returns HTML."""
+    _logger = logging.getLogger(__name__)
+
+    @app.errorhandler(400)
+    def bad_request(e):
+        return jsonify({"error": e.description or "Bad request"}), 400
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify({"error": "Not found"}), 404
+
+    @app.errorhandler(405)
+    def method_not_allowed(e):
+        return jsonify({"error": "Method not allowed"}), 405
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        # Pass through HTTP exceptions with their original status code
+        if isinstance(e, HTTPException):
+            return jsonify({"error": e.description or e.name}), e.code
+        _logger.exception("Unhandled exception")
+        return jsonify({"error": "Internal server error"}), 500
+
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -52,6 +78,8 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
+
+    _register_error_handlers(app)
 
     app.register_blueprint(jobs_bp)
     app.register_blueprint(chat_bp)

@@ -21,10 +21,25 @@ def list_jobs():
 @jobs_bp.route("", methods=["POST"])
 def create_job():
     data = request.get_json()
+    if data is None:
+        return jsonify({"error": "Request body is required"}), 400
+
+    company = data.get("company")
+    title = data.get("title")
+    if not company or not isinstance(company, str) or not company.strip():
+        return jsonify({"error": "company is required"}), 400
+    if not title or not isinstance(title, str) or not title.strip():
+        return jsonify({"error": "title is required"}), 400
+
     applied = data.get("applied_date")
+    try:
+        applied_date = date.fromisoformat(applied) if applied else None
+    except (ValueError, TypeError):
+        return jsonify({"error": "applied_date must be a valid ISO date (YYYY-MM-DD)"}), 400
+
     job = Job(
-        company=data["company"],
-        title=data["title"],
+        company=company,
+        title=title,
         url=data.get("url"),
         status=data.get("status", "saved"),
         notes=data.get("notes"),
@@ -35,7 +50,7 @@ def create_job():
         tags=data.get("tags"),
         contact_name=data.get("contact_name"),
         contact_email=data.get("contact_email"),
-        applied_date=date.fromisoformat(applied) if applied else None,
+        applied_date=applied_date,
         source=data.get("source"),
         job_fit=data.get("job_fit"),
     )
@@ -62,7 +77,10 @@ def update_job(job_id):
             setattr(job, field, data[field])
     if "applied_date" in data:
         val = data["applied_date"]
-        job.applied_date = date.fromisoformat(val) if val else None
+        try:
+            job.applied_date = date.fromisoformat(val) if val else None
+        except (ValueError, TypeError):
+            return jsonify({"error": "applied_date must be a valid ISO date (YYYY-MM-DD)"}), 400
     db.session.commit()
     return jsonify(job.to_dict())
 

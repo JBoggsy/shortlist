@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Backend error handling test suite** — Added `tests/test_error_handling.py` with 20 pytest tests covering global error handlers, profile route failures, chat streaming errors, and job validation. Added pytest as a dev dependency with `pythonpath` config in `pyproject.toml`.
+
+### Fixed
+- **Global Flask error handlers** — Added JSON error handlers for 400, 404, 405, and unhandled exceptions in `backend/app.py`. The API no longer returns HTML error pages to the JSON-expecting frontend.
+- **Profile route error handling** — Wrapped all four profile route handlers in try/except to catch file I/O failures (disk full, permissions, missing file) and return JSON error responses instead of stack traces.
+- **Chat streaming generator protection** — Wrapped all three SSE streaming generators in `backend/routes/chat.py` with try/except. If the agent throws mid-stream, clients now receive an SSE `error` event instead of a hung connection. Database commit failures are also caught and logged without crashing the stream.
+- **Job POST/PATCH field validation** — Replaced unsafe `data["company"]`/`data["title"]` dict access with `.get()` and explicit validation. Missing or empty required fields now return 400 with a helpful message. Invalid `applied_date` values in both POST and PATCH are caught and return 400 instead of crashing.
+
+### Changed
+- **Setup wizard responsiveness and configuration feedback** — Added elapsed-time and timeout feedback to connection tests, eagerly detect installed Ollama models for the model override field, and added a stronger scroll cue on the integrations step so users are less likely to miss the RapidAPI section.
+- **Live post-setup health refresh** — Added a shared health refresh signal in the frontend so the dashboard's "AI Assistant not configured" banner updates immediately after setup or settings changes instead of waiting for a page reload.
+- **Navigation and failure messaging polish** — Raised the navigation bar above the chat backdrop so page links remain clickable with chat open, and tuned agent prompts to acknowledge repeated tool failures once instead of apologizing multiple times.
+
 ### Fixed
 - **Profile corruption from duplicate sections after repeated `update_user_profile` calls** — Rewrote `write_profile_section()` in `backend/agent/user_profile.py` to parse both the existing profile and incoming content into structured section maps, then merge and reassemble. This prevents duplicate `## ` headings when the LLM includes embedded section headers in a single tool call, and also self-heals already-corrupted profiles by keeping filled content over placeholder duplicates. Fixes [#2](https://github.com/JBoggsy/shortlist/issues/2).
 - **Parallel Ollama tool calls failing with concatenated names** — Fixed `_accumulate_tool_calls` in `backend/agent/default/agent.py` to handle Ollama's streaming behavior where all parallel tool calls arrive with `index=0` but distinct `id` values. The function now detects index collisions via differing call IDs and allocates a new virtual index, preventing names and arguments from being merged across separate calls. Also changed `name` accumulation from `+=` to `=` since tool names are never delivered as fragments. This fixes onboarding and chat failures where parallel `update_user_profile` calls were silently dropped or resulted in "Unknown tool" errors. Fixes [#1](https://github.com/JBoggsy/shortlist/issues/1).

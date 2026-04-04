@@ -141,28 +141,36 @@ def send_message(convo_id):
         full_text = ""
         tool_calls_log = []
 
-        for event in agent.run(llm_messages):
-            event_type = event["event"]
-            event_data = json.dumps(event["data"])
-            yield f"event: {event_type}\ndata: {event_data}\n\n"
+        try:
+            for event in agent.run(llm_messages):
+                event_type = event["event"]
+                event_data = json.dumps(event["data"])
+                yield f"event: {event_type}\ndata: {event_data}\n\n"
 
-            if event_type == "text_delta":
-                full_text += event["data"]["content"]
-            elif event_type in ("tool_start", "tool_result", "tool_error"):
-                tool_calls_log.append(event["data"])
-            elif event_type == "done":
-                # Save assistant message
-                logger.info("Chat response complete — conversation=%d text_len=%d tool_calls=%d",
-                            convo_id, len(full_text), len(tool_calls_log))
-                with current_app.app_context():
-                    assistant_msg = Message(
-                        conversation_id=convo_id,
-                        role="assistant",
-                        content=full_text,
-                        tool_calls=json.dumps(tool_calls_log) if tool_calls_log else None,
-                    )
-                    db.session.add(assistant_msg)
-                    db.session.commit()
+                if event_type == "text_delta":
+                    full_text += event["data"]["content"]
+                elif event_type in ("tool_start", "tool_result", "tool_error"):
+                    tool_calls_log.append(event["data"])
+                elif event_type == "done":
+                    # Save assistant message
+                    logger.info("Chat response complete — conversation=%d text_len=%d tool_calls=%d",
+                                convo_id, len(full_text), len(tool_calls_log))
+                    try:
+                        with current_app.app_context():
+                            assistant_msg = Message(
+                                conversation_id=convo_id,
+                                role="assistant",
+                                content=full_text,
+                                tool_calls=json.dumps(tool_calls_log) if tool_calls_log else None,
+                            )
+                            db.session.add(assistant_msg)
+                            db.session.commit()
+                    except Exception:
+                        logger.exception("Failed to save assistant message — conversation=%d", convo_id)
+        except Exception:
+            logger.exception("Agent error during chat streaming — conversation=%d", convo_id)
+            error_data = json.dumps({"message": "An unexpected error occurred while generating a response. Please try again."})
+            yield f"event: error\ndata: {error_data}\n\n"
 
     return Response(
         stream_with_context(generate()),
@@ -353,29 +361,37 @@ def send_onboarding_message(convo_id):
         full_text = ""
         tool_calls_log = []
 
-        for event in agent.run(llm_messages):
-            event_type = event["event"]
-            event_data = json.dumps(event["data"])
-            yield f"event: {event_type}\ndata: {event_data}\n\n"
+        try:
+            for event in agent.run(llm_messages):
+                event_type = event["event"]
+                event_data = json.dumps(event["data"])
+                yield f"event: {event_type}\ndata: {event_data}\n\n"
 
-            if event_type == "text_delta":
-                full_text += event["data"]["content"]
-            elif event_type in ("tool_start", "tool_result", "tool_error"):
-                tool_calls_log.append(event["data"])
-            elif event_type == "done":
-                # Strip the onboarding marker from persisted text
-                clean_text = full_text.replace("[ONBOARDING_COMPLETE]", "").rstrip()
-                logger.info("Onboarding response complete — conversation=%d text_len=%d",
-                            convo_id, len(clean_text))
-                with current_app.app_context():
-                    assistant_msg = Message(
-                        conversation_id=convo_id,
-                        role="assistant",
-                        content=clean_text,
-                        tool_calls=json.dumps(tool_calls_log) if tool_calls_log else None,
-                    )
-                    db.session.add(assistant_msg)
-                    db.session.commit()
+                if event_type == "text_delta":
+                    full_text += event["data"]["content"]
+                elif event_type in ("tool_start", "tool_result", "tool_error"):
+                    tool_calls_log.append(event["data"])
+                elif event_type == "done":
+                    # Strip the onboarding marker from persisted text
+                    clean_text = full_text.replace("[ONBOARDING_COMPLETE]", "").rstrip()
+                    logger.info("Onboarding response complete — conversation=%d text_len=%d",
+                                convo_id, len(clean_text))
+                    try:
+                        with current_app.app_context():
+                            assistant_msg = Message(
+                                conversation_id=convo_id,
+                                role="assistant",
+                                content=clean_text,
+                                tool_calls=json.dumps(tool_calls_log) if tool_calls_log else None,
+                            )
+                            db.session.add(assistant_msg)
+                            db.session.commit()
+                    except Exception:
+                        logger.exception("Failed to save onboarding message — conversation=%d", convo_id)
+        except Exception:
+            logger.exception("Agent error during onboarding streaming — conversation=%d", convo_id)
+            error_data = json.dumps({"message": "An unexpected error occurred during onboarding. Please try again."})
+            yield f"event: error\ndata: {error_data}\n\n"
 
     return Response(
         stream_with_context(generate()),
@@ -452,28 +468,36 @@ def kick_onboarding():
         full_text = ""
         tool_calls_log = []
 
-        for event in agent.run(llm_messages):
-            event_type = event["event"]
-            event_data = json.dumps(event["data"])
-            yield f"event: {event_type}\ndata: {event_data}\n\n"
+        try:
+            for event in agent.run(llm_messages):
+                event_type = event["event"]
+                event_data = json.dumps(event["data"])
+                yield f"event: {event_type}\ndata: {event_data}\n\n"
 
-            if event_type == "text_delta":
-                full_text += event["data"]["content"]
-            elif event_type in ("tool_start", "tool_result", "tool_error"):
-                tool_calls_log.append(event["data"])
-            elif event_type == "done":
-                clean_text = full_text.replace("[ONBOARDING_COMPLETE]", "").rstrip()
-                logger.info("Onboarding kick complete — conversation=%d text_len=%d",
-                            convo_id, len(clean_text))
-                with current_app.app_context():
-                    assistant_msg = Message(
-                        conversation_id=convo_id,
-                        role="assistant",
-                        content=clean_text,
-                        tool_calls=json.dumps(tool_calls_log) if tool_calls_log else None,
-                    )
-                    db.session.add(assistant_msg)
-                    db.session.commit()
+                if event_type == "text_delta":
+                    full_text += event["data"]["content"]
+                elif event_type in ("tool_start", "tool_result", "tool_error"):
+                    tool_calls_log.append(event["data"])
+                elif event_type == "done":
+                    clean_text = full_text.replace("[ONBOARDING_COMPLETE]", "").rstrip()
+                    logger.info("Onboarding kick complete — conversation=%d text_len=%d",
+                                convo_id, len(clean_text))
+                    try:
+                        with current_app.app_context():
+                            assistant_msg = Message(
+                                conversation_id=convo_id,
+                                role="assistant",
+                                content=clean_text,
+                                tool_calls=json.dumps(tool_calls_log) if tool_calls_log else None,
+                            )
+                            db.session.add(assistant_msg)
+                            db.session.commit()
+                    except Exception:
+                        logger.exception("Failed to save onboarding kick message — conversation=%d", convo_id)
+        except Exception:
+            logger.exception("Agent error during onboarding kick — conversation=%d", convo_id)
+            error_data = json.dumps({"message": "An unexpected error occurred during onboarding. Please try again."})
+            yield f"event: error\ndata: {error_data}\n\n"
 
     return Response(
         stream_with_context(generate()),
