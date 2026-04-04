@@ -13,7 +13,7 @@ export default function NavigationBar() {
   const { chatOpen, setChatOpen, onboarding } = useAppContext();
 
   return (
-    <header className="sticky top-0 z-40 bg-white shadow-sm">
+    <header className="sticky top-0 z-50 bg-white shadow-sm">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <NavLink to="/" className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors">

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { updateConfig, testConnection } from '../api';
+import { useState, useEffect, useRef } from 'react';
+import { fetchModels, updateConfig, testConnection } from '../api';
 import ModelCombobox from './ModelCombobox';
 
 const PROVIDERS = [
@@ -102,12 +102,17 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
   const [selectedProvider, setSelectedProvider] = useState("anthropic");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [testStatus, setTestStatus] = useState(null); // null | "testing" | "success" | "error"
   const [testMessage, setTestMessage] = useState("");
   const [testErrorType, setTestErrorType] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [ollamaModels, setOllamaModels] = useState([]);
+  const [ollamaModelsLoading, setOllamaModelsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tavilyKey, setTavilyKey] = useState("");
   const [jsearchKey, setJsearchKey] = useState("");
+  const modelInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -115,9 +120,13 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
       setSelectedProvider("anthropic");
       setApiKey("");
       setModel("");
+      setAdvancedOpen(false);
       setTestStatus(null);
       setTestMessage("");
       setTestErrorType(null);
+      setElapsedSeconds(0);
+      setOllamaModels([]);
+      setOllamaModelsLoading(false);
       setSaving(false);
       setTavilyKey("");
       setJsearchKey("");
@@ -127,15 +136,67 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
   function handleProviderSelect(id) {
     setSelectedProvider(id);
     setApiKey("");
+    setModel("");
+    setAdvancedOpen(false);
     setTestStatus(null);
     setTestMessage("");
     setTestErrorType(null);
   }
 
+  useEffect(() => {
+    if (testStatus !== "testing") return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds((seconds) => seconds + 1);
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [testStatus]);
+
+  useEffect(() => {
+    if (!isOpen || selectedProvider !== "ollama") return undefined;
+
+    let cancelled = false;
+    setOllamaModelsLoading(true);
+
+    fetchModels("ollama")
+      .then((data) => {
+        if (cancelled || data.error) return;
+        const modelIds = (data.models || []).map((entry) => entry.id).filter(Boolean);
+        setOllamaModels(modelIds);
+        if (!model && modelIds.length > 0) {
+          setModel(modelIds[0]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOllamaModels([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setOllamaModelsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, model, selectedProvider]);
+
+  useEffect(() => {
+    if (testErrorType !== "model_not_found") return;
+    setAdvancedOpen(true);
+    window.setTimeout(() => {
+      modelInputRef.current?.focus();
+    }, 0);
+  }, [testErrorType]);
+
   async function handleTest() {
     setTestStatus("testing");
     setTestMessage("");
     setTestErrorType(null);
+    setElapsedSeconds(0);
     try {
       const r = await testConnection(selectedProvider, apiKey, model);
       setTestStatus("success");
@@ -231,9 +292,15 @@ export default function SetupWizard({ isOpen, onClose, onComplete }) {
               setApiKey={setApiKey}
               model={model}
               setModel={setModel}
+              advancedOpen={advancedOpen}
+              setAdvancedOpen={setAdvancedOpen}
               testStatus={testStatus}
               testMessage={testMessage}
               testErrorType={testErrorType}
+              elapsedSeconds={elapsedSeconds}
+              ollamaModels={ollamaModels}
+              ollamaModelsLoading={ollamaModelsLoading}
+              modelInputRef={modelInputRef}
               onTest={handleTest}
             />
           )}
@@ -333,8 +400,28 @@ function StepChooseProvider({ selectedProvider, onSelect }) {
   );
 }
 
-function StepEnterKey({ provider, apiKey, setApiKey, model, setModel, testStatus, testMessage, testErrorType, onTest }) {
+function StepEnterKey({
+  provider,
+  apiKey,
+  setApiKey,
+  model,
+  setModel,
+  advancedOpen,
+  setAdvancedOpen,
+  testStatus,
+  testMessage,
+  testErrorType,
+  elapsedSeconds,
+  ollamaModels,
+  ollamaModelsLoading,
+  modelInputRef,
+  onTest,
+}) {
   if (!provider) return null;
+
+  const isTesting = testStatus === "testing";
+  const showSlowTestHint = isTesting && elapsedSeconds >= 10;
+  const detectedOllamaModel = provider.id === "ollama" && ollamaModels.length > 0 ? ollamaModels[0] : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -381,31 +468,66 @@ function StepEnterKey({ provider, apiKey, setApiKey, model, setModel, testStatus
         </div>
       )}
 
+      {provider.id === "ollama" && detectedOllamaModel && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
+          Using detected model <span className="font-semibold">{model || detectedOllamaModel}</span> by default.
+          You can change it below if needed.
+        </div>
+      )}
+
+      {provider.id === "ollama" && !ollamaModelsLoading && ollamaModels.length === 0 && (
+        <p className="text-xs text-gray-500">
+          No installed Ollama models were detected yet. You can still type a model name manually or pull one first.
+        </p>
+      )}
+
       {/* Model override */}
-      <details>
-        <summary className="text-xs text-gray-500 cursor-pointer select-none hover:text-gray-700">
+      <div>
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((open) => !open)}
+          className="inline-flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700"
+        >
+          <svg
+            className={`w-3 h-3 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
           Advanced: model override
-        </summary>
-        <div className="mt-2">
+        </button>
+        {advancedOpen && (
+          <div className="mt-2">
           <ModelCombobox
             provider={provider.id}
             apiKey={apiKey}
             value={model}
             onChange={setModel}
+            inputRef={modelInputRef}
             placeholder="Leave blank for default model"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
           />
-        </div>
-      </details>
+          </div>
+        )}
+      </div>
 
       {/* Test connection */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
         <button
           onClick={onTest}
-          disabled={testStatus === "testing" || (provider.requiresKey && !apiKey)}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
+          disabled={isTesting || (provider.requiresKey && !apiKey)}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
         >
-          {testStatus === "testing" ? "Testing..." : "Test Connection"}
+          {isTesting && (
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+          )}
+          {isTesting ? `Testing... (${elapsedSeconds}s)` : "Test Connection"}
         </button>
         {testStatus === "success" && (
           <span className="text-sm text-green-600 flex items-center gap-1">
@@ -425,6 +547,13 @@ function StepEnterKey({ provider, apiKey, setApiKey, model, setModel, testStatus
             )}
           </div>
         )}
+        </div>
+
+        {showSlowTestHint && (
+          <p className="text-xs text-amber-700">
+            This can take a while for large Ollama models while they warm up.
+          </p>
+        )}
       </div>
 
       {provider.requiresKey && testStatus !== "success" && (
@@ -437,6 +566,28 @@ function StepEnterKey({ provider, apiKey, setApiKey, model, setModel, testStatus
 function StepIntegrations({ tavilyKey, setTavilyKey, jsearchKey, setJsearchKey }) {
   const setters = { tavily: setTavilyKey, jsearch: setJsearchKey };
   const values = { tavily: tavilyKey, jsearch: jsearchKey };
+  const containerRef = useRef(null);
+  const [showScrollHint, setShowScrollHint] = useState(false);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return undefined;
+
+    function updateScrollHint() {
+      const scrollable = node.scrollHeight > node.clientHeight + 4;
+      const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 16;
+      setShowScrollHint(scrollable && !atBottom);
+    }
+
+    updateScrollHint();
+    node.addEventListener("scroll", updateScrollHint);
+    window.addEventListener("resize", updateScrollHint);
+
+    return () => {
+      node.removeEventListener("scroll", updateScrollHint);
+      window.removeEventListener("resize", updateScrollHint);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-4">
@@ -447,9 +598,10 @@ function StepIntegrations({ tavilyKey, setTavilyKey, jsearchKey, setJsearchKey }
         </p>
       </div>
 
-      <div className="space-y-4 overflow-y-auto" style={{ maxHeight: "320px" }}>
-        {INTEGRATION_KEYS.map((integration) => (
-          <div key={integration.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
+      <div className="relative">
+        <div ref={containerRef} className="space-y-4 overflow-y-auto pr-1" style={{ maxHeight: "320px" }}>
+          {INTEGRATION_KEYS.map((integration) => (
+            <div key={integration.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-sm text-gray-900">{integration.label}</span>
               {integration.badge && (
@@ -488,8 +640,20 @@ function StepIntegrations({ tavilyKey, setTavilyKey, jsearchKey, setJsearchKey }
               placeholder={integration.placeholder}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
             />
+            </div>
+          ))}
+        </div>
+
+        {showScrollHint && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 bg-gradient-to-t from-white via-white/95 to-transparent pb-2 pt-8">
+            <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-gray-500">
+              Scroll for more
+            </span>
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

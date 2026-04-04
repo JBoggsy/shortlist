@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Centralized input validation for API routes** — Created `backend/validation.py` with reusable validation functions for job, document, and todo data. All job POST/PATCH, document save, and todo POST/PATCH endpoints now validate type, range, enum, and string length constraints. Returns 400 with descriptive error messages instead of allowing bad data into the database. Constants (`VALID_STATUSES`, `VALID_REMOTE_TYPES`, `VALID_DOC_TYPES`, `VALID_TODO_CATEGORIES`) are shared between routes and agent tools. Added 75 pytest tests covering all validation edge cases.
+
+### Changed
+- **Setup wizard responsiveness and configuration feedback** — Added elapsed-time and timeout feedback to connection tests, eagerly detect installed Ollama models for the model override field, and added a stronger scroll cue on the integrations step so users are less likely to miss the RapidAPI section.
+- **Live post-setup health refresh** — Added a shared health refresh signal in the frontend so the dashboard's "AI Assistant not configured" banner updates immediately after setup or settings changes instead of waiting for a page reload.
+- **Navigation and failure messaging polish** — Raised the navigation bar above the chat backdrop so page links remain clickable with chat open, and tuned agent prompts to acknowledge repeated tool failures once instead of apologizing multiple times.
+
 ### Fixed
 - **Profile corruption from duplicate sections after repeated `update_user_profile` calls** — Rewrote `write_profile_section()` in `backend/agent/user_profile.py` to parse both the existing profile and incoming content into structured section maps, then merge and reassemble. This prevents duplicate `## ` headings when the LLM includes embedded section headers in a single tool call, and also self-heals already-corrupted profiles by keeping filled content over placeholder duplicates. Fixes [#2](https://github.com/JBoggsy/shortlist/issues/2).
 - **Parallel Ollama tool calls failing with concatenated names** — Fixed `_accumulate_tool_calls` in `backend/agent/default/agent.py` to handle Ollama's streaming behavior where all parallel tool calls arrive with `index=0` but distinct `id` values. The function now detects index collisions via differing call IDs and allocates a new virtual index, preventing names and arguments from being merged across separate calls. Also changed `name` accumulation from `+=` to `=` since tool names are never delivered as fragments. This fixes onboarding and chat failures where parallel `update_user_profile` calls were silently dropped or resulted in "Unknown tool" errors. Fixes [#1](https://github.com/JBoggsy/shortlist/issues/1).

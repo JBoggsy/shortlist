@@ -5,12 +5,10 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from backend.validation import VALID_STATUSES, VALID_REMOTE_TYPES, VALID_TODO_CATEGORIES
 from ._registry import agent_tool
 
 logger = logging.getLogger(__name__)
-
-VALID_STATUSES = {"saved", "applied", "interviewing", "offer", "rejected"}
-VALID_REMOTE_TYPES = {"onsite", "hybrid", "remote"}
 
 # Fields that can be set/updated on a Job record
 _EDITABLE_FIELDS = (
@@ -72,7 +70,7 @@ class RemoveJobInput(BaseModel):
     job_id: int = Field(description="ID of the job to remove")
 
 
-VALID_TODO_CATEGORIES = {"document", "question", "assessment", "reference", "other"}
+
 
 
 class AddJobTodoInput(BaseModel):

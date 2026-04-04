@@ -12,7 +12,7 @@ const STATUS_COLORS = {
 };
 
 export default function HomePage() {
-  const { setChatOpen } = useAppContext();
+  const { setChatOpen, healthVersion } = useAppContext();
   const [jobs, setJobs] = useState([]);
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -27,6 +27,11 @@ export default function HomePage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (healthVersion === 0) return;
+    fetchHealth().then(setHealth).catch(() => null);
+  }, [healthVersion]);
 
   const recentJobs = [...jobs]
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))

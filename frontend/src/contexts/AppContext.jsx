@@ -8,6 +8,7 @@ export function AppProvider({ children }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [onboarding, setOnboarding] = useState(false);
   const [jobsVersion, setJobsVersion] = useState(0);
+  const [healthVersion, setHealthVersion] = useState(0);
   const { toasts, addToast, removeToast } = useToast();
 
   // Document refresh signal — the ChatPanel calls notifyDocumentSaved when
@@ -30,6 +31,10 @@ export function AppProvider({ children }) {
     setJobsVersion((v) => v + 1);
   }, []);
 
+  const bumpHealthVersion = useCallback(() => {
+    setHealthVersion((v) => v + 1);
+  }, []);
+
   const handleChatError = useCallback((rawMessage, source) => {
     const classified = source === "network"
       ? classifyNetworkError(new Error(rawMessage))
@@ -44,6 +49,8 @@ export function AppProvider({ children }) {
     setOnboarding,
     jobsVersion,
     bumpJobsVersion,
+    healthVersion,
+    bumpHealthVersion,
     notifyDocumentSaved,
     onDocumentSaved,
     toasts,

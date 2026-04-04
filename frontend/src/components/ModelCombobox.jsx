@@ -15,14 +15,14 @@ function setCache(key, models) {
   cache.set(key, { models, ts: Date.now() });
 }
 
-export default function ModelCombobox({ provider, apiKey, value, onChange, placeholder, className }) {
+export default function ModelCombobox({ provider, apiKey, value, onChange, placeholder, className, inputRef }) {
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const wrapperRef = useRef(null);
-  const inputRef = useRef(null);
+  const internalInputRef = useRef(null);
 
   // Fetch models when provider/apiKey change
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function ModelCombobox({ provider, apiKey, value, onChange, place
   function toggleDropdown() {
     if (models.length > 0) {
       setOpen(!open);
-      if (!open) inputRef.current?.focus();
+      if (!open) internalInputRef.current?.focus();
     }
   }
 
@@ -114,7 +114,14 @@ export default function ModelCombobox({ provider, apiKey, value, onChange, place
     <div ref={wrapperRef} className="relative">
       <div className="relative">
         <input
-          ref={inputRef}
+          ref={(node) => {
+            internalInputRef.current = node;
+            if (typeof inputRef === "function") {
+              inputRef(node);
+            } else if (inputRef && typeof inputRef === "object") {
+              inputRef.current = node;
+            }
+          }}
           type="text"
           value={value}
           onChange={handleInputChange}

@@ -272,19 +272,36 @@ export async function updateConfig(config) {
   return res.json();
 }
 
-export async function testConnection(provider, apiKey, model) {
-  const res = await fetch(`${CONFIG_BASE}/test`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider, api_key: apiKey, model }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    const err = new Error(data.error || "Connection test failed");
-    err.errorType = data.error_type || "unknown";
+export async function testConnection(provider, apiKey, model, { timeoutMs = 90000 } = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(`${CONFIG_BASE}/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, api_key: apiKey, model }),
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      const err = new Error(data.error || "Connection test failed");
+      err.errorType = data.error_type || "unknown";
+      throw err;
+    }
+    return data;
+  } catch (err) {
+    if (err.name === "AbortError") {
+      const timeoutError = new Error(
+        "Connection timed out. The model may be taking too long to load or the server may be unresponsive."
+      );
+      timeoutError.errorType = "timeout";
+      throw timeoutError;
+    }
     throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return data;
 }
 
 export async function fetchModels(provider, apiKey) {

@@ -26,3 +26,8 @@ src-tauri/binaries/
 
 # PyInstaller
 *.spec
+
+# Playwright
+frontend/tests/e2e/test-results/
+frontend/playwright-report/
+frontend/blob-report/

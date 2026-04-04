@@ -17,25 +17,47 @@
 - [x] Dedicated visual interface for job search results (v0.9.0)
 - [x] Job search sub-agent for better result coverage (v0.9.0)
 - [x] Main agent delegates job searches to specialized sub-agent via `run_job_search` tool (v0.9.0)
+- [x] Setup wizard UX polish — connection timer/timeout feedback, stronger integrations scroll cue, Ollama model auto-detection, and live health refresh after setup
+- [x] Chat/error UX polish — navigation remains clickable with chat open, and agent failure messaging avoids repeated apologies
+
+## Must-Fix Before Beta
+
+### Backend Error Handling
+
+- [ ] **Add global Flask error handler** — `backend/app.py` has no `@app.errorhandler(Exception)`. Unhandled exceptions return HTML 500 pages to a JSON-expecting frontend. Add a catch-all handler that returns `{"error": "Internal server error"}` with status 500, and specific handlers for 400/404/405.
+- [ ] **Wrap profile routes in try/except** — `backend/routes/profile.py` has zero try/except blocks across all 4 route handlers (`get_profile`, `update_profile`, `onboarding_status`, `update_onboarding_status`). Any file I/O failure (permissions, disk full, missing file mid-read) returns a raw stack trace instead of a JSON error.
+- [ ] **Protect chat streaming generator** — The `generate()` function in `backend/routes/chat.py` that yields SSE events has no try/except. If the agent throws mid-stream, the client sees a hung connection that never resolves — no `error` event, no `done` event. Wrap in try/except and yield an `error` SSE event on failure.
+- [ ] **Validate required fields in jobs POST** — `backend/routes/jobs.py` line ~20 uses `data["company"]` and `data["title"]` (direct dict access). Missing fields cause a `KeyError` → unhandled 500 instead of a 400 with a helpful message. Use `.get()` with explicit validation.
+
+### Input Validation
+
+- [x] **Add type and range checks on job fields** — centralized `backend/validation.py` with reusable validators; applied to all job, document, and todo routes; DRY'd up agent tool constants (v0.12.1)
+
+### Database Integrity
+
+- [ ] **Add database migration system** — The app uses `db.create_all()` which only creates tables that don't exist — it cannot alter existing tables. The moment a future release changes the schema (adds/removes/renames a column), every existing user's database breaks silently. Add Flask-Migrate (Alembic wrapper) with an initial migration before shipping so future schema changes can be applied safely.
+- [ ] **Add cascade delete on SearchResult foreign keys** — `backend/models/search_result.py` defines `db.ForeignKey("conversations.id")` and `db.ForeignKey("jobs.id")` without `ondelete="CASCADE"`. Deleting a conversation or job with linked search results will raise an IntegrityError.
+
+### Data Safety
+
+- [ ] **Atomic config file writes** — `backend/config_manager.py` writes `config.json` with plain `open('w')`. Two concurrent Settings saves (possible if user double-clicks or browser retries) can interleave and corrupt the JSON file. Write to a temp file first, then `os.rename()` for atomic replacement.
+- [ ] **Sanitize API keys from log messages** — Error paths like `logger.error(f"Failed to create LLM config: {e}")` can include API keys in the exception string if the LLM client embeds them. Sanitize exception messages before logging.
 
 ## Bugs
 
 - [ ] **Outcome Planner over-decomposition** — for requests like "tailor my resume for X job", the OutcomePlanner produces redundant outcomes (e.g. "identify job" + "tailor resume") even though `specialize_resume` already resolves the job internally via `load_job_context()`. Causes unnecessary job search API calls, ~5 min wasted, and a confusing "Jobs Found" panel. Fix: strengthen `PlanOutcomesSig` prompt to avoid decomposition when the target workflow handles resolution internally, or teach the WorkflowMapper to recognize and skip redundant outcomes.
 - [ ] **Skills section wall of text in tailored resumes** — the specialize_resume pipeline produces a Skills section as a single unformatted paragraph instead of using structured markdown with bold category labels and proper grouping (e.g. `**Languages:** Python, C++`)
 
-## UX Improvements
-
-- [ ] **Test Connection needs timeout feedback** — testing a large Ollama model shows only "Testing..." with no spinner, elapsed timer, or timeout for 45+ seconds; users may think the app is frozen. Add an elapsed time counter or a "this may take a while for large models" note.
-- [ ] **Setup wizard scroll indicator too subtle** — step 4 (integrations) has scrollable content with Tavily and RapidAPI sections, but the scroll indicator is a tiny triangle at the edge; users may miss the RapidAPI section entirely. Consider a more prominent scroll cue or auto-scroll hint.
-- [ ] **"AI Assistant not configured" banner stale behind wizard** — the yellow warning banner stays visible behind the setup wizard modal and doesn't refresh after config is saved until the page reloads. Dashboard should re-fetch health status after the wizard completes.
-- [ ] **Chat panel backdrop blocks navigation bar** — when the chat panel is open, a semi-transparent overlay blocks clicks on the navigation bar; users must close chat to navigate to another page. Consider allowing nav clicks through the overlay, or narrowing the overlay to only cover the main content area.
-- [ ] **Setup wizard Ollama instructions reference unavailable model** — step 3 tells users to "Run `ollama pull llama3.2`" but the default model may not be installed; users with other models must discover the "Advanced: model override" dropdown themselves. Consider auto-selecting the first available model or highlighting the dropdown when the default model is missing.
-- [ ] **Agent apologizes multiple times on parallel tool call failure** — when parallel tool calls fail and retry, the agent emits multiple apology messages in rapid succession ("You're absolutely right, I apologize..."), giving an unprofessional impression. This is a symptom of #1 but could also be mitigated with prompt tuning to avoid repetitive apologies.
-
 ## Features
 
 - [x] **Job application preparation (phase 2)** — Document editor with Tiptap, agent co-editing via SSE, version history
 - [ ] **Interview prep** — agent-assisted interview preparation workflows
+
+## Post-Beta Improvements
+
+- [ ] **Database indexes** — No indexes on `status`, `conversation_id`, `created_at` columns. Fine for beta volumes (hundreds of jobs), will become a problem at scale.
+- [ ] **Search results pagination** — No pagination on search results panel or job list. Fine for beta, needed if users accumulate hundreds of results.
+- [ ] **Rate limiting** — No rate limiting on any endpoint. Acceptable for a desktop/local app, needed before any hosted deployment.
 
 ## Desktop App
 

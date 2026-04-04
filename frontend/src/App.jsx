@@ -21,6 +21,7 @@ function App() {
     chatOpen, setChatOpen,
     onboarding, setOnboarding,
     bumpJobsVersion,
+    bumpHealthVersion,
     toasts, removeToast,
     handleChatError,
   } = useAppContext();
@@ -87,6 +88,7 @@ function App() {
   }
 
   async function handleSettingsSaved() {
+    bumpHealthVersion();
     if (pendingOnboarding) {
       setPendingOnboarding(false);
       setOnboarding(true);
@@ -97,12 +99,14 @@ function App() {
   function handleWizardComplete() {
     setWizardOpen(false);
     setPendingOnboarding(false);
+    bumpHealthVersion();
     setOnboarding(true);
     setChatOpen(true);
   }
 
   function handleWizardClose() {
     setWizardOpen(false);
+    bumpHealthVersion();
   }
 
   function handleOnboardingComplete() {
