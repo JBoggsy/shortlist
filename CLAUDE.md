@@ -104,6 +104,7 @@ lsof -ti:5000 | xargs kill -9 2>/dev/null
 - `backend/app.py` — Flask app factory (`create_app`)
 - `backend/config.py` — app configuration (Flask-specific settings)
 - `backend/config_manager.py` — configuration file management (read/write `config.json`, env var fallback)
+- `backend/validation.py` — centralized input validation for HTTP API routes; shared constants (`VALID_STATUSES`, `VALID_REMOTE_TYPES`, `VALID_DOC_TYPES`, `VALID_TODO_CATEGORIES`), string length limits, and reusable `validate_job_data()`, `validate_document_data()`, `validate_todo_data()` functions; used by both route handlers and agent tools
 - `backend/database.py` — SQLAlchemy `db` instance
 - `backend/models/job.py` — `Job` model (fields: `id`, `company`, `title`, `url`, `status`, `notes`, `salary_min`, `salary_max`, `location`, `remote_type`, `tags`, `contact_name`, `contact_email`, `applied_date`, `source`, `job_fit`, `created_at`, `updated_at`)
 - `backend/routes/jobs.py` — CRUD blueprint (`jobs_bp` at `/api/jobs`)

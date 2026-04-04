@@ -5,11 +5,10 @@ from typing import Annotated, Optional
 
 from pydantic import BaseModel, BeforeValidator, Field
 
+from backend.validation import VALID_REMOTE_TYPES
 from ._registry import agent_tool
 
 logger = logging.getLogger(__name__)
-
-VALID_REMOTE_TYPES = {"onsite", "hybrid", "remote"}
 
 
 def _coerce_int(v):

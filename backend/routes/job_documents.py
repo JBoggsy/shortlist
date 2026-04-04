@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from backend.database import db
 from backend.models.job import Job
 from backend.models.job_document import JobDocument
+from backend.validation import VALID_DOC_TYPES, validate_document_data
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,8 @@ def get_latest_document(job_id):
     doc_type = request.args.get("type")
     if not doc_type:
         return jsonify({"error": "type query parameter is required"}), 400
+    if doc_type not in VALID_DOC_TYPES:
+        return jsonify({"error": f"Invalid type '{doc_type}'. Must be one of: {', '.join(sorted(VALID_DOC_TYPES))}"}), 400
     doc = JobDocument.get_latest(job_id, doc_type)
     if not doc:
         return '', 204
@@ -35,6 +38,8 @@ def get_document_history(job_id):
     doc_type = request.args.get("type")
     if not doc_type:
         return jsonify({"error": "type query parameter is required"}), 400
+    if doc_type not in VALID_DOC_TYPES:
+        return jsonify({"error": f"Invalid type '{doc_type}'. Must be one of: {', '.join(sorted(VALID_DOC_TYPES))}"}), 400
     docs = JobDocument.get_history(job_id, doc_type)
     return jsonify([d.to_dict() for d in docs])
 
@@ -44,19 +49,16 @@ def save_document(job_id):
     """Save a new version of a document."""
     db.get_or_404(Job, job_id)
     data = request.get_json()
-    doc_type = data.get("doc_type")
-    content = data.get("content")
-    if not doc_type:
-        return jsonify({"error": "doc_type is required"}), 400
-    if not content:
-        return jsonify({"error": "content is required"}), 400
+    cleaned, errors = validate_document_data(data)
+    if errors:
+        return jsonify({"error": "; ".join(errors)}), 400
 
     doc = JobDocument(
         job_id=job_id,
-        doc_type=doc_type,
-        content=content,
-        version=JobDocument.next_version(job_id, doc_type),
-        edit_summary=data.get("edit_summary"),
+        doc_type=cleaned["doc_type"],
+        content=cleaned["content"],
+        version=JobDocument.next_version(job_id, cleaned["doc_type"]),
+        edit_summary=cleaned.get("edit_summary"),
     )
     db.session.add(doc)
     db.session.commit()

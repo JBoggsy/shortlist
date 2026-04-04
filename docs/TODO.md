@@ -28,7 +28,7 @@
 
 ### Input Validation
 
-- [ ] **Add type and range checks on job fields** — `salary_min`, `salary_max`, `job_fit` accept any value (strings, negatives, absurdly large numbers). `doc_type` in document save accepts arbitrary strings (should be constrained to `cover_letter`/`resume`). `remote_type` should be constrained to `onsite`/`hybrid`/`remote`/null. No length limits on any string field — a malicious or bugged client could send arbitrarily large values.
+- [x] Add type and range checks on job fields — centralized `backend/validation.py` with reusable validators; applied to all job, document, and todo routes; DRY'd up agent tool constants (v0.12.1)
 
 ### Database Integrity
 

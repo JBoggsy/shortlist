@@ -5,11 +5,10 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from backend.validation import VALID_DOC_TYPES
 from ._registry import agent_tool
 
 logger = logging.getLogger(__name__)
-
-VALID_DOC_TYPES = {"cover_letter", "resume"}
 
 
 class SaveJobDocumentInput(BaseModel):

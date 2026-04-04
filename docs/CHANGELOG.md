@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Backend error handling test suite** — Added `tests/test_error_handling.py` with 20 pytest tests covering global error handlers, profile route failures, chat streaming errors, and job validation. Added pytest as a dev dependency with `pythonpath` config in `pyproject.toml`.
+- **Centralized input validation for API routes** — Created `backend/validation.py` with reusable validation functions for job, document, and todo data. All job POST/PATCH, document save, and todo POST/PATCH endpoints now validate type, range, enum, and string length constraints. Returns 400 with descriptive error messages instead of allowing bad data into the database. Constants (`VALID_STATUSES`, `VALID_REMOTE_TYPES`, `VALID_DOC_TYPES`, `VALID_TODO_CATEGORIES`) are shared between routes and agent tools. Added 75 pytest tests covering all validation edge cases.
 
 ### Fixed
 - **Global Flask error handlers** — Added JSON error handlers for 400, 404, 405, and unhandled exceptions in `backend/app.py`. The API no longer returns HTML error pages to the JSON-expecting frontend.
