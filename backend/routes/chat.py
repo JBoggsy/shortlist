@@ -8,6 +8,7 @@ from backend.agent.user_profile import is_onboarding_in_progress, set_onboarding
 from backend.config_manager import get_llm_config, get_onboarding_llm_config, get_integration_config, get_active_mode_llm_config
 from backend.database import db
 from backend.llm.llm_factory import create_llm_config
+from backend.log_sanitizer import sanitize_error
 from backend.models.chat import Conversation, Message
 from backend.models.job import Job
 from backend.models.search_result import SearchResult
@@ -45,6 +46,7 @@ def delete_conversation(convo_id):
     convo = db.session.get(Conversation, convo_id)
     if not convo:
         return {"error": "Conversation not found"}, 404
+    # Messages and search results are cascade-deleted at both ORM and DB level
     db.session.delete(convo)
     db.session.commit()
     return "", 204
@@ -110,8 +112,8 @@ def send_message(convo_id):
             llm_config["model"],
         )
     except Exception as e:
-        logger.error(f"Failed to create LLM config: {e}")
-        error_message = f"Failed to initialize LLM provider: {str(e)}"
+        logger.error("Failed to create LLM config: %s", sanitize_error(e))
+        error_message = "Failed to initialize LLM provider. Please check your configuration in Settings."
         def error_stream():
             error_msg = {
                 "event": "error",
@@ -335,8 +337,8 @@ def send_onboarding_message(convo_id):
         _, OnboardingAgentCls, _ = get_agent_classes()
         agent = OnboardingAgentCls(llm_config)
     except Exception as e:
-        logger.error(f"Failed to create onboarding model: {e}")
-        error_message = f"Failed to initialize LLM: {str(e)}"
+        logger.error("Failed to create onboarding model: %s", sanitize_error(e))
+        error_message = "Failed to initialize LLM. Please check your configuration in Settings."
         def error_stream():
             error_msg = {
                 "event": "error",
@@ -442,8 +444,8 @@ def kick_onboarding():
         _, OnboardingAgentCls, _ = get_agent_classes()
         agent = OnboardingAgentCls(llm_config)
     except Exception as e:
-        logger.error(f"Failed to create onboarding model: {e}")
-        error_message = f"Failed to initialize LLM: {str(e)}"
+        logger.error("Failed to create onboarding model: %s", sanitize_error(e))
+        error_message = "Failed to initialize LLM. Please check your configuration in Settings."
         def error_stream():
             error_msg = {
                 "event": "error",

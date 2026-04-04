@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, request
 
+from backend.log_sanitizer import sanitize_error
 from backend.resume_parser import (
     allowed_file,
     parse_resume,
@@ -133,8 +134,8 @@ def parse_resume_with_llm():
             llm_config["model"],
         )
     except Exception as e:
-        logger.error("Failed to create LLM config for resume parsing: %s", e)
-        return {"error": f"Failed to initialize LLM provider: {str(e)}"}, 500
+        logger.error("Failed to create LLM config for resume parsing: %s", sanitize_error(e))
+        return {"error": "Failed to initialize LLM provider. Please check your configuration in Settings."}, 500
 
     try:
         parser = ResumeParser(config)
@@ -147,4 +148,4 @@ def parse_resume_with_llm():
         return {"error": str(e)}, 500
     except Exception as e:
         logger.exception("Unexpected error during resume parsing")
-        return {"error": f"Resume parsing failed: {str(e)}"}, 500
+        return {"error": "Resume parsing failed unexpectedly. Please try again."}, 500

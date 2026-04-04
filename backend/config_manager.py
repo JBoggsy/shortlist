@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
 
+from backend.log_sanitizer import sanitize_error
+from backend.safe_write import atomic_write
+
 logger = logging.getLogger(__name__)
 
 from backend.data_dir import get_data_dir
@@ -83,11 +86,11 @@ def load_config() -> Dict[str, Any]:
             logger.info("Configuration loaded from file")
             return config
     except json.JSONDecodeError as e:
-        logger.error(f"Error parsing config.json: {e}")
+        logger.error("Error parsing config.json at line %s: %s", e.lineno, e.msg)
         logger.info("Falling back to default configuration")
         return DEFAULT_CONFIG.copy()
     except Exception as e:
-        logger.error(f"Error loading config.json: {e}")
+        logger.error("Error loading config.json: %s", sanitize_error(e))
         return DEFAULT_CONFIG.copy()
 
 
@@ -102,12 +105,12 @@ def save_config(config: Dict[str, Any]) -> bool:
         True if save was successful, False otherwise
     """
     try:
-        with open(_config_file(), 'w') as f:
+        with atomic_write(_config_file()) as f:
             json.dump(config, f, indent=2)
-            logger.info("Configuration saved to file")
+        logger.info("Configuration saved to file")
         return True
     except Exception as e:
-        logger.error(f"Error saving config.json: {e}")
+        logger.error("Error saving config.json: %s", sanitize_error(e))
         return False
 
 

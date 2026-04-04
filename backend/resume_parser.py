@@ -8,6 +8,8 @@ import io
 import logging
 from pathlib import Path
 
+from backend.safe_write import atomic_write, atomic_write_bytes
+
 logger = logging.getLogger(__name__)
 
 # Maximum file size: 10 MB
@@ -125,7 +127,7 @@ def save_resume(file_bytes: bytes, filename: str) -> Path:
     """
     safe_name = Path(filename).name  # Strip any directory components
     dest = get_resume_dir() / safe_name
-    dest.write_bytes(file_bytes)
+    atomic_write_bytes(dest, file_bytes)
     logger.info("Saved resume to %s (%d bytes)", dest, len(file_bytes))
     return dest
 
@@ -192,7 +194,8 @@ def save_parsed_resume(data: dict) -> Path:
     """
     import json
     dest = _parsed_resume_path()
-    dest.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    with atomic_write(dest, encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
     logger.info("Saved parsed resume JSON to %s (%d bytes)", dest, dest.stat().st_size)
     return dest
 

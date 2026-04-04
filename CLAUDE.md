@@ -103,7 +103,9 @@ lsof -ti:5000 | xargs kill -9 2>/dev/null
 - `backend/data_dir.py` — centralized data directory resolver (`get_data_dir()`); uses `DATA_DIR` env var or defaults to `user_data/`
 - `backend/app.py` — Flask app factory (`create_app`)
 - `backend/config.py` — app configuration (Flask-specific settings)
-- `backend/config_manager.py` — configuration file management (read/write `config.json`, env var fallback)
+- `backend/config_manager.py` — configuration file management (read/write `config.json`, env var fallback); uses atomic writes via `safe_write.atomic_write()`
+- `backend/safe_write.py` — atomic file-write utilities: `atomic_write()` context manager (writes to temp file, then `os.replace()`) and `atomic_write_bytes()` helper; used by config_manager, user_profile, resume_parser, and telemetry export
+- `backend/log_sanitizer.py` — `sanitize()` and `sanitize_error()` functions that strip API key patterns from strings before logging or returning to clients; used by all route error handlers
 - `backend/validation.py` — centralized input validation for HTTP API routes; shared constants (`VALID_STATUSES`, `VALID_REMOTE_TYPES`, `VALID_DOC_TYPES`, `VALID_TODO_CATEGORIES`), string length limits, and reusable `validate_job_data()`, `validate_document_data()`, `validate_todo_data()` functions; used by both route handlers and agent tools
 - `backend/database.py` — SQLAlchemy `db` instance
 - `backend/models/job.py` — `Job` model (fields: `id`, `company`, `title`, `url`, `status`, `notes`, `salary_min`, `salary_max`, `location`, `remote_type`, `tags`, `contact_name`, `contact_email`, `applied_date`, `source`, `job_fit`, `created_at`, `updated_at`)

@@ -8,10 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Atomic file write utility** — Created `backend/safe_write.py` with `atomic_write()` context manager and `atomic_write_bytes()` helper. Writes to a temporary file in the same directory, then atomically renames via `os.replace()`, preventing data corruption from crashes or concurrent writes.
+- **Log sanitizer utility** — Created `backend/log_sanitizer.py` with `sanitize()` and `sanitize_error()` functions that strip API key patterns (Anthropic, OpenAI, Gemini, Tavily, RapidAPI, generic tokens) from strings before logging or returning to clients.
+- **Data safety test suite** — Added `tests/test_data_safety.py` with 33 pytest tests covering atomic write behavior, log sanitization of all key formats, config/profile integration safety, and API response leakage prevention.
 - **Backend error handling test suite** — Added `tests/test_error_handling.py` with 20 pytest tests covering global error handlers, profile route failures, chat streaming errors, and job validation. Added pytest as a dev dependency with `pythonpath` config in `pyproject.toml`.
 - **Centralized input validation for API routes** — Created `backend/validation.py` with reusable validation functions for job, document, and todo data. All job POST/PATCH, document save, and todo POST/PATCH endpoints now validate type, range, enum, and string length constraints. Returns 400 with descriptive error messages instead of allowing bad data into the database. Constants (`VALID_STATUSES`, `VALID_REMOTE_TYPES`, `VALID_DOC_TYPES`, `VALID_TODO_CATEGORIES`) are shared between routes and agent tools. Added 75 pytest tests covering all validation edge cases.
 
 ### Fixed
+- **Atomic config file writes** — `config.json` is now written atomically (temp file + rename) to prevent corruption from crashes or concurrent saves. Applied same pattern to user profile, resume files, parsed resume JSON, and telemetry JSONL exports.
+- **API key sanitization in log messages** — All error logging paths that could include exception messages with embedded API keys now sanitize the output before logging. Affected files: `routes/chat.py`, `routes/config.py`, `routes/resume.py`, `config_manager.py`.
+- **API responses no longer leak internal errors** — Exception messages returned to the frontend are now generic (e.g. "Failed to update configuration") instead of raw `str(e)` which could expose API keys, file paths, or internal state.
 - **Global Flask error handlers** — Added JSON error handlers for 400, 404, 405, and unhandled exceptions in `backend/app.py`. The API no longer returns HTML error pages to the JSON-expecting frontend.
 - **Profile route error handling** — Wrapped all four profile route handlers in try/except to catch file I/O failures (disk full, permissions, missing file) and return JSON error responses instead of stack traces.
 - **Chat streaming generator protection** — Wrapped all three SSE streaming generators in `backend/routes/chat.py` with try/except. If the agent throws mid-stream, clients now receive an SSE `error` event instead of a hung connection. Database commit failures are also caught and logged without crashing the stream.

@@ -21,6 +21,7 @@ from backend.llm.model_listing import (
     is_ollama_running,
     pick_best_ollama_model,
 )
+from backend.log_sanitizer import sanitize_error
 import litellm
 import logging
 
@@ -41,7 +42,7 @@ def get_config():
         config = config_to_dict()
         return jsonify(config), 200
     except Exception as e:
-        logger.error(f"Error getting config: {e}")
+        logger.error("Error getting config: %s", sanitize_error(e))
         return jsonify({"error": "Failed to load configuration"}), 500
 
 
@@ -119,8 +120,8 @@ def update_config():
             return jsonify({"error": "Failed to save configuration"}), 500
 
     except Exception as e:
-        logger.error(f"Error updating config: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error("Error updating config: %s", sanitize_error(e))
+        return jsonify({"error": "Failed to update configuration"}), 500
 
 
 @config_bp.route('/api/config/test', methods=['POST'])
@@ -185,7 +186,7 @@ def test_connection():
                 }), 500
 
         except Exception as e:
-            logger.error(f"LLM connection test failed: {e}")
+            logger.error("LLM connection test failed: %s", sanitize_error(e))
             error_message = str(e)
             error_type = "unknown"
 
@@ -240,8 +241,8 @@ def test_connection():
             }), 400
 
     except Exception as e:
-        logger.error(f"Error testing connection: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error("Error testing connection: %s", sanitize_error(e))
+        return jsonify({"success": False, "error": "Connection test failed unexpectedly. Please try again."}), 500
 
 
 @config_bp.route('/api/config/models', methods=['POST'])
@@ -282,12 +283,12 @@ def list_models():
             models = _list_models(provider_name, api_key=api_key)
             return jsonify({"models": models}), 200
         except Exception as e:
-            logger.warning("Failed to list models for %s: %s", provider_name, e)
-            return jsonify({"models": [], "error": str(e)}), 200
+            logger.warning("Failed to list models for %s: %s", provider_name, sanitize_error(e))
+            return jsonify({"models": [], "error": "Failed to list models. Please check your API key."}), 200
 
     except Exception as e:
-        logger.error(f"Error listing models: {e}")
-        return jsonify({"models": [], "error": str(e)}), 200
+        logger.error("Error listing models: %s", sanitize_error(e))
+        return jsonify({"models": [], "error": "Failed to list models"}), 200
 
 
 @config_bp.route('/api/config/providers', methods=['GET'])
@@ -375,8 +376,8 @@ def telemetry_export():
             download_name=f"shortlist_telemetry_{mode}.db",
         )
     except Exception as e:
-        logger.error("Telemetry export failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.error("Telemetry export failed: %s", sanitize_error(e))
+        return jsonify({"error": "Telemetry export failed"}), 500
 
 
 @config_bp.route('/api/health', methods=['GET'])

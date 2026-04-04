@@ -5,7 +5,7 @@ class SearchResult(db.Model):
     __tablename__ = "search_results"
 
     id = db.Column(db.Integer, primary_key=True)
-    conversation_id = db.Column(db.Integer, db.ForeignKey("conversations.id"), nullable=False)
+    conversation_id = db.Column(db.Integer, db.ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
 
     # Job data (mirrors Job model fields for easy promotion to tracker)
     company = db.Column(db.String(200), nullable=False)
@@ -26,7 +26,7 @@ class SearchResult(db.Model):
 
     # State
     added_to_tracker = db.Column(db.Boolean, default=False)
-    tracker_job_id = db.Column(db.Integer, db.ForeignKey("jobs.id"), nullable=True)
+    tracker_job_id = db.Column(db.Integer, db.ForeignKey("jobs.id", ondelete="SET NULL"), nullable=True)
 
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 

@@ -11,6 +11,7 @@ class Conversation(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     messages = db.relationship("Message", backref="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
+    search_results = db.relationship("SearchResult", backref="conversation", cascade="all, delete-orphan", order_by="SearchResult.created_at")
 
     def to_dict(self, include_messages=False):
         d = {
@@ -28,7 +29,7 @@ class Message(db.Model):
     __tablename__ = "messages"
 
     id = db.Column(db.Integer, primary_key=True)
-    conversation_id = db.Column(db.Integer, db.ForeignKey("conversations.id"), nullable=False)
+    conversation_id = db.Column(db.Integer, db.ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # "user" or "assistant"
     content = db.Column(db.Text, default="")
     tool_calls = db.Column(db.Text)  # JSON string of tool call data

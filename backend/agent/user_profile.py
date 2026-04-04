@@ -7,6 +7,7 @@ import os
 import re
 
 from backend.data_dir import get_data_dir
+from backend.safe_write import atomic_write
 
 # Canonical placeholder used for every unfilled profile section.
 # All template defaults and detection logic reference this single constant.
@@ -212,7 +213,7 @@ def write_profile(content: str) -> None:
     else:
         body = content
     full = _serialize_frontmatter(meta, body)
-    with open(path, "w", encoding="utf-8") as f:
+    with atomic_write(path, encoding="utf-8") as f:
         f.write(full)
 
 
@@ -259,7 +260,7 @@ def ensure_profile_exists() -> None:
     """Create the profile file with the default template if it doesn't exist."""
     path = get_profile_path()
     if not os.path.exists(path):
-        with open(path, "w", encoding="utf-8") as f:
+        with atomic_write(path, encoding="utf-8") as f:
             f.write(DEFAULT_PROFILE_TEMPLATE)
 
 
@@ -308,5 +309,5 @@ def _set_onboarded_value(value) -> None:
     meta, body = _parse_frontmatter(content)
     meta["onboarded"] = value
     full = _serialize_frontmatter(meta, body)
-    with open(path, "w", encoding="utf-8") as f:
+    with atomic_write(path, encoding="utf-8") as f:
         f.write(full)

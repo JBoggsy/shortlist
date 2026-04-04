@@ -15,6 +15,8 @@ import shutil
 import sqlite3
 from pathlib import Path
 
+from backend.safe_write import atomic_write
+
 logger = logging.getLogger(__name__)
 
 # Columns to strip in anonymized exports
@@ -183,7 +185,7 @@ def get_stats(source_db: Path) -> dict:
 def _export_table_jsonl(conn: sqlite3.Connection, table: str, path: Path) -> None:
     """Write all rows of a table as JSONL."""
     rows = conn.execute(f"SELECT * FROM {table}").fetchall()  # noqa: S608
-    with open(path, "w") as f:
+    with atomic_write(path) as f:
         for row in rows:
             f.write(json.dumps(dict(row), default=str) + "\n")
 

@@ -37,8 +37,7 @@
 
 ### Data Safety
 
-- [ ] **Atomic config file writes** — `backend/config_manager.py` writes `config.json` with plain `open('w')`. Two concurrent Settings saves (possible if user double-clicks or browser retries) can interleave and corrupt the JSON file. Write to a temp file first, then `os.rename()` for atomic replacement.
-- [ ] **Sanitize API keys from log messages** — Error paths like `logger.error(f"Failed to create LLM config: {e}")` can include API keys in the exception string if the LLM client embeds them. Sanitize exception messages before logging.
+- [x] Atomic config file writes, sanitize API keys from log messages (v0.12.3)
 
 ## Bugs
 

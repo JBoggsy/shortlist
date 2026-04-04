@@ -3,6 +3,7 @@ import os
 
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_migrate import Migrate, upgrade, stamp
 from werkzeug.exceptions import HTTPException
 
 from backend.config import Config
@@ -14,6 +15,8 @@ from backend.routes.profile import profile_bp
 from backend.routes.config import config_bp
 from backend.routes.resume import resume_bp
 from backend.routes.job_documents import job_documents_bp
+
+migrate = Migrate(render_as_batch=True)
 
 
 def _setup_logging(log_level_name):
@@ -75,9 +78,10 @@ def create_app(config_class=Config):
 
     CORS(app)
     db.init_app(app)
+    migrate.init_app(app, db)
 
     with app.app_context():
-        db.create_all()
+        _apply_migrations(app)
 
     _register_error_handlers(app)
 
@@ -94,6 +98,39 @@ def create_app(config_class=Config):
     logging.getLogger(__name__).info("App created, log level: %s", app.config.get("LOG_LEVEL", "INFO"))
 
     return app
+
+
+def _apply_migrations(app):
+    """Apply database migrations on startup.
+
+    Handles three scenarios:
+    1. Fresh database (no tables) — run all migrations from scratch.
+    2. Pre-migration database (tables exist, no alembic_version) — stamp at
+       the initial baseline, then upgrade to apply newer migrations.
+    3. Normal database (alembic_version exists) — just run upgrade().
+
+    Falls back to db.create_all() if the migrations directory doesn't exist
+    (development convenience).
+    """
+    _logger = logging.getLogger(__name__)
+    migrations_dir = os.path.join(os.path.dirname(__file__), "..", "migrations")
+
+    if not os.path.isdir(migrations_dir):
+        _logger.warning("Migrations directory not found — falling back to db.create_all()")
+        db.create_all()
+        return
+
+    inspector = db.inspect(db.engine)
+    existing_tables = set(inspector.get_table_names())
+
+    if "alembic_version" not in existing_tables and existing_tables:
+        # Pre-migration database: tables exist but no migration tracking.
+        # Stamp at the initial baseline so only newer migrations run.
+        _logger.info("Pre-migration database detected — stamping baseline")
+        stamp(directory=migrations_dir, revision="2d18089fe7f9")
+
+    upgrade(directory=migrations_dir)
+    _logger.info("Database migrations applied successfully")
 
 
 def _init_telemetry():

@@ -216,6 +216,7 @@ class JobsMixin:
         from backend.models.job import Job
         from backend.models.application_todo import ApplicationTodo
         from backend.models.job_document import JobDocument
+        from backend.models.search_result import SearchResult
 
         job = db.session.get(Job, job_id)
         if not job:
@@ -223,9 +224,13 @@ class JobsMixin:
 
         job_summary = {"id": job.id, "company": job.company, "title": job.title}
 
-        # Delete associated records first
+        # Delete associated records first (also handled by DB-level cascades)
         ApplicationTodo.query.filter_by(job_id=job_id).delete()
         JobDocument.query.filter_by(job_id=job_id).delete()
+        # Unlink search results that were promoted to this job
+        SearchResult.query.filter_by(tracker_job_id=job_id).update(
+            {"tracker_job_id": None, "added_to_tracker": False}
+        )
         db.session.delete(job)
         db.session.commit()
 

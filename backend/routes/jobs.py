@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request
 from backend.database import db
 from backend.models.job import Job
 from backend.models.application_todo import ApplicationTodo
+from backend.models.search_result import SearchResult
 from backend.validation import validate_job_data, validate_todo_data
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,11 @@ def update_job(job_id):
 @jobs_bp.route("/<int:job_id>", methods=["DELETE"])
 def delete_job(job_id):
     job = db.get_or_404(Job, job_id)
+    # Unlink search results that were promoted to this job (SET NULL cascade
+    # handles this at DB level too, but explicit update also resets the flag)
+    SearchResult.query.filter_by(tracker_job_id=job_id).update(
+        {"tracker_job_id": None, "added_to_tracker": False}
+    )
     db.session.delete(job)
     db.session.commit()
     return "", 204
