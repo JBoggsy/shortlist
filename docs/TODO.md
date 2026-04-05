@@ -32,8 +32,8 @@
 
 ### Database Integrity
 
-- [ ] **Add database migration system** — The app uses `db.create_all()` which only creates tables that don't exist — it cannot alter existing tables. The moment a future release changes the schema (adds/removes/renames a column), every existing user's database breaks silently. Add Flask-Migrate (Alembic wrapper) with an initial migration before shipping so future schema changes can be applied safely.
-- [ ] **Add cascade delete on SearchResult foreign keys** — `backend/models/search_result.py` defines `db.ForeignKey("conversations.id")` and `db.ForeignKey("jobs.id")` without `ondelete="CASCADE"`. Deleting a conversation or job with linked search results will raise an IntegrityError.
+- [x] Add database migration system (Flask-Migrate/Alembic) with initial baseline and FK cascade migration; auto-detects and upgrades pre-existing databases on startup (v0.12.2)
+- [x] Add cascade delete on SearchResult foreign keys, Message FK cascade, SQLite FK enforcement pragma, and ORM relationship for Conversation → SearchResult (v0.12.2)
 
 ### Data Safety
 

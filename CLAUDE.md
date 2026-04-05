@@ -10,7 +10,7 @@ Available as a downloadable desktop app (via Tauri — the primary distribution 
 
 ## Tech Stack
 
-- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, SQLite, LiteLLM, DSPy
+- **Backend:** Python 3.12+, Flask, Flask-SQLAlchemy, Flask-Migrate (Alembic), SQLite, LiteLLM, DSPy
 - **LLM providers:** Anthropic, OpenAI, Google Gemini, Ollama (configurable via Settings UI or env vars) — unified via LiteLLM `completion()` API
 - **Agent tools:** Tavily search API, cloudscraper + BeautifulSoup web scraping (with Tavily Extract fallback), RapidAPI job search (JSearch, Active Jobs DB, LinkedIn Job Search)
 - **Agent framework:** DSPy (declarative self-improving language programs) — used by the `micro_agents_v1` design for structured reasoning stages and ReAct workflows
@@ -97,18 +97,20 @@ lsof -ti:5000 | xargs kill -9 2>/dev/null
 - `build_sidecar.sh` — builds Flask backend as a PyInstaller binary for Tauri sidecar (Mac/Linux)
 - `build_sidecar.ps1` — builds Flask backend as a PyInstaller binary for Tauri sidecar (Windows)
 - `user_data/` — all user data files (auto-created, gitignored); contains `app.db`, `telemetry.db`, `config.json`, `user_profile.md`, `resumes/`, `logs/`
+- `migrations/` — Alembic migration scripts managed by Flask-Migrate; `versions/` contains ordered migration files. On startup, `_apply_migrations()` in `app.py` auto-applies pending migrations. To create a new migration: `FLASK_APP="backend.app:create_app" flask db migrate -m "description"`. To generate from current models: `flask db migrate --autogenerate`.
 
 ### Backend
 - `main.py` — entry point, runs Flask server (supports `--data-dir` and `--port` CLI args)
 - `backend/data_dir.py` — centralized data directory resolver (`get_data_dir()`); uses `DATA_DIR` env var or defaults to `user_data/`
-- `backend/app.py` — Flask app factory (`create_app`)
+- `backend/app.py` — Flask app factory (`create_app`); initializes Flask-Migrate and applies database migrations on startup via `_apply_migrations()` (handles fresh, pre-migration, and normal databases)
 - `backend/config.py` — app configuration (Flask-specific settings)
 - `backend/config_manager.py` — configuration file management (read/write `config.json`, env var fallback); uses atomic writes via `safe_write.atomic_write()`
 - `backend/safe_write.py` — atomic file-write utilities: `atomic_write()` context manager (writes to temp file, then `os.replace()`) and `atomic_write_bytes()` helper; used by config_manager, user_profile, resume_parser, and telemetry export
 - `backend/log_sanitizer.py` — `sanitize()` and `sanitize_error()` functions that strip API key patterns from strings before logging or returning to clients; used by all route error handlers
 - `backend/validation.py` — centralized input validation for HTTP API routes; shared constants (`VALID_STATUSES`, `VALID_REMOTE_TYPES`, `VALID_DOC_TYPES`, `VALID_TODO_CATEGORIES`), string length limits, and reusable `validate_job_data()`, `validate_document_data()`, `validate_todo_data()` functions; used by both route handlers and agent tools
-- `backend/database.py` — SQLAlchemy `db` instance
+- `backend/database.py` — SQLAlchemy `db` instance; includes `PRAGMA foreign_keys=ON` event listener for SQLite FK enforcement
 - `backend/models/job.py` — `Job` model (fields: `id`, `company`, `title`, `url`, `status`, `notes`, `salary_min`, `salary_max`, `location`, `remote_type`, `tags`, `contact_name`, `contact_email`, `applied_date`, `source`, `job_fit`, `created_at`, `updated_at`)
+- `backend/models/search_result.py` — `SearchResult` model for per-conversation job search results; FK cascades: `conversation_id` → `ON DELETE CASCADE`, `tracker_job_id` → `ON DELETE SET NULL`
 - `backend/routes/jobs.py` — CRUD blueprint (`jobs_bp` at `/api/jobs`)
 - `backend/routes/chat.py` — Chat blueprint (`chat_bp` at `/api/chat`) with SSE streaming
 - `backend/routes/config.py` — Configuration blueprint (`config_bp` at `/api/config`, `/api/health`)
@@ -377,6 +379,8 @@ Environment variables are checked first, then `config.json`. Useful for developm
 - Follow PEP 8 style conventions
 - Use Flask blueprints for new route groups; register them in `backend/app.py`
 - Add new models in `backend/models/` and import them in `backend/models/__init__.py`
+- **Schema changes require a migration** — After modifying models (adding/removing/renaming columns, changing FKs), generate a migration: `DATA_DIR=$(mktemp -d) FLASK_APP="backend.app:create_app" flask db migrate -m "description"`. The migration is auto-applied on next startup. Never modify existing migration files after they've been released.
+- All foreign keys should include explicit `ondelete` cascade rules (`CASCADE` for child records, `SET NULL` for optional references). SQLite FK enforcement is enabled via `PRAGMA foreign_keys=ON` on every connection.
 - Use SQLAlchemy model methods (e.g., `to_dict()`) to serialize responses — keep route handlers thin
 - Validate required fields in route handlers before creating/updating records
 
