@@ -103,11 +103,13 @@ def create_app(config_class=Config):
 def _apply_migrations(app):
     """Apply database migrations on startup.
 
-    Handles three scenarios:
+    Handles four scenarios:
     1. Fresh database (no tables) — run all migrations from scratch.
     2. Pre-migration database (tables exist, no alembic_version tracking) —
        stamp at the initial baseline, then upgrade to apply newer migrations.
     3. Normal database (alembic_version exists and populated) — just upgrade().
+    4. Corrupted database (alembic_version exists but app tables missing) —
+       reset version stamp, then run all migrations from scratch.
 
     Falls back to db.create_all() if the migrations directory doesn't exist
     (development convenience).
@@ -130,7 +132,13 @@ def _apply_migrations(app):
         row = db.session.execute(db.text("SELECT version_num FROM alembic_version")).first()
         has_version = row is not None
 
-    if has_app_tables and not has_version:
+    if has_version and not has_app_tables:
+        # Corrupted state: version stamp exists but app tables are missing.
+        # Reset alembic_version so upgrade() re-runs all migrations from scratch.
+        _logger.warning("Database has version stamp but no app tables — resetting migrations")
+        db.session.execute(db.text("DELETE FROM alembic_version"))
+        db.session.commit()
+    elif has_app_tables and not has_version:
         # Pre-migration database: tables exist but no migration tracking.
         # Stamp at the initial baseline so only newer migrations run.
         _logger.info("Pre-migration database detected — stamping baseline")

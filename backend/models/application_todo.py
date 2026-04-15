@@ -5,7 +5,7 @@ class ApplicationTodo(db.Model):
     __tablename__ = "application_todos"
 
     id = db.Column(db.Integer, primary_key=True)
-    job_id = db.Column(db.Integer, db.ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
+    job_id = db.Column(db.Integer, db.ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
 
     category = db.Column(db.String(50), default="other")  # document, question, assessment, reference, other
     title = db.Column(db.String(500), nullable=False)

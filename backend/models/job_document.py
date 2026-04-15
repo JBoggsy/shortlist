@@ -11,6 +11,7 @@ class JobDocument(db.Model):
         db.Integer,
         db.ForeignKey("jobs.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     doc_type = db.Column(db.String(50), nullable=False)  # "cover_letter", "resume"
     content = db.Column(db.Text, nullable=False)

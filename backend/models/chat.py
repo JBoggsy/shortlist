@@ -29,11 +29,11 @@ class Message(db.Model):
     __tablename__ = "messages"
 
     id = db.Column(db.Integer, primary_key=True)
-    conversation_id = db.Column(db.Integer, db.ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
+    conversation_id = db.Column(db.Integer, db.ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
     role = db.Column(db.String(20), nullable=False)  # "user" or "assistant"
     content = db.Column(db.Text, default="")
     tool_calls = db.Column(db.Text)  # JSON string of tool call data
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), index=True)
 
     def to_dict(self):
         return {

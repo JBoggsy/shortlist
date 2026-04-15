@@ -8,7 +8,7 @@ class Job(db.Model):
     company = db.Column(db.String(200), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     url = db.Column(db.String(500))
-    status = db.Column(db.String(50), default="saved")
+    status = db.Column(db.String(50), default="saved", index=True)
     notes = db.Column(db.Text)
     salary_min = db.Column(db.Integer)
     salary_max = db.Column(db.Integer)
@@ -22,7 +22,7 @@ class Job(db.Model):
     job_fit = db.Column(db.Integer)
     requirements = db.Column(db.Text)
     nice_to_haves = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    created_at = db.Column(db.DateTime, server_default=db.func.now(), index=True)
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
     def to_dict(self):

@@ -448,3 +448,47 @@ class TestMigrationSystem:
         assert "ON DELETE CASCADE" in sr_sql
         assert "ON DELETE SET NULL" in sr_sql
         conn.close()
+
+    def test_corrupted_db_with_version_but_no_tables(self, tmp_path):
+        """A DB with alembic_version but no app tables recovers by resetting migrations."""
+        db_path = tmp_path / "app.db"
+
+        # Create a corrupted database: only alembic_version with a stamp
+        conn = sqlite3.connect(str(db_path))
+        conn.executescript("""
+            CREATE TABLE alembic_version (
+                version_num VARCHAR(32) NOT NULL,
+                CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+            );
+            INSERT INTO alembic_version (version_num)
+                VALUES ('a1b2c3d4e5f6');
+        """)
+        conn.commit()
+        conn.close()
+
+        uri = f"sqlite:///{db_path}"
+
+        class CorruptedConfig(TestConfig):
+            SQLALCHEMY_DATABASE_URI = uri
+
+        with patch("backend.config.get_data_dir", return_value=tmp_path), \
+             patch("backend.app.get_data_dir", return_value=tmp_path), \
+             patch("backend.app._init_telemetry"):
+            app = create_app(config_class=CorruptedConfig)
+
+        # Verify all app tables were recreated
+        with app.app_context():
+            inspector = _db.inspect(_db.engine)
+            tables = set(inspector.get_table_names())
+            assert "jobs" in tables
+            assert "conversations" in tables
+            assert "messages" in tables
+            assert "search_results" in tables
+            assert "application_todos" in tables
+            assert "job_documents" in tables
+
+            # Verify the database is functional
+            job = Job(company="Test Corp", title="Engineer")
+            _db.session.add(job)
+            _db.session.commit()
+            assert Job.query.count() == 1
