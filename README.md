@@ -2,9 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> A desktop application and web app to track and manage job applications with an AI-powered assistant
+> A desktop app and web app to track and manage job applications with an AI-powered assistant
 
-Shortlist helps you organize your job search. Track applications through the hiring pipeline, store job details, and leverage an AI assistant that can search the web, scrape job postings, and automatically add jobs to your tracker—all through a simple chat interface. Available as a downloadable desktop app or as a web app you can run from source.
+Shortlist helps you organize your job search. Track applications through the hiring pipeline, store job details, and leverage an AI assistant that can search the web, scrape job postings, and automatically add jobs to your tracker — all through a simple chat interface. Available as a downloadable desktop app or as a web app you can run from source.
 
 ## Features
 
@@ -14,15 +14,15 @@ Shortlist helps you organize your job search. Track applications through the hir
 - **Web Search Integration**: Built-in web search (via Tavily) for finding job postings and company information
 - **Job Board Integration**: Search JSearch, Active Jobs DB, and LinkedIn job boards directly from the chat
 - **User Profile System**: Personalized onboarding interview to understand your job preferences and goals
-- **Resume Upload**: Upload your resume (PDF or DOCX) so the AI assistant can reference it for job fit evaluation and recommendations. An AI agent automatically cleans up PDF extraction artifacts and structures your resume into a rich, browsable format.
+- **Resume Upload**: Upload your resume (PDF or DOCX) so the AI assistant can reference it for job fit evaluation and recommendations. An AI agent automatically cleans up extraction artifacts and structures your resume into a rich, browsable format.
 - **Document Editor**: Write and version cover letters and tailored resumes per job with a rich text editor, AI assistance, and full version history.
 - **Application Todos**: Track per-job application steps (documents, questions, assessments, references) with completion checkboxes.
 - **Rich Job Details**: Track salary ranges, location, remote type, requirements, contact info, and more
 - **Job Fit Ratings**: Rate how well each job matches your profile (0-5 stars)
 - **Guided Setup Wizard**: First-time setup walks you through choosing a provider and entering your API key, with inline step-by-step instructions for each key
 - **Agent Modes**: Switch between freeform (single ReAct agent) and orchestrated (multi-agent pipeline with workflows) modes
-- **Telemetry & Optimization**: Passive trace collection for DSPy optimization—captures agent traces, tool calls, LLM metrics, and user feedback. Stored locally, exportable, fully configurable.
-- **Desktop App**: Download and install—no programming tools required. Also runs as a web app from source.
+- **Telemetry & Optimization**: Passive trace collection for DSPy optimization — captures agent traces, tool calls, LLM metrics, and user feedback. Stored locally, exportable, fully configurable.
+- **Desktop App**: Download and install — no programming tools required. Also runs as a web app from source.
 
 ## Download
 
@@ -30,9 +30,9 @@ Download the latest desktop app:
 
 | Platform | Download | Alternative |
 |----------|----------|-------------|
-| **Windows** | [Shortlist_0.12.0_x64-setup.exe](https://github.com/JBoggsy/shortlist/releases/download/v0.12.0/Shortlist_0.12.0_x64-setup.exe) | [.msi installer](https://github.com/JBoggsy/shortlist/releases/download/v0.12.0/Shortlist_0.12.0_x64_en-US.msi) |
-| **macOS (Apple Silicon)** | [Shortlist_0.12.0_aarch64.dmg](https://github.com/JBoggsy/shortlist/releases/download/v0.12.0/Shortlist_0.12.0_aarch64.dmg) | |
-| **Linux** | [Shortlist_0.12.0_amd64.deb](https://github.com/JBoggsy/shortlist/releases/download/v0.12.0/Shortlist_0.12.0_amd64.deb) | [.AppImage](https://github.com/JBoggsy/shortlist/releases/download/v0.12.0/Shortlist_0.12.0_amd64.AppImage) \| [.rpm](https://github.com/JBoggsy/shortlist/releases/download/v0.12.0/Shortlist-0.12.0-1.x86_64.rpm) |
+| **Windows** | [Shortlist_0.12.1_x64-setup.exe](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_x64-setup.exe) | [.msi installer](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_x64_en-US.msi) |
+| **macOS (Apple Silicon)** | [Shortlist_0.12.1_aarch64.dmg](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_aarch64.dmg) | |
+| **Linux** | [Shortlist_0.12.1_amd64.deb](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_amd64.deb) | [.AppImage](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_amd64.AppImage) \| [.rpm](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist-0.12.1-1.x86_64.rpm) |
 
 > See [all releases](https://github.com/JBoggsy/shortlist/releases) for older versions.
 

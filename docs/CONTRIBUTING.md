@@ -31,7 +31,7 @@ There are several ways to contribute:
 
 Before submitting a bug report:
 
-1. **Check existing issues**: Search [GitHub Issues](../../issues) to see if it's already reported
+1. **Check existing issues**: Search [GitHub Issues](https://github.com/JBoggsy/shortlist/issues) to see if it's already reported
 2. **Use the latest version**: Make sure you're running the latest code
 3. **Reproduce the bug**: Verify the bug is consistent and reproducible
 
@@ -130,12 +130,12 @@ npm run dev                    # Start frontend (port 3000)
 ### Running Tests
 
 ```bash
-# Backend tests (when available)
+# Backend tests
 uv run pytest
 
-# Frontend tests (when available)
+# Frontend E2E tests (requires Playwright)
 cd frontend
-npm run test
+npx playwright test
 ```
 
 ## Pull Request Process
@@ -179,7 +179,7 @@ git commit -m "feat: add CSV export for jobs"
 git push origin feature/your-feature-name
 ```
 
-6. **Open a pull request**:
+6. **Open a pull request** on the [Shortlist repository](https://github.com/JBoggsy/shortlist/pulls):
    - Use the [Pull Request template](../.github/PULL_REQUEST_TEMPLATE.md)
    - Provide a clear description of what changed and why
    - Link related issues (e.g., "Closes #42")

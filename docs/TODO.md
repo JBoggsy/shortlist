@@ -39,19 +39,29 @@
 
 - [x] Atomic config file writes, sanitize API keys from log messages (v0.12.3)
 
+## Must-Fix Before Beta (Round 2)
+
+- [x] Database migration recovery from corrupted state — detect version-stamp-with-no-tables and reset before running migrations (v0.12.4)
+- [x] **README download links updated to v0.12.1** (v0.12.1)
+- [x] **React Error Boundary** — wraps `<Routes>` for graceful fallback on rendering errors (v0.12.4)
+- [x] **Setup wizard Ollama model auto-selection** — was picking first model alphabetically (no tool support); now uses ranked `default_model` from providers endpoint (v0.12.4)
+- [x] **Ollama preferred model list** — added `qwen3.5`, reordered to avoid vision model false matches (v0.12.4)
+- [x] **Playwright E2E test suite fully operational** — all 43 tests pass (39 passed, 4 skipped for missing Anthropic key); fixed timeouts, model auto-detection, onboarding resets, and assertion leniency (v0.12.4)
+
 ## Bugs
 
 - [ ] **Outcome Planner over-decomposition** — for requests like "tailor my resume for X job", the OutcomePlanner produces redundant outcomes (e.g. "identify job" + "tailor resume") even though `specialize_resume` already resolves the job internally via `load_job_context()`. Causes unnecessary job search API calls, ~5 min wasted, and a confusing "Jobs Found" panel. Fix: strengthen `PlanOutcomesSig` prompt to avoid decomposition when the target workflow handles resolution internally, or teach the WorkflowMapper to recognize and skip redundant outcomes.
-- [ ] **Skills section wall of text in tailored resumes** — the specialize_resume pipeline produces a Skills section as a single unformatted paragraph instead of using structured markdown with bold category labels and proper grouping (e.g. `**Languages:** Python, C++`)
+- [x] Skills section wall of text in tailored resumes (v0.12.5)
+- [x] Stale `handleKeyDown` in DocumentEditorPage (v0.12.5)
 
 ## Features
 
-- [x] **Job application preparation (phase 2)** — Document editor with Tiptap, agent co-editing via SSE, version history
+- [x] Job application preparation (phase 2) — document editor with Tiptap, agent co-editing, version history (v0.11.1)
 - [ ] **Interview prep** — agent-assisted interview preparation workflows
 
 ## Post-Beta Improvements
 
-- [ ] **Database indexes** — No indexes on `status`, `conversation_id`, `created_at` columns. Fine for beta volumes (hundreds of jobs), will become a problem at scale.
+- [x] Database indexes on frequently queried columns (v0.12.5)
 - [ ] **Search results pagination** — No pagination on search results panel or job list. Fine for beta, needed if users accumulate hundreds of results.
 - [ ] **Rate limiting** — No rate limiting on any endpoint. Acceptable for a desktop/local app, needed before any hosted deployment.
 

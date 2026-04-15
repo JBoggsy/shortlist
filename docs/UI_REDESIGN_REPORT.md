@@ -1,5 +1,7 @@
 # UI Redesign Report — Page-Based Architecture with Document Editor
 
+> **Note:** This report was written before the UI redesign was implemented. The proposed page-based architecture with React Router was fully implemented in v0.11.1, including all pages described here (HomePage, JobTrackerPage, JobDetailPage, DocumentEditorPage, SettingsPage, ProfilePage, HelpPage) with NavigationBar, AppContext, and ChatPanel as the sole overlay. This report is retained for historical context on the design decisions.
+
 ## Executive Summary
 
 The current Shortlist UI is a single-page application with one visible page (the job list) and five slide-out panels (Chat, Profile, Settings, Help, SearchResults). All state is managed in `App.jsx` via boolean flags (`chatOpen`, `profileOpen`, `settingsOpen`, `helpOpen`). There is no client-side router — no `react-router-dom` dependency exists.

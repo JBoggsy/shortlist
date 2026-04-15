@@ -1,5 +1,7 @@
 # Resume & Cover Letter UI Rework — Analysis Report
 
+> **Note:** This report was written before the document editor was implemented. The recommended approach (Solution B / Solution C) has since been fully implemented in v0.11.1: a `DocumentEditorPage` with Tiptap rich text editor, version history, real-time agent sync via SSE `document_saved` events, and full API integration. This report is retained for historical context on the design decisions.
+
 ## Executive Summary
 
 The backend has a complete document management system (versioned `JobDocument` model, API endpoints, agent tools) and three agent workflows that produce job-specific cover letters and resumes. However, the frontend has **zero integration** with job documents. Documents are created by the agent, saved to the database, and then become effectively invisible to the user. This report details the current state, identifies the UI gaps mapped to each problem raised, proposes solutions, and outlines the hurdles for each.

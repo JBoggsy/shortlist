@@ -15,7 +15,17 @@
     "model": ""
   },
   "agent": {
-    "design": "default"
+    "design": "default",
+    "freeform_llm": {
+      "provider": "",
+      "api_key": "",
+      "model": ""
+    },
+    "orchestrated_llm": {
+      "provider": "",
+      "api_key": "",
+      "model": ""
+    }
   },
   "integrations": {
     "search_api_key": "",

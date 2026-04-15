@@ -1,6 +1,6 @@
 # Installation Guide
 
-Welcome! This guide will help you install and run the Shortlist on your computer. Don't worry if you're not familiar with programming—we'll walk through everything step by step.
+Welcome! This guide will help you install and run Shortlist on your computer. Don't worry if you're not familiar with programming — we'll walk through everything step by step.
 
 ## What You'll Need
 
@@ -75,7 +75,7 @@ chmod +x shortlist_*.AppImage
 
 ## Getting Your API Keys
 
-The Shortlist uses AI to help you find and track jobs. To use AI, you need an API key from at least one provider.
+The Shortlist app uses AI to help you find and track jobs. To use the AI features, you need an API key from at least one provider.
 
 ### Choose an AI Provider
 
@@ -272,7 +272,7 @@ If you prefer to run the application from source code (for development or custom
 
 ### Prerequisites
 
-You need to install three programs before you can run the Shortlist.
+You need to install three programs before you can run Shortlist from source.
 
 #### Install Python (3.12 or newer)
 

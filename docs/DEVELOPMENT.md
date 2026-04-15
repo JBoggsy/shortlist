@@ -2,6 +2,8 @@
 
 This document provides comprehensive technical documentation for developers and contributors working on the Shortlist project.
 
+For a quick overview of the project and end-user documentation, see the [README](../README.md). For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
@@ -34,7 +36,7 @@ The Shortlist is built as a full-stack web application with a clear separation b
 - **Python 3.12+**: Core language
 - **Flask**: Web framework with blueprints for route organization
 - **Flask-SQLAlchemy**: ORM for database interactions
-- **SQLite**: Development database (easily swappable for PostgreSQL/MySQL in production)
+- **SQLite**: Lightweight embedded database (suitable for desktop/local use)
 - **LiteLLM**: Unified LLM interface — single `litellm.completion()` call works across all providers (Anthropic, OpenAI, Gemini, Ollama, and 100+ more)
 - **uv**: Fast Python package manager
 
@@ -157,8 +159,14 @@ shortlist/
 │   └── src/
 │       ├── main.rs                # Rust entry point
 │       └── lib.rs                 # Sidecar launch logic
-├── logs/
-│   └── app.log                    # Application logs (auto-created, gitignored)
+├── user_data/                     # All runtime data (auto-created, gitignored)
+│   ├── app.db                     # SQLite database
+│   ├── telemetry.db               # Telemetry database for DSPy optimization
+│   ├── config.json                # User configuration
+│   ├── user_profile.md            # User profile file
+│   ├── resumes/                   # Uploaded resume files
+│   └── logs/
+│       └── app.log                # Application logs (auto-rotated)
 ├── start.sh                       # Unified startup script (Mac/Linux)
 ├── start.bat                      # Unified startup script (Windows)
 ├── build_sidecar.sh               # PyInstaller build script for Tauri sidecar (Mac/Linux)
@@ -181,10 +189,6 @@ shortlist/
 │   └── screenshots/               # App screenshots for README
 ├── main.py                        # Backend entry point (supports --data-dir and --port)
 ├── pyproject.toml                 # Python dependencies (uv)
-├── config.json                    # User configuration (gitignored)
-├── app.db                         # SQLite database (gitignored)
-├── telemetry.db                   # Telemetry database for DSPy optimization (gitignored)
-├── user_profile.md                # User profile file (gitignored)
 └── CLAUDE.md                      # Claude Code instructions
 ```
 
@@ -335,7 +339,7 @@ Configuration is managed through `config.json` (auto-created on first run). You 
 - **Edit config.json manually**: Copy `docs/config.example.json` to `config.json` and edit
 - **Use environment variables** (overrides config.json): Export in your shell
 
-**Example config.json** (see [`docs/config.example.json`](config.example.json) for the full template):
+**Example config.json** (see [`docs/config.example.json`](config.example.json) for the full template with all fields):
 ```json
 {
   "llm": {
@@ -374,7 +378,7 @@ Configuration is managed through `config.json` (auto-created on first run). You 
 ```bash
 export LLM_PROVIDER=anthropic
 export LLM_API_KEY=your-api-key-here
-export INTEGRATIONS_SEARCH_API_KEY=your-tavily-key
+export SEARCH_API_KEY=your-tavily-key
 export LOG_LEVEL=DEBUG
 ```
 
@@ -1100,8 +1104,6 @@ For the full architecture and DSPy optimization roadmap, see [TELEMETRY_DESIGN.m
 
 ## Testing
 
-> **Note**: Testing infrastructure is currently minimal. This section outlines the planned approach.
-
 ### Backend Testing
 
 Use `pytest` for backend tests:
@@ -1110,30 +1112,36 @@ Use `pytest` for backend tests:
 uv run pytest
 ```
 
-**Test structure:**
-- Unit tests in `tests/unit/`
-- Integration tests in `tests/integration/`
-- Fixtures in `tests/conftest.py`
+**Test suites** (in `tests/`):
+- `test_database_integrity.py` — FK enforcement, cascade deletes, ORM relationships, migration scenarios (17 tests)
+- `test_data_safety.py` — Atomic writes, log sanitization, config/profile safety, API response leakage prevention (33 tests)
+- `test_error_handling.py` — Global error handlers, profile route failures, chat streaming errors, job validation (20 tests)
+- `test_input_validation.py` — Job, document, and todo field validation edge cases (75 tests)
 
-**Key test areas:**
-- Model CRUD operations
-- API endpoint behavior
-- Agent tool execution
-- LLM provider mocking
+### Frontend E2E Testing
 
-### Frontend Testing
-
-Use Vitest for frontend tests:
+End-to-end tests use [Playwright](https://playwright.dev/):
 
 ```bash
 cd frontend
-npm run test
+npx playwright test
 ```
 
-**Test structure:**
-- Component tests using React Testing Library
-- API client mocking
-- SSE stream handling
+**Test specs** (in `frontend/tests/e2e/`):
+- `01-first-launch.spec.js` — Initial app load and setup wizard trigger
+- `02-setup-wizard.spec.js` — Setup wizard flow (provider selection, API key, integrations)
+- `03-onboarding.spec.js` — Onboarding interview flow
+- `04-profile.spec.js` — Profile viewing and editing
+- `05-job-crud.spec.js` — Job creation, editing, and deletion
+- `06-chat-search.spec.js` — Chat-based job search
+- `07-chat-jobs.spec.js` — Chat-based job management
+- `08-document-editor.spec.js` — Document editor functionality
+- `09-provider-switch.spec.js` — Switching LLM providers
+- `10-agent-mode.spec.js` — Switching agent modes
+- `11-navigation.spec.js` — Page navigation and routing
+- `12-error-handling.spec.js` — Error boundary and error display
+
+**Note:** Some tests require a running Ollama instance or Anthropic API key. Tests that depend on unavailable providers are automatically skipped.
 
 ## Deployment
 
@@ -1219,7 +1227,7 @@ ONBOARDING_LLM_PROVIDER=anthropic
 ONBOARDING_LLM_MODEL=claude-haiku-4-5-20251001
 
 # Optional Integrations
-INTEGRATIONS_SEARCH_API_KEY=your-tavily-key
+SEARCH_API_KEY=your-tavily-key
 INTEGRATIONS_RAPIDAPI_KEY=your-rapidapi-key
 
 # Agent Design (optional)

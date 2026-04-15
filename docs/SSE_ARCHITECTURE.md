@@ -182,7 +182,7 @@ Tool segments render as compact inline status lines:
 
 ### `JOB_MUTATING_TOOLS`
 
-When a `tool_result` fires for a tool in this set (`create_job`, `edit_job`, `remove_job`, `add_job_todo`, `edit_job_todo`, `remove_job_todo`), the job list auto-refreshes. **If you add a new tool that modifies jobs, add its name to this set in ChatPanel.jsx.**
+When a `tool_result` fires for a tool in this set (`create_job`, `edit_job`, `remove_job`, `add_job_todo`, `edit_job_todo`, `remove_job_todo`, `save_job_document`), the job list auto-refreshes. **If you add a new tool that modifies jobs, add its name to this set in ChatPanel.jsx.**
 
 ---
 
