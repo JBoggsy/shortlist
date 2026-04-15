@@ -70,6 +70,7 @@ test.describe("Scenario 12: Error Handling", () => {
   });
 
   test("12D — absurd search handled gracefully", async ({ app, page }) => {
+    test.setTimeout(180_000); // Ollama models can be slow to respond
     // This test requires a configured LLM to get an agent response
     const health = await (await fetch("http://localhost:5000/api/health")).json();
     test.skip(

@@ -9,6 +9,9 @@
 import { test, expect, TEST_CONFIG } from "./fixtures.js";
 
 test.describe("Scenario 2: Setup Wizard — Ollama", () => {
+  // Cold-starting a large Ollama model can take 90s+, plus wizard steps and onboarding greeting
+  test.setTimeout(300_000);
+
   test("complete setup wizard with Ollama provider", async ({ app, page }) => {
     await app.goto("/", { dismissWizard: false });
 
@@ -26,39 +29,39 @@ test.describe("Scenario 2: Setup Wizard — Ollama", () => {
     await app.wizardNext();
 
     // Step 3 — API Key / Connection (Ollama needs no key)
-    // The default auto-detected model may be gemma3:12b which doesn't support tools.
-    // We need to override to "mistral" which does support tool calling.
+    // The auto-detected model (qwen3.5:35b or gemma3:27b) supports tool calling.
+    // No manual override needed — just test the connection with the default.
     await expect(
       page.getByRole("button", { name: /test connection/i })
     ).toBeVisible({ timeout: 5000 });
 
-    // Expand "Advanced: model override"
-    const advancedToggle = page.getByText(/advanced.*model/i).first();
-    await advancedToggle.click();
-    await page.waitForTimeout(300);
-
-    // Type "mistral" in the model input
-    const modelInput = page.locator('input[placeholder="Leave blank for default model"]');
-    await modelInput.fill("mistral");
-    await page.waitForTimeout(500);
-
-    // Select "mistral:latest" from the dropdown to close it (or click elsewhere)
-    const mistralOption = page.locator('li').filter({ hasText: 'mistral' }).first();
-    if (await mistralOption.isVisible().catch(() => false)) {
-      await mistralOption.click();
+    // If a specific test model is set via env var, override it
+    if (TEST_CONFIG.ollamaModel) {
+      const advancedToggle = page.getByText(/advanced.*model/i).first();
+      await advancedToggle.click();
       await page.waitForTimeout(300);
-    } else {
-      // Close dropdown by clicking the title area
-      await page.locator('h2').first().click();
-      await page.waitForTimeout(300);
+
+      const modelInput = page.locator('input').filter({ hasText: '' }).locator('visible=true').last();
+      await modelInput.fill(TEST_CONFIG.ollamaModel);
+      await page.waitForTimeout(500);
+
+      // Select from dropdown if visible, otherwise click elsewhere to close
+      const modelOption = page.locator('li').filter({ hasText: TEST_CONFIG.ollamaModel }).first();
+      if (await modelOption.isVisible().catch(() => false)) {
+        await modelOption.click();
+        await page.waitForTimeout(300);
+      } else {
+        await page.locator('h2').first().click();
+        await page.waitForTimeout(300);
+      }
     }
 
-    // Test connection (use force in case dropdown still intercepts)
+    // Test connection
     await page.getByRole("button", { name: /test connection/i }).click({ force: true });
-    // Wait for success
+    // Wait for success (Ollama models may need 90s+ for cold start)
     await expect(
       page.locator("text=/Connected|Success|✓/i").first()
-    ).toBeVisible({ timeout: 60_000 });
+    ).toBeVisible({ timeout: 120_000 });
 
     await app.wizardNext();
 

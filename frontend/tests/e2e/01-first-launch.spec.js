@@ -23,6 +23,10 @@ test.describe("Scenario 1: First Launch & Health Check", () => {
         await request.delete(`${TEST_CONFIG.backendUrl}/api/chat/conversations/${c.id}`);
       }
     }
+    // Reset onboarding status so the setup wizard can auto-open
+    await request.post(`${TEST_CONFIG.backendUrl}/api/profile/onboarding-status`, {
+      data: { onboarded: false },
+    });
   });
   test("health endpoint returns 503 when LLM not configured", async ({
     app,
