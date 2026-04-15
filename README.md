@@ -30,9 +30,9 @@ Download the latest desktop app:
 
 | Platform | Download | Alternative |
 |----------|----------|-------------|
-| **Windows** | [Shortlist_0.12.1_x64-setup.exe](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_x64-setup.exe) | [.msi installer](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_x64_en-US.msi) |
-| **macOS (Apple Silicon)** | [Shortlist_0.12.1_aarch64.dmg](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_aarch64.dmg) | |
-| **Linux** | [Shortlist_0.12.1_amd64.deb](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_amd64.deb) | [.AppImage](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist_0.12.1_amd64.AppImage) \| [.rpm](https://github.com/JBoggsy/shortlist/releases/download/v0.12.1/Shortlist-0.12.1-1.x86_64.rpm) |
+| **Windows** | [Shortlist_1.0.0_x64-setup.exe](https://github.com/JBoggsy/shortlist/releases/download/v1.0.0/Shortlist_1.0.0_x64-setup.exe) | [.msi installer](https://github.com/JBoggsy/shortlist/releases/download/v1.0.0/Shortlist_1.0.0_x64_en-US.msi) |
+| **macOS (Apple Silicon)** | [Shortlist_1.0.0_aarch64.dmg](https://github.com/JBoggsy/shortlist/releases/download/v1.0.0/Shortlist_1.0.0_aarch64.dmg) | |
+| **Linux** | [Shortlist_1.0.0_amd64.deb](https://github.com/JBoggsy/shortlist/releases/download/v1.0.0/Shortlist_1.0.0_amd64.deb) | [.AppImage](https://github.com/JBoggsy/shortlist/releases/download/v1.0.0/Shortlist_1.0.0_amd64.AppImage) \| [.rpm](https://github.com/JBoggsy/shortlist/releases/download/v1.0.0/Shortlist-1.0.0-1.x86_64.rpm) |
 
 > See [all releases](https://github.com/JBoggsy/shortlist/releases) for older versions.
 

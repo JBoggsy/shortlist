@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-14
+
 ### Added
 - **Database indexes on frequently queried columns** — Added indexes on `Job.status`, `Job.created_at`, `Message.conversation_id`, `Message.created_at`, `SearchResult.conversation_id`, `SearchResult.created_at`, `ApplicationTodo.job_id`, and `JobDocument.job_id`. Includes Alembic migration for automatic upgrade.
 - **Database migration system (Flask-Migrate/Alembic)** — Replaced bare `db.create_all()` with Alembic-managed migrations. Existing user databases are automatically detected, stamped at the baseline revision, and upgraded on startup. New databases are created via the full migration chain. Future schema changes can be applied safely without data loss.
